@@ -1,7 +1,81 @@
 import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { defineConfig, mergeConfig, type Plugin } from 'vite';
+import { aliases as swcUxpAliases } from '@swc-uxp-wrappers/utils';
 import { appViteBaseConfig } from './vite.base.config';
+
+const UXP_SWC_ALIAS_KEYS = [
+  '@spectrum-web-components/action-button',
+  '@spectrum-web-components/button',
+  '@spectrum-web-components/textfield',
+] as const;
+
+const uxpSwcAliases = UXP_SWC_ALIAS_KEYS.flatMap((find) => {
+  const replacement = swcUxpAliases[find];
+  return replacement ? [{ find, replacement }] : [];
+});
+
+const UXP_SWC_FOCUS_VISIBLE_SEGMENT = '@spectrum-web-components/shared/src/focus-visible';
+const UXP_SWC_FOCUS_VISIBLE_COMPAT_SOURCE = `import "focus-visible";
+
+let hasFocusVisible = true;
+try {
+  document.body.querySelector(":focus-visible");
+} catch {
+  hasFocusVisible = false;
+}
+
+export const FocusVisiblePolyfillMixin = (SuperClass) => {
+  const coordinateWithPolyfill = (instance) => {
+    if (instance.shadowRoot == null || instance.hasAttribute("data-js-focus-visible")) return () => {};
+    if (self.applyFocusVisiblePolyfill) {
+      self.applyFocusVisiblePolyfill(instance.shadowRoot);
+      instance.manageAutoFocus?.();
+      return () => {};
+    }
+    const coordinationHandler = () => {
+      if (self.applyFocusVisiblePolyfill && instance.shadowRoot) self.applyFocusVisiblePolyfill(instance.shadowRoot);
+      instance.manageAutoFocus?.();
+    };
+    self.addEventListener("focus-visible-polyfill-ready", coordinationHandler, { once: true });
+    return () => self.removeEventListener("focus-visible-polyfill-ready", coordinationHandler);
+  };
+  const endPolyfillCoordination = Symbol("endPolyfillCoordination");
+  return class FocusVisibleCoordinator extends SuperClass {
+    connectedCallback() {
+      super.connectedCallback?.();
+      if (!hasFocusVisible) requestAnimationFrame(() => {
+        if (this[endPolyfillCoordination] == null) this[endPolyfillCoordination] = coordinateWithPolyfill(this);
+      });
+    }
+    disconnectedCallback() {
+      super.disconnectedCallback?.();
+      if (!hasFocusVisible) requestAnimationFrame(() => {
+        if (this[endPolyfillCoordination] != null) {
+          this[endPolyfillCoordination]();
+          this[endPolyfillCoordination] = null;
+        }
+      });
+    }
+  };
+};`;
+
+function uxpSwcFocusVisibleCompatPlugin(): Plugin {
+  return {
+    name: 'imagen-ps-uxp-focus-visible-compat',
+    enforce: 'pre',
+    transform(code, id) {
+      const normalizedId = id.replaceAll('\\', '/');
+      if (
+        normalizedId.includes(UXP_SWC_FOCUS_VISIBLE_SEGMENT) ||
+        (normalizedId.includes('/node_modules/') && code.includes('import("focus-visible")') && code.includes('focus-visible-polyfill-ready'))
+      ) {
+        return { code: UXP_SWC_FOCUS_VISIBLE_COMPAT_SOURCE, map: null };
+      }
+      return null;
+    },
+  };
+}
 
 /**
  * UXP host 以 classic script 加载主 bundle，`import.meta` 是语法错误。即便
@@ -349,7 +423,10 @@ export function uxpClassicHtmlBootstrapPlugin(): Plugin {
 
 export default defineConfig(
   mergeConfig(appViteBaseConfig, {
-    plugins: [uxpOutputCleanPlugin(), uxpImportMetaCompatPlugin(), uxpClassicHtmlBootstrapPlugin()],
+    resolve: {
+      alias: uxpSwcAliases,
+    },
+    plugins: [uxpOutputCleanPlugin(), uxpSwcFocusVisibleCompatPlugin(), uxpImportMetaCompatPlugin(), uxpClassicHtmlBootstrapPlugin()],
     build: {
       outDir: 'dist',
       emptyOutDir: false,

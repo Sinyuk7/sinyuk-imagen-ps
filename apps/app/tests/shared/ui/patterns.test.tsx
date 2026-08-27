@@ -3,6 +3,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as UiSystem from '../../../src/shared/ui/ui-system';
 import { FieldGroup, FooterActions, PageHeader, PageScroll, PageState, SegmentedTabs, SettingsFormSection, SettingsListRow, SettingsListSection } from '../../../src/shared/ui/ui-system';
+import { BASE_CSS } from '../../../src/shared/ui/styles/base';
 import { PATTERNS_CSS } from '../../../src/shared/ui/styles/patterns';
 
 let root: Root | undefined;
@@ -17,6 +18,11 @@ async function render(node: React.ReactNode) {
 }
 
 describe('page patterns', () => {
+  it('keeps the Spectrum theme at the panel size', () => {
+    expect(BASE_CSS).toContain('#root,\n.app-spectrum-theme{ width:100%; height:100%; }');
+    expect(BASE_CSS).toContain('.app-spectrum-theme{ display:block; }');
+  });
+
   it('exposes page-facing symbols without a barrel cycle', () => {
     expect(UiSystem.PageHeader).toBeTypeOf('function');
     expect(UiSystem.Button).toBeTypeOf('object');
@@ -28,7 +34,7 @@ describe('page patterns', () => {
     expect(container.querySelector('.ui-page-header-end')).not.toBeNull();
     expect(container.querySelector('.ui-page-header')).not.toBeNull();
     expect(container.querySelector('[data-icon-name="chevron-left"]')).not.toBeNull();
-    expect(container.querySelector('button[aria-label="Back"]')?.textContent).toBe('');
+    expect(container.querySelector('sp-action-button[aria-label="Back"]')?.textContent).toBe('');
     expect(container.querySelector('[data-primary-scroll="true"]')).not.toBeNull();
   });
 
@@ -62,10 +68,11 @@ describe('page patterns', () => {
     const container = await render(<><PageHeader title="Provider" backLabel="Back" onBack={() => undefined} /><FieldGroup label="Endpoint" help="Required">Control</FieldGroup><PageState tone="negative" message="Failed" /><SettingsListRow title="Profile" leading={<span>P</span>} disabled onOpen={() => undefined} /></>);
     expect(container.querySelector('header h1')?.textContent).toBe('Provider');
     expect(container.querySelector('[data-testid]')).toBeNull();
-    expect(container.querySelector('button[aria-label="Back"]')).not.toBeNull();
+    expect(container.querySelector('sp-action-button[aria-label="Back"]')).not.toBeNull();
     expect(container.querySelector('.ui-field-group-label')?.textContent).toBe('Endpoint');
-    expect(container.querySelector('[role="button"]')?.getAttribute('tabindex')).toBe('-1');
-    expect(container.querySelector('[role="button"]')?.getAttribute('aria-disabled')).toBe('true');
-    expect(container.querySelector('[role="button"]')?.className).toContain('is-disabled');
+    const disabledRow = container.querySelector('[role="button"].settings-provider-row');
+    expect(disabledRow?.getAttribute('tabindex')).toBe('-1');
+    expect(disabledRow?.getAttribute('aria-disabled')).toBe('true');
+    expect(disabledRow?.className).toContain('is-disabled');
   });
 });

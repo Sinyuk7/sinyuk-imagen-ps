@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import {
+  ActionButton,
   Button,
   FieldGroup,
   FooterActions,
@@ -26,6 +27,7 @@ export function UiCatalogHarnessPage() {
   const locale = query.get('locale') === 'zh-CN' ? 'zh-CN' : 'en';
   const theme = query.get('theme') === 'light' || query.get('theme') === 'high-contrast' ? query.get('theme') : 'dark';
   const [tab, setTab] = useState('default');
+  const [actionSelected, setActionSelected] = useState(false);
   const [name, setName] = useState('Long deterministic fixture value');
   const [notes, setNotes] = useState('Stable native editor fixture');
   const [selectOpen, setSelectOpen] = useState(false);
@@ -33,6 +35,11 @@ export function UiCatalogHarnessPage() {
     <PageFrame watch="ui-catalog"><PageHeader title={locale === 'zh-CN' ? '界面目录' : 'UI Catalog'} right={<Button>{locale === 'zh-CN' ? '保存' : 'Save'}</Button>} />
       <PageScroll><div data-testid="ui-catalog-scroll">
         <SegmentedTabs tabs={[{ id: 'default', label: 'Default' }, { id: 'disabled', label: 'Disabled', disabled: true }, { id: 'long', label: 'Long localized content' }]} selectedId={tab} onSelect={setTab} />
+        <div data-visual-id="spectrum-action-states">
+          <ActionButton quiet label="Settings"><Icon name="settings" /></ActionButton>
+          <ActionButton quiet toggles selected={actionSelected} label="Toggle settings" onClick={() => setActionSelected((selected) => !selected)}><Icon name="settings" /></ActionButton>
+          <ActionButton quiet disabled label="Disabled settings"><Icon name="settings" /></ActionButton>
+        </div>
         <div data-visual-id="settings-list"><SettingsListSection title="List states">
           <SettingsListRow title="Default row" leading={<span>UI</span>} onOpen={() => setTab('default')} />
           <SettingsListRow title="Disabled row" leading={<span>UI</span>} disabled onOpen={() => undefined} />

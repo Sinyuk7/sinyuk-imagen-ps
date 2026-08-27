@@ -25,7 +25,7 @@ import { comfyUiExecutionNodeLabel } from '../comfyui-execution-error';
 import type { ImageAspectRatio, ImageOutputImageSize, ImageOutputSelection } from '@imagen-ps/application';
 import { configurationInstanceLabel, type UiModelInfo } from '../model-info';
 import type { GenerationWorkspaceController } from '../generation-workspace';
-import { Button, Divider, HelpText, Icon, IconButton, IconSelect, ImageFallbackContent, imageFallbackTitle, List, ListStateItem, MotionActivityDot, MotionActivityIcon, MotionButtonSurface, MotionContent, MotionDimSurface, MotionHighlight, MotionImage, MotionPresenceView, PageFrame, PageHeader, PageScroll, PageState, ProviderIdentity, ProviderMediaHeader, UxpTextArea, useToast } from '../ui-system';
+import { Button, Divider, HelpText, Icon, IconButton, IconSelect, ImageFallbackContent, imageFallbackTitle, List, ListStateItem, MotionActivityDot, MotionActivityIcon, MotionButtonSurface, MotionContent, MotionDimSurface, MotionHighlight, MotionImage, MotionPresenceView, PageFrame, PageHeader, PageScroll, PageState, ProviderIdentity, ProviderMediaHeader, UxpTextArea, type UxpTextAreaElement, useToast } from '../ui-system';
 
 function isImeCompositionKey(event: React.KeyboardEvent): boolean {
   const nativeEvent = event.nativeEvent as KeyboardEvent & { readonly isComposing?: boolean };
@@ -379,7 +379,7 @@ export function MainPage({
   const generationSettings = workspace.providerSettings.generation;
   const modelGenerationSettings = workspace.providerSettings.model;
   const convRef = useRef<HTMLDivElement>(null);
-  const taRef = useRef<HTMLTextAreaElement>(null);
+  const taRef = useRef<UxpTextAreaElement>(null);
   const layerPickerOpenStartedAtRef = useRef<number | null>(null);
   const promptFoldRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const promptTextRefs = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -1884,6 +1884,7 @@ export function MainPage({
                   <MotionButtonSurface>
                     <IconButton
                       data-testid="composer-send-button"
+                      variant="accent"
                       className="cmp-send"
                       hostClassName="cmp-send-host"
                       overlayClassName="cmp-send-overlay"

@@ -131,6 +131,7 @@ describe('popup-layer text input overlap contract', () => {
 
     const input = container.querySelector<HTMLElement>('[data-testid="popup-layer-test-input"]');
     const textArea = container.querySelector<HTMLElement>('[data-testid="popup-layer-test-textarea"]');
+    expect(textArea?.tagName).toBe('SP-TEXTAREA');
     expect(input?.getAttribute('data-native-editor-suspended')).toBeNull();
     expect(textArea?.getAttribute('data-native-editor-suspended')).toBeNull();
 

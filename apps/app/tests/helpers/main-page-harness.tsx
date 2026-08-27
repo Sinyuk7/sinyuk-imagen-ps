@@ -5,6 +5,7 @@ import { AppShell } from '../../src/shared/ui/app-shell';
 import { createFakeServices } from '../helpers/fakes';
 
 let root: Root | undefined;
+type TextAreaControl = HTMLElement & { value: string };
 
 export async function cleanupMainPageRoot(): Promise<void> {
   if (root) {
@@ -48,15 +49,14 @@ export async function renderMainPage(
   return services;
 }
 
-export function changeTextarea(textarea: HTMLTextAreaElement, value: string): void {
-  const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
-  setter?.call(textarea, value);
+export function changeTextarea(textarea: TextAreaControl, value: string): void {
+  textarea.value = value;
   textarea.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: 'x' }));
 }
 
 export async function sendPrompt(container: HTMLElement, prompt: string): Promise<void> {
   await act(async () => {
-    changeTextarea(container.querySelector<HTMLTextAreaElement>('[data-testid="composer-textarea"]')!, prompt);
+    changeTextarea(container.querySelector<TextAreaControl>('[data-testid="composer-textarea"]')!, prompt);
   });
   await act(async () => {
     container.querySelector<HTMLElement>('[data-testid="composer-send-button"]')!.click();

@@ -20,8 +20,6 @@
     "dev": "vite build --config vite.uxp.config.ts --watch",
     "dev:chrome": "node scripts/dev-chrome.mjs",
     "theme:generate": "node scripts/generate-theme-css.mjs",
-    "theme:generate:host": "node scripts/generate-theme-css.mjs --surface=host",
-    "theme:generate:md": "node scripts/generate-theme-css.mjs --surface=md",
     "theme:check": "node scripts/generate-theme-css.mjs --check",
     "test": "node ../../scripts/with-exclusive-lock.mjs --lock heavy-tasks --label app-test -- pnpm run test:inner",
     "test:inner": "pnpm run theme:check && vitest run",
@@ -37,13 +35,21 @@
   "dependencies": {
     "@imagen-ps/application": "workspace:*",
     "@imagen-ps/foundation": "workspace:*",
+    "@spectrum-web-components/action-button": "0.37.0",
+    "@spectrum-web-components/button": "0.37.0",
     "@spectrum-web-components/icons-workflow": "^0.37.0",
+    "@spectrum-web-components/textfield": "0.37.0",
+    "@spectrum-web-components/theme": "0.37.0",
+    "@swc-uxp-wrappers/action-button": "2.0.0",
+    "@swc-uxp-wrappers/button": "2.0.0",
+    "@swc-uxp-wrappers/textfield": "2.0.0",
+    "@swc-uxp-wrappers/utils": "2.0.0",
     "@tweenjs/tween.js": "^25.0.0",
     "fast-png": "^8.0.0",
     "jpeg-js": "^0.4.4",
-    "upng-js": "^2.1.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "upng-js": "^2.1.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.61.1",

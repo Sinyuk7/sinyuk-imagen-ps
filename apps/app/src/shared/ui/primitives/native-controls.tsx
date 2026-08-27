@@ -1,11 +1,20 @@
 import {
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
   forwardRef,
   type ButtonHTMLAttributes,
   type HTMLAttributes,
   type InputHTMLAttributes,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
   type ReactNode,
+  type Ref,
 } from 'react';
-import { UxpTextInput, type UxpTextInputType } from '../components/uxp-form-controls';
+import { usePopupLayer } from '../components/popup-layer';
+import type { UxpTextInputType } from '../components/uxp-form-controls';
+import { registerSpectrumControls } from './spectrum-registry';
 
 type NativeButtonVariant = 'accent' | 'primary' | 'secondary' | 'negative';
 type NativeTextFieldType = UxpTextInputType;
@@ -29,6 +38,7 @@ interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'typ
 }
 
 interface TextFieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'defaultValue' | 'onChange' | 'onInput' | 'type' | 'value'> {
+  readonly 'data-testid'?: string;
   readonly value: string;
   readonly onValue: (value: string) => void;
   readonly type?: NativeTextFieldType;
@@ -85,17 +95,28 @@ function dataState(value: boolean | undefined): string | undefined {
   return value ? 'true' : undefined;
 }
 
+type SpectrumTextfieldElement = HTMLElement & {
+  disabled?: boolean;
+  placeholder?: string;
+  type?: string;
+  value?: string;
+};
+
+function spectrumButtonVariant(variant: NativeButtonVariant): NativeButtonVariant {
+  return variant;
+}
+
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
   { variant = 'secondary', children, disabled, className, onClick, tabIndex, ...props },
   ref,
 ) {
+  registerSpectrumControls();
   return (
-    <button
-      {...props}
-      ref={ref}
-      type="button"
-      className={classNames('ui-btn', className)}
-      data-variant={variant}
+    <sp-button
+      {...(props as HTMLAttributes<HTMLElement>)}
+      ref={ref as unknown as Ref<HTMLElement>}
+      class={classNames('ui-btn', className)}
+      variant={spectrumButtonVariant(variant)}
       data-disabled={dataState(disabled)}
       aria-disabled={disabled || undefined}
       disabled={disabled}
@@ -106,22 +127,98 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
           event.stopPropagation();
           return;
         }
-        onClick?.(event);
+        onClick?.(event as unknown as ReactMouseEvent<HTMLButtonElement>);
       }}
     >
       {children}
-    </button>
+    </sp-button>
   );
 });
 
 export function TextField({
+  value,
+  onValue,
+  type = 'text',
+  nativeEditorSuspended = false,
+  style,
   className,
+  placeholder,
+  disabled,
+  id,
+  onKeyUp,
+  onBlur,
+  'data-testid': dataTestId,
   ...props
 }: TextFieldProps) {
+  registerSpectrumControls();
+  const controlRef = useRef<SpectrumTextfieldElement | null>(null);
+  const popupLayer = usePopupLayer();
+  const fallbackEditorId = useId();
+  const editorId = id ?? dataTestId ?? fallbackEditorId;
+  const editorSuspended = nativeEditorSuspended || (popupLayer?.isNativeEditorSuspended(editorId) ?? false);
+
+  const sync = useCallback(() => {
+    onValue(controlRef.current?.value ?? '');
+  }, [onValue]);
+
+  useEffect(() => {
+    const control = controlRef.current;
+    if (!control) return;
+    popupLayer?.setNativeEditorElement(editorId, control);
+    return () => popupLayer?.setNativeEditorElement(editorId, null);
+  }, [editorId, popupLayer]);
+
+  useEffect(() => {
+    const control = controlRef.current;
+    if (!control) return;
+    control.value = value;
+    control.type = type === 'search' ? 'text' : type;
+    control.placeholder = placeholder ?? '';
+    control.disabled = Boolean(disabled);
+  }, [disabled, placeholder, type, value]);
+
+  useEffect(() => {
+    const control = controlRef.current;
+    if (!control) return;
+    const onValueEvent = () => sync();
+    const onKeyUpEvent = (event: Event) => {
+      sync();
+      onKeyUp?.(event as unknown as ReactKeyboardEvent<HTMLInputElement>);
+    };
+    const onBlurEvent = (event: Event) => onBlur?.(event as unknown as React.FocusEvent<HTMLInputElement>);
+    control.addEventListener('input', onValueEvent);
+    control.addEventListener('change', onValueEvent);
+    control.addEventListener('keyup', onKeyUpEvent);
+    control.addEventListener('blur', onBlurEvent);
+    return () => {
+      control.removeEventListener('input', onValueEvent);
+      control.removeEventListener('change', onValueEvent);
+      control.removeEventListener('keyup', onKeyUpEvent);
+      control.removeEventListener('blur', onBlurEvent);
+    };
+  }, [onBlur, onKeyUp, sync]);
+
+  useEffect(() => {
+    const control = controlRef.current;
+    if (!control) return;
+    if (editorSuspended && document.activeElement === control) control.blur();
+    control.style.display = editorSuspended ? 'none' : style?.display ?? '';
+  }, [editorSuspended, style?.display]);
+
   return (
-    <UxpTextInput
-      {...props}
-      className={classNames('ui-textfield', className)}
+    <sp-textfield
+      {...(props as HTMLAttributes<HTMLElement>)}
+      ref={controlRef}
+      class={classNames('ui-textfield', className)}
+      data-uxp-textinput-spectrum="true"
+      data-native-editor-suspended={editorSuspended ? 'true' : undefined}
+      data-testid={dataTestId}
+      id={id}
+      value={value}
+      type={type === 'search' ? 'text' : type}
+      placeholder={placeholder}
+      disabled={disabled || undefined}
+      style={style}
     />
   );
 }
@@ -173,26 +270,26 @@ export const ActionButton = forwardRef<HTMLButtonElement, ActionButtonProps>(fun
   },
   ref,
 ) {
+  registerSpectrumControls();
   return (
-    <button
-      {...props}
-      ref={ref}
-      type="button"
-      className={classNames('ui-action-button', className)}
-      data-quiet={dataState(quiet)}
-      data-emphasized={dataState(emphasized)}
-      data-selected={dataState(selected)}
-      data-toggles={dataState(toggles)}
+    <sp-action-button
+      {...(props as HTMLAttributes<HTMLElement>)}
+      ref={ref as unknown as Ref<HTMLElement>}
+      class={classNames('ui-action-button', className)}
+      quiet={quiet || undefined}
+      emphasized={emphasized || undefined}
+      selected={selected || undefined}
+      toggles={toggles || undefined}
       data-tooltip-placement={placement}
       aria-label={props['aria-label'] ?? label}
-      aria-pressed={toggles ? Boolean(selected) : undefined}
+      aria-pressed={toggles ? (selected ? 'true' : 'false') : undefined}
       title={label}
       disabled={disabled}
       onClick={onClick}
       onKeyUp={onKeyUp}
     >
       {children}
-    </button>
+    </sp-action-button>
   );
 });
 

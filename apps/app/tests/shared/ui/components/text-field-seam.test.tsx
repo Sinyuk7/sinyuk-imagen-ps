@@ -48,7 +48,7 @@ describe('TextField seam', () => {
 
     const input = container.querySelector<HTMLInputElement>('[data-testid="text-field-probe"]');
     expect(input).not.toBeNull();
-    expect(input?.getAttribute('data-uxp-textinput-native')).toBe('true');
+    expect(input?.getAttribute('data-uxp-textinput-spectrum')).toBe('true');
 
     await act(async () => {
       changeInput(input!, 'next');

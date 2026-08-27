@@ -11,23 +11,8 @@ export const NATIVE_CONTROLS_CSS = `
   width:100%;
 }
 .ui-textfield{
-  min-height:32px;
-  padding:6px 10px;
-  border:1px solid var(--app-color-border-default);
-  border-radius:var(--app-radius-small);
-  background:var(--app-color-background-layer-2);
-  color:var(--app-color-text-primary);
-  outline:none;
-}
-.ui-textfield::placeholder{ color:var(--app-color-text-muted); }
-.ui-textfield:focus{
-  border-color:var(--app-color-focus-ring);
-  outline:1px solid var(--app-color-focus-ring);
-  outline-offset:-1px;
-}
-.ui-textfield:disabled{
-  opacity:.45;
-  cursor:not-allowed;
+  display:block;
+  width:100%;
 }
 .ui-textfield.mono,
 .field-input.mono,
@@ -104,67 +89,10 @@ export const NATIVE_CONTROLS_CSS = `
 .ui-btn,
 .ui-action-button{
   position:relative;
-  min-height:32px;
-  padding:6px 12px;
-  border:1px solid var(--app-color-border-default);
-  border-radius:var(--app-radius-medium);
-  background:var(--app-color-background-layer-2);
-  color:var(--app-color-text-primary);
-  cursor:pointer;
   display:inline-flex;
   align-items:center;
   justify-content:center;
   min-width:0;
-}
-.ui-btn:hover,
-.ui-action-button:hover{
-  border-color:var(--app-color-border-strong);
-  background:var(--app-color-background-elevated);
-}
-.ui-btn:active,
-.ui-action-button:active{ background:var(--app-color-active-overlay); }
-.ui-btn:focus-visible,
-.ui-action-button:focus-visible{
-  outline:1px solid var(--app-color-focus-ring);
-  outline-offset:1px;
-}
-.ui-btn:disabled,
-.ui-btn[data-disabled="true"],
-.ui-action-button:disabled{
-  opacity:.45;
-  cursor:not-allowed;
-}
-.ui-btn[data-variant="accent"]{
-  border-color:var(--app-color-accent-default);
-  background:var(--app-color-accent-default);
-  color:var(--app-color-text-on-accent);
-}
-.ui-btn[data-variant="accent"]:hover{ background:var(--app-color-accent-hover); }
-.ui-btn[data-variant="accent"]:active{ background:var(--app-color-accent-down); }
-.ui-btn[data-variant="negative"]{
-  border-color:var(--app-color-negative);
-  color:var(--app-color-negative);
-}
-.ui-btn[data-variant="primary"]{
-  border-color:var(--app-color-accent-default);
-  color:var(--app-color-accent-default);
-}
-.ui-action-button[data-quiet="true"]{
-  border-color:transparent;
-  background:transparent;
-}
-.ui-action-button[data-quiet="true"]:hover{
-  border-color:transparent;
-  background:var(--app-color-hover-overlay);
-}
-.ui-action-button[data-selected="true"]{
-  border-color:var(--app-color-accent-default);
-  background:var(--app-color-accent-subtle);
-  color:var(--app-color-accent-default);
-}
-.ui-action-button[data-emphasized="true"]{
-  border-color:var(--app-color-accent-default);
-  color:var(--app-color-accent-default);
 }
 .ui-overlay-icon-host{
   position:relative;
@@ -296,33 +224,17 @@ export const NATIVE_CONTROLS_CSS = `
   line-height:14px;
 }
 .settings-page .ui-textfield{
-  min-height:30px;
-  padding:5px 10px;
   font-size:12px;
 }
 .settings-page .ui-btn{
-  min-height:30px;
-  padding:5px 10px;
   font-size:12px;
 }
 .settings-page .ui-btn.settings-action-compact{
-  min-height:26px;
-  padding:3px 8px;
-  border-radius:var(--app-radius-small);
   font-size:11px;
 }
 .settings-page .ui-checkbox-label{
   font-size:11px;
   line-height:15px;
   color:var(--app-color-text-primary);
-}
-.settings-page .ui-btn.settings-action-emphasis{
-  border-color:color-mix(in srgb, var(--app-color-accent-default) 42%, var(--app-color-border-default));
-  background:color-mix(in srgb, var(--app-color-accent-subtle) 62%, var(--app-color-background-layer-2));
-  color:var(--app-color-text-primary);
-}
-.settings-page .ui-btn.settings-action-emphasis:hover{
-  border-color:var(--app-color-accent-default);
-  background:color-mix(in srgb, var(--app-color-accent-subtle) 80%, var(--app-color-background-elevated));
 }
 `;

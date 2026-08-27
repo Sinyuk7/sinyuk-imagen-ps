@@ -6,7 +6,7 @@ import { PopupLayerProvider, PopupLayerRoot } from '../../../shared/ui/component
 import { ProviderIdentity } from '../../../shared/ui/components/provider-identity';
 import { IconSelect } from '../../../shared/ui/components/icon-select';
 import { IconButton } from '../../../shared/ui/primitives/icon-button';
-import { Button, TextField } from '../../../shared/ui/primitives/native-controls';
+import { ActionButton, Button, TextField } from '../../../shared/ui/primitives/native-controls';
 
 type HarnessPanelWidthMode = 'compact' | 'regular' | 'wide';
 type HarnessPanelHeightMode = 'short' | 'normal';
@@ -860,6 +860,24 @@ const HARNESS_CSS = `
 .uxp-css-icon-grid > .uxp-css-icon-case:nth-child(2n){
   margin-right:0;
 }
+.uxp-css-spectrum-runtime-theme{
+  display:block;
+  width:100%;
+  min-height:128px;
+}
+.uxp-css-spectrum-runtime-controls{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+}
+.uxp-css-spectrum-runtime-controls > *{
+  margin-top:0;
+  margin-right:8px;
+  margin-bottom:8px;
+  margin-left:0;
+}
+.uxp-css-spectrum-runtime-controls > :last-child{ margin-right:0; }
+.uxp-css-spectrum-runtime-field{ min-width:160px; flex:1 1 160px; }
 .uxp-css-icon-case{
   display:flex;
   flex-direction:column;
@@ -1180,6 +1198,79 @@ function geometryLabel(element: HTMLElement | null): string {
   }
   const rect = element.getBoundingClientRect();
   return `${Math.round(rect.width)}x${Math.round(rect.height)}`;
+}
+
+interface SpectrumRuntimeProbe {
+  readonly defined: boolean;
+  readonly shadowRoot: boolean;
+  readonly geometry: string;
+}
+
+interface SpectrumRuntimeSnapshot {
+  readonly theme: SpectrumRuntimeProbe;
+  readonly actionButton: SpectrumRuntimeProbe;
+  readonly button: SpectrumRuntimeProbe;
+  readonly textfield: SpectrumRuntimeProbe;
+}
+
+function spectrumRuntimeProbe(element: HTMLElement | null, name: string): SpectrumRuntimeProbe {
+  return {
+    defined: typeof customElements !== 'undefined' && customElements.get(name) !== undefined,
+    shadowRoot: element?.shadowRoot !== null && element?.shadowRoot !== undefined,
+    geometry: geometryLabel(element),
+  };
+}
+
+function spectrumRuntimeSnapshot(root: HTMLElement | null): SpectrumRuntimeSnapshot {
+  return {
+    theme: spectrumRuntimeProbe(root?.querySelector('sp-theme') ?? null, 'sp-theme'),
+    actionButton: spectrumRuntimeProbe(root?.querySelector('sp-action-button') ?? null, 'sp-action-button'),
+    button: spectrumRuntimeProbe(root?.querySelector('sp-button') ?? null, 'sp-button'),
+    textfield: spectrumRuntimeProbe(root?.querySelector('sp-textfield') ?? null, 'sp-textfield'),
+  };
+}
+
+function spectrumRuntimeSnapshotLabel(snapshot: SpectrumRuntimeSnapshot): string {
+  return Object.entries(snapshot)
+    .map(([name, probe]) => `${name}: defined=${probe.defined} shadow=${probe.shadowRoot} rect=${probe.geometry}`)
+    .join('\n');
+}
+
+function SpectrumRuntimeSpecimen() {
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const [firstFrame, setFirstFrame] = useState<SpectrumRuntimeSnapshot | null>(null);
+  const [afterDelay, setAfterDelay] = useState<SpectrumRuntimeSnapshot | null>(null);
+
+  useLayoutEffect(() => {
+    setFirstFrame(spectrumRuntimeSnapshot(rootRef.current));
+    const timer = window.setTimeout(() => setAfterDelay(spectrumRuntimeSnapshot(rootRef.current)), 50);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  return (
+    <div ref={rootRef}>
+      <sp-theme color="dark" scale="medium" class="uxp-css-spectrum-runtime-theme">
+        <div className="uxp-css-spectrum-runtime-controls">
+          <ActionButton quiet label="Toolbar action" data-testid="uxp-css-spectrum-action-button">
+            <Icon name="settings" size={16} />
+          </ActionButton>
+          <Button variant="accent" data-testid="uxp-css-spectrum-button">Send</Button>
+          <TextField
+            className="uxp-css-spectrum-runtime-field"
+            data-testid="uxp-css-spectrum-textfield"
+            value="Spectrum textfield"
+            onValue={() => undefined}
+          />
+        </div>
+      </sp-theme>
+      <pre className="uxp-css-geometry" data-testid="uxp-css-spectrum-first-frame">
+        first frame: {firstFrame ? spectrumRuntimeSnapshotLabel(firstFrame) : 'pending'}
+      </pre>
+      <pre className="uxp-css-geometry" data-testid="uxp-css-spectrum-after-50ms">
+        after 50ms: {afterDelay ? spectrumRuntimeSnapshotLabel(afterDelay) : 'pending'}
+      </pre>
+    </div>
+  );
 }
 
 function ProviderSettingsBoard() {
@@ -1561,6 +1652,26 @@ export function UxpCssContractHarnessPage() {
               <span className="uxp-css-legend-item"><span className="uxp-css-legend-dot" data-tone="fail" />pattern to avoid</span>
             </div>
             <div className="uxp-css-grid">
+              <ScenarioCard
+                category="SWC runtime spike"
+                title="Spectrum first-frame geometry"
+                tone="check"
+                summary="Uses the actual shared renderer inside an sp-theme and records component definition, shadow root, and geometry at first layout and 50ms later."
+                rules={[
+                  { text: 'sp-theme owns color and scale' },
+                  { text: 'sp-action-button / sp-button / sp-textfield' },
+                  { text: 'non-zero first-frame geometry required' },
+                ]}
+                checks={[
+                  'All four custom elements report defined=true and shadow=true.',
+                  'Theme and controls report non-zero geometry on the first frame and after 50ms.',
+                  'Chrome results are a deterministic contract only; inspect the same readout in Photoshop before accepting host appearance.',
+                ]}
+              >
+                <div className="uxp-css-demo-stage">
+                  <SpectrumRuntimeSpecimen />
+                </div>
+              </ScenarioCard>
               <ScenarioCard
                 category="inline-flex"
                 title="Single-line chip / badge shell"

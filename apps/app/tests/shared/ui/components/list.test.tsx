@@ -50,7 +50,7 @@ describe('shared list primitives', () => {
     const onRetry = vi.fn();
     const container = await render(<ListStateItem data-testid="error" kind="error" action={{ label: 'Retry', onPress: onRetry }} />);
     const item = container.querySelector<HTMLElement>('[data-testid="error"]')!;
-    const action = item.querySelector<HTMLButtonElement>('button')!;
+    const action = item.querySelector<HTMLElement>('sp-button')!;
 
     expect(item.getAttribute('role')).toBeNull();
     expect(action.parentElement?.className).toContain('ui-list-item-trailing');

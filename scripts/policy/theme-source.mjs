@@ -12,8 +12,8 @@ export function checkThemeSource(repoRoot) {
 
   return [
     {
-      rule: 'theme-source-generated-css',
-      file: 'apps/app/src/shared/ui/styles/theme-source',
+      rule: 'spectrum-theme-generated-css',
+      file: 'apps/app/src/shared/ui/styles/generated/theme-css.ts',
       line: 1,
       text: (result.stderr || result.stdout || 'Theme source validation failed.').trim(),
     },

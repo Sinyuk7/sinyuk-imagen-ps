@@ -5,7 +5,8 @@
   "version": "0.1.0",
   "main": "index.html",
   "featureFlags": {
-    "CSSNextSupport": true
+    "CSSNextSupport": true,
+    "enableSWCSupport": true
   },
   "host": {
     "app": "PS",

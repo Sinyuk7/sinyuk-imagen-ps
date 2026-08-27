@@ -53,7 +53,7 @@ function classNames(...parts: Array<string | undefined | false>): string | undef
 export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(function IconButton(
   {
     variant = 'action',
-    quiet,
+    quiet = true,
     emphasized,
     selected,
     toggles,

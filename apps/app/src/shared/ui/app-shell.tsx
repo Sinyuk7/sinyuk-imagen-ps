@@ -24,6 +24,7 @@ import { ToastHost, ToastProvider, useToast } from './components/toast-host';
 import { PopupLayerProvider, PopupLayerRoot } from './components/popup-layer';
 import { I18nProvider, useI18n } from './i18n/i18n-context';
 import { ensurePanelCss } from './panel-bootstrap';
+import { registerSpectrumTheme } from './primitives/spectrum-registry';
 import { placeTaskOutputOnCanvas, saveTaskOutputToFile } from '../domain/task-actions';
 import type { TaskRecord } from '@imagen-ps/application';
 import { MotionPageFrame } from './components/motion-ui';
@@ -114,6 +115,24 @@ function readThemeOverride(): AppThemeOverride {
     return params;
   }
   return undefined;
+}
+
+function useSpectrumTheme(): AppTheme {
+  const override = readThemeOverride();
+  const [systemTheme, setSystemTheme] = useState<AppTheme>(() =>
+    typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: light)').matches ? 'light' : 'dark',
+  );
+
+  useEffect(() => {
+    if (override || typeof window === 'undefined' || !window.matchMedia) return;
+    const media = window.matchMedia('(prefers-color-scheme: light)');
+    const sync = () => setSystemTheme(media.matches ? 'light' : 'dark');
+    sync();
+    media.addEventListener?.('change', sync);
+    return () => media.removeEventListener?.('change', sync);
+  }, [override]);
+
+  return override ?? systemTheme;
 }
 
 function classifyPanelWidthMode(width: number): PanelWidthMode {
@@ -712,14 +731,18 @@ function AppShellContent({ host }: AppShellProps) {
 
 export function AppShell({ host }: AppShellProps) {
   ensurePanelCss();
+  registerSpectrumTheme();
+  const theme = useSpectrumTheme();
   return (
     <I18nProvider locale={host.locale}>
       <AppServicesProvider services={host.services}>
-        <ToastProvider>
-          <PopupLayerProvider>
-            <AppShellContent host={host} />
-          </PopupLayerProvider>
-        </ToastProvider>
+        <sp-theme color={theme} scale="medium" class="app-spectrum-theme">
+          <ToastProvider>
+            <PopupLayerProvider>
+              <AppShellContent host={host} />
+            </PopupLayerProvider>
+          </ToastProvider>
+        </sp-theme>
       </AppServicesProvider>
     </I18nProvider>
   );

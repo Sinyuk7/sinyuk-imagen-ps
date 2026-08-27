@@ -27,6 +27,8 @@ export { ProviderMediaHeader } from './components/provider-media-header';
 export { MotionActivityDot, MotionActivityIcon, MotionButtonSurface, MotionContent, MotionDimSurface, MotionHighlight, MotionImage, MotionPresenceView } from './components/motion-ui';
 /** 页面可用的 UXP 多行输入 seam。 */
 export { UxpTextArea, UxpTextAreaField } from './components/uxp-form-controls';
+/** 页面可用的 Spectrum UXP 多行编辑器引用类型。 */
+export type { UxpTextAreaElement } from './components/uxp-form-controls';
 /** 页面可用的 popup layer root 与 provider。 */
 export { PopupLayerProvider, PopupLayerRoot } from './components/popup-layer';
 /** 页面可用的 page shell 与 layout patterns。 */

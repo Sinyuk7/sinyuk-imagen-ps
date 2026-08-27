@@ -22,6 +22,17 @@ describe('UI composition policy', () => {
     expect(violations).toMatchObject([{ rule: 'raw-native-control' }]);
   });
 
+  it('rejects every direct form control and Material token in page code', () => {
+    for (const source of [
+      '<input value="x" />',
+      '<textarea value="x" />',
+      '<select value="x" />',
+      'const color = "var(--md-sys-color-primary)";',
+    ]) {
+      expect(scanUiCompositionSource('apps/app/src/shared/ui/pages/example-page.tsx', source)).not.toEqual([]);
+    }
+  });
+
   it('permits only --ui custom properties in a page style object', () => {
     const allowed = scanUiCompositionSource(
       'apps/app/src/shared/ui/pages/example-page.tsx',

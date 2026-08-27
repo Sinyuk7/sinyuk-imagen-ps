@@ -426,15 +426,7 @@ export const COMPOSER_CSS = `
 }
 .cmp-ta{
   margin-top:0; margin-right:0; margin-bottom:0; margin-left:0;
-  display:block; appearance:none; -webkit-appearance:none;
-  background:transparent; background-color:transparent; border:none; outline:none;
-  color:var(--app-color-text-primary); font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','PingFang SC','Segoe UI',sans-serif; font-size:18px; font-weight:400; line-height:22px; letter-spacing:0;
-  resize:none; min-height:76px; max-height:96px; overflow-y:auto;
-  padding-top:4px;
-  padding-right:2px;
-  padding-bottom:3px;
-  padding-left:2px;
-  scrollbar-width:thin; width:100%;
+  display:block; min-height:76px; max-height:96px; width:100%;
 }
 .cmp-ta-shell{
   display:flex;
@@ -442,7 +434,6 @@ export const COMPOSER_CSS = `
   width:100%;
   min-height:82px;
 }
-.cmp-ta::placeholder{ color:var(--app-color-text-muted); font-weight:400; }
 .cmp-readiness{
   min-height:17px;
   margin-top:0;
@@ -519,20 +510,6 @@ export const COMPOSER_CSS = `
 .cmp-add{
   display:inline-flex; align-items:center; justify-content:center;
   margin-top:0; margin-right:0; margin-bottom:0; margin-left:0; color:var(--app-color-text-secondary); flex-shrink:0;
-}
-.cmp-add.ui-action-button[data-quiet="true"]{
-  border-color:var(--app-color-border-default);
-  background:var(--app-color-background-layer-1);
-}
-.cmp-add.ui-action-button[data-quiet="true"]:hover,
-.cmp-add.ui-action-button[data-quiet="true"]:focus-visible{
-  border-color:var(--app-color-border-strong);
-  background:var(--app-color-background-elevated);
-}
-.cmp-add.ui-action-button[data-selected="true"]{
-  border-color:var(--app-color-border-strong);
-  background:var(--app-color-background-elevated);
-  color:var(--app-color-text-primary);
 }
 
 /* Model chip (native dropdown trigger) */
@@ -920,18 +897,6 @@ export const COMPOSER_CSS = `
   background:transparent;
   flex:0 0 auto;
 }
-.cmp-opt-icon-button:hover,
-.cmp-capture:hover,
-.cmp-mask-toggle:hover{
-  color:var(--app-color-text-primary);
-  background:var(--app-color-hover-overlay);
-}
-.cmp-opt-icon-button:active,
-.cmp-capture:active,
-.cmp-mask-toggle:active{
-  color:var(--app-color-text-primary);
-  background:var(--app-color-hover-overlay);
-}
 .cmp-capture-icon{
   display:block;
   flex:0 0 auto;
@@ -946,26 +911,19 @@ export const COMPOSER_CSS = `
   display:block;
   flex:0 0 auto;
 }
-/* Send button */
-.send-wrap{ display:flex; align-items:stretch; border-radius:50%; overflow:hidden; flex-shrink:0; }
+/* 发送操作由 Spectrum command button 绘制；此处只保留布局。 */
+.send-wrap{ display:flex; align-items:stretch; flex-shrink:0; }
 .cmp-send{
-  width:32px; height:32px; margin-top:0; margin-right:0; margin-bottom:0; margin-left:0; border:none;
-  border-radius:50%;
-  background:var(--app-color-accent-default); color:var(--app-color-text-on-accent); cursor:pointer;
-  display:flex; align-items:center; justify-content:center;
+  width:32px; height:32px; margin-top:0; margin-right:0; margin-bottom:0; margin-left:0;
 }
 .cmp-send-host{
   width:32px;
   height:32px;
-  color:var(--app-color-text-on-accent);
 }
 .cmp-send-overlay{
   align-items:center;
   justify-content:center;
   padding:0;
 }
-.cmp-send:hover{ background:var(--app-color-accent-hover); }
-.cmp-send:active{ background:var(--app-color-accent-down); }
-.cmp-send:disabled{ opacity:.35; cursor:not-allowed; }
 .cmp-bottom{ min-width:0; }
 `;

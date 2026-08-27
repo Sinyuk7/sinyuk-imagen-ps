@@ -1,4 +1,5 @@
 import { PANEL_CSS } from './panel-css';
+import { registerSpectrumTheme } from './primitives/spectrum-registry';
 
 const PANEL_STYLE_ID = 'imagen-ps-panel-styles';
 
@@ -16,5 +17,6 @@ export function ensurePanelCss(doc: Document | undefined = typeof document === '
 }
 
 export function primeSharedUi(doc: Document | undefined = typeof document === 'undefined' ? undefined : document): void {
+  registerSpectrumTheme();
   ensurePanelCss(doc);
 }

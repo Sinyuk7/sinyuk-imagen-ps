@@ -37,6 +37,7 @@ for (const size of sizes) {
     await expect(page.locator('.att-thumb')).toBeVisible();
     await expect(page.getByTestId('composer-mask-toggle')).toBeEnabled();
     await expectNoHorizontalOverflow(page);
+    await expect(page.getByTestId('toast')).toBeHidden();
     await expect(page.locator('#root')).toHaveScreenshot(`main-attachment-composer-${size.name}.png`);
   });
 }

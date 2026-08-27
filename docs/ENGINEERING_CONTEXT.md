@@ -206,12 +206,13 @@ surface apps -> application/session -> core-engine + providers + execution backe
   and `scaleY`. Direct CSS transitions, CSS animations, keyframes, and CSS
   `transform:` remain banned outside that layer. Reduced motion resolves by
   writing the final visual state immediately and skipping tween scheduling.
-- Shared theme generation is `apps/app`-owned. The six source CSS files under
-  `apps/app/src/shared/ui/styles/theme-source/` are the authoritative Material
-  token source. Generated output is `apps/app/src/shared/ui/styles/generated/theme-css.ts`;
-  do not edit it by hand. Build/dev generation runs before bundling, and
-  `pnpm check:policy` fails when the source shape is invalid or generated theme
-  output is stale.
+- Shared theme generation is `apps/app`-owned. The semantic Photoshop host token
+  source is `apps/app/scripts/generate-theme-css.mjs`; generated output is
+  `apps/app/src/shared/ui/styles/generated/theme-css.ts`, and must not be edited
+  by hand. It maps stable `--app-*` layout and product tokens to Photoshop host
+  colors with deterministic fallbacks, without Material tokens or per-version CSS.
+  Build/dev generation runs before bundling, and `pnpm check:policy` fails when
+  generated output is stale.
 - Toast is a shared app-surface primitive, not page-local state. Global toast
   state lives behind `ToastProvider` / `useToast()` / `ToastHost`; page-level
   `useNotice()` remains for inline and persistent notices only. Toast styling
@@ -451,7 +452,9 @@ surface apps -> application/session -> core-engine + providers + execution backe
 
 - `apps/app/src/shared/ui/ui-system.ts` is the page-facing public UI boundary. Page roots use `PageFrame`, `PageHeader`, and `PageScroll`; settings and list/form states use the matching public patterns. Owner-local components may retain direct internal imports.
 - Page composition policy is AST-based in `scripts/policy/ui-composition.mjs`. It is zero-tolerance for page-level raw native controls, internal UI imports, visual inline styles, raw colors, and direct Material token references. Dynamic page layout values may use only `--ui-*` custom properties inline.
-- Visual layout uses existing `--app-*` and component tokens. Theme-source palettes and generated color outputs are separate authority and must not change during composition migration.
+- Visual layout uses existing `--app-*` and component tokens. Spectrum controls own
+  their interactive control states; shared theme tokens own only layout, typography,
+  containers, and product-specific surfaces.
 - The shared `ui-catalog` is rendered by both shells. Chrome visual snapshots
   prove deterministic shared catalog composition and Settings archetypes, not
   Photoshop UXP layout or rendering.

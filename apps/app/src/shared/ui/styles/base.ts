@@ -12,8 +12,11 @@ html,body{
   background:var(--app-color-canvas);
   font-family:var(--app-font-family-base); -webkit-font-smoothing:antialiased;
 }
-#root{ width:100%; height:100%; }
+#root,
+.app-spectrum-theme{ width:100%; height:100%; }
+.app-spectrum-theme{ display:block; }
 .motion-button-surface{ display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto; }
 .motion-button-surface > .ui-action-button,
+.motion-button-surface > sp-action-button,
 .motion-button-surface > button{ flex:0 0 auto; }
 `;

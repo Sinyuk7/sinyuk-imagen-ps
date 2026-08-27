@@ -3,9 +3,8 @@
  * 聚合后由 `ensurePanelCss()` 同步注入为单个 `<style id="imagen-ps-panel-styles">`。
  *
  * 拆分边界：
- *  - theme-source/    6 个网站导出的 Material Design 3 源主题 CSS
- *  - generated/       由 theme-source 自动生成的 md-sys + 应用语义 token
- *  - native-controls.ts  Layer C native controls
+ *  - generated/       Photoshop host semantic token
+ *  - native-controls.ts  Spectrum renderer 的布局与辅助样式
  *  - base.ts          reset
  *  - shell.ts         panel / page / header / scroll 布局
  *  - conversation.ts  会话气泡 / provider card / loading / error / empty

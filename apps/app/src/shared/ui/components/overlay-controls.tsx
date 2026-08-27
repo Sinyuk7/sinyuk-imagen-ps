@@ -64,8 +64,8 @@ export function OverlayControlShell({
     if (!host) return undefined;
 
     const handleClick = (event: globalThis.MouseEvent) => {
-      if (event.target instanceof HTMLButtonElement) return;
-      const button = host.querySelector<HTMLButtonElement>('.ui-overlay-icon-button');
+      if (event.target instanceof Element && event.target.closest('.ui-overlay-icon-button')) return;
+      const button = host.querySelector<HTMLElement & { disabled?: boolean }>('.ui-overlay-icon-button');
       if (!button || button.disabled) return;
       event.preventDefault();
       event.stopPropagation();

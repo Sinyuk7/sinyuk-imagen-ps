@@ -18,6 +18,12 @@ import { usePopupLayer } from './popup-layer';
 
 export type UxpTextInputType = 'text' | 'password' | 'url' | 'search';
 
+/** Spectrum UXP textarea 暴露的编辑器能力；不依赖 HTML textarea 的宿主绘制。 */
+export type UxpTextAreaElement = HTMLElement & Pick<
+  HTMLTextAreaElement,
+  'value' | 'selectionStart' | 'selectionEnd' | 'readOnly' | 'disabled' | 'focus' | 'blur'
+>;
+
 type UxpTextInputProps = Omit<
   InputHTMLAttributes<HTMLInputElement>,
   'defaultValue' | 'onChange' | 'onInput' | 'type' | 'value'
@@ -38,7 +44,7 @@ type UxpTextAreaProps = Omit<
   TextareaHTMLAttributes<HTMLTextAreaElement>,
   'defaultValue' | 'onChange' | 'onInput' | 'value'
 > & {
-  readonly controlRef?: RefObject<HTMLTextAreaElement | null>;
+  readonly controlRef?: RefObject<UxpTextAreaElement | null>;
   readonly value: string;
   readonly onValue: (value: string) => void;
   /**
@@ -87,7 +93,7 @@ function scheduleSync(sync: () => void): void {
   window.setTimeout(sync, 0);
 }
 
-function isPasteShortcut(event: KeyboardEvent<HTMLTextAreaElement>): boolean {
+function isPasteShortcut(event: KeyboardEvent<UxpTextAreaElement>): boolean {
   return (event.metaKey || event.ctrlKey) && !event.altKey && event.key.toLowerCase() === 'v';
 }
 
@@ -128,7 +134,7 @@ async function readClipboardText(): Promise<string | null> {
   return null;
 }
 
-function insertTextAtSelection(target: HTMLTextAreaElement, text: string, start: number, end: number): void {
+function insertTextAtSelection(target: UxpTextAreaElement, text: string, start: number, end: number): void {
   const value = target.value;
   target.value = `${value.slice(0, start)}${text}${value.slice(end)}`;
   const caret = start + text.length;
@@ -136,7 +142,7 @@ function insertTextAtSelection(target: HTMLTextAreaElement, text: string, start:
   target.selectionEnd = caret;
 }
 
-function deleteTextAtSelection(target: HTMLTextAreaElement, key: 'Backspace' | 'Delete'): boolean {
+function deleteTextAtSelection(target: UxpTextAreaElement, key: 'Backspace' | 'Delete'): boolean {
   const start = selectionIndex(target.selectionStart);
   const end = selectionIndex(target.selectionEnd);
   if (start === null || end === null) {
@@ -171,7 +177,7 @@ function selectionIndex(value: number | null | undefined): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
-function canDeleteFromSelection(target: HTMLTextAreaElement, key: 'Backspace' | 'Delete'): boolean {
+function canDeleteFromSelection(target: UxpTextAreaElement, key: 'Backspace' | 'Delete'): boolean {
   const start = selectionIndex(target.selectionStart);
   const end = selectionIndex(target.selectionEnd);
   if (start === null || end === null) {
@@ -281,16 +287,15 @@ export function UxpTextInput({
 }
 
 /**
- * 当前 shared UI 的 text input seam 仍保留原生 textarea。
- *
- * SWC 0.37.0 / 当前 UXP wrapper 组合里没有与 Chrome/UXP 都稳定覆盖的统一 rich
- * text editor 契约，因此多行输入继续走这一份 popup-aware native editor seam。
+ * 多行输入使用 Photoshop 内置 `sp-textarea`，事件与编辑 fallback 仍集中在此 seam。
  */
 export function UxpTextArea({
   controlRef,
   value,
   onValue,
   onKeyDown,
+  onFocus,
+  onBlur,
   nativeEditorSuspended = false,
   style,
   className,
@@ -301,7 +306,7 @@ export function UxpTextArea({
   'data-testid': dataTestId,
   ...props
 }: UxpTextAreaProps) {
-  const textAreaRef = useRef<HTMLTextAreaElement>(null);
+  const textAreaRef = useRef<UxpTextAreaElement>(null);
   const pasteFallbackRequestRef = useRef(0);
   const propValueRef = useRef(value);
   const deleteProbeRef = useRef<TextAreaDeleteProbe | null>(null);
@@ -326,10 +331,10 @@ export function UxpTextArea({
     });
   }, [diagnostics, editorId]);
 
-  const bindRef = (element: HTMLTextAreaElement | null): void => {
+  const bindRef = (element: UxpTextAreaElement | null): void => {
     textAreaRef.current = element;
     if (controlRef) {
-      (controlRef as { current: HTMLTextAreaElement | null }).current = element;
+      (controlRef as { current: UxpTextAreaElement | null }).current = element;
     }
   };
 
@@ -359,7 +364,7 @@ export function UxpTextArea({
   }, [editorSuspended]);
 
   const sync = useCallback(
-    (target?: HTMLTextAreaElement | null, cause?: TextAreaSyncCause) => {
+    (target?: UxpTextAreaElement | null, cause?: TextAreaSyncCause) => {
       const textarea = target ?? textAreaRef.current;
       const probe = deleteProbeRef.current;
       if (textarea && probe) {
@@ -382,7 +387,7 @@ export function UxpTextArea({
     [onValue],
   );
 
-  const scheduleDeleteSyncProbe = useCallback((target: HTMLTextAreaElement, key: 'Backspace' | 'Delete') => {
+  const scheduleDeleteSyncProbe = useCallback((target: UxpTextAreaElement, key: 'Backspace' | 'Delete') => {
     if (!canDeleteFromSelection(target, key)) {
       return;
     }
@@ -453,13 +458,16 @@ export function UxpTextArea({
     }, DELETE_SYNC_CHECK_DELAY_MS);
   }, [logDiagnosticOnce]);
 
-  const syncFromKeyboard = (event: KeyboardEvent<HTMLTextAreaElement>) => sync(event.currentTarget, 'keyup');
-  const syncFromFocus = (event: FocusEvent<HTMLTextAreaElement>) => sync(event.currentTarget, 'blur');
-  const syncAfterClipboard = (event: ClipboardEvent<HTMLTextAreaElement>) => {
+  const syncFromKeyboard = (event: KeyboardEvent<UxpTextAreaElement>) => sync(event.currentTarget, 'keyup');
+  const syncFromFocus = (event: FocusEvent<UxpTextAreaElement>) => {
+    sync(event.currentTarget, 'blur');
+    onBlur?.(event as unknown as FocusEvent<HTMLTextAreaElement>);
+  };
+  const syncAfterClipboard = (event: ClipboardEvent<UxpTextAreaElement>) => {
     const target = event.currentTarget;
     scheduleSync(() => sync(target, 'cut'));
   };
-  const fallbackPaste = (target: HTMLTextAreaElement, readText: () => Promise<string | null>) => {
+  const fallbackPaste = (target: UxpTextAreaElement, readText: () => Promise<string | null>) => {
     const requestId = pasteFallbackRequestRef.current + 1;
     pasteFallbackRequestRef.current = requestId;
     const previousValue = target.value;
@@ -489,8 +497,8 @@ export function UxpTextArea({
       }, delayMs);
     });
   };
-  const fallbackPasteFromKeyboard = (target: HTMLTextAreaElement) => fallbackPaste(target, readClipboardText);
-  const fallbackPasteFromClipboardEvent = (event: ClipboardEvent<HTMLTextAreaElement>) => {
+  const fallbackPasteFromKeyboard = (target: UxpTextAreaElement) => fallbackPaste(target, readClipboardText);
+  const fallbackPasteFromClipboardEvent = (event: ClipboardEvent<UxpTextAreaElement>) => {
     const target = event.currentTarget;
     const text = event.clipboardData?.getData('text/plain') ?? null;
     if (!target.readOnly && !target.disabled && text) {
@@ -499,18 +507,18 @@ export function UxpTextArea({
     scheduleSync(() => sync(target, 'paste-fallback'));
   };
 
-  const nativeTextArea = (
-    <textarea
-      {...props}
+  return (
+    <sp-textarea
+      {...(props as React.HTMLAttributes<HTMLElement>)}
       ref={bindRef}
       id={id}
       title={title}
-      className={className}
+      class={className}
       data-testid={dataTestId}
       rows={rows}
       placeholder={placeholder}
-      defaultValue={value}
-      data-uxp-textarea-native="true"
+      value={value}
+      data-uxp-textarea-spectrum="true"
       data-native-editor-suspended={editorSuspended ? 'true' : undefined}
       style={{
         ...style,
@@ -521,31 +529,29 @@ export function UxpTextArea({
             }
           : null),
       }}
-      onInput={(event) => sync(event.currentTarget, 'input')}
-      onChange={(event) => sync(event.currentTarget, 'change')}
-      onBlur={syncFromFocus}
+      onFocus={(event) => onFocus?.(event as unknown as FocusEvent<HTMLTextAreaElement>)}
+      onInput={(event) => sync(event.currentTarget as UxpTextAreaElement, 'input')}
+      onChange={(event) => sync(event.currentTarget as UxpTextAreaElement, 'change')}
+      onBlur={(event) => syncFromFocus(event as unknown as FocusEvent<UxpTextAreaElement>)}
       onKeyDown={(event) => {
-        if (!event.currentTarget.readOnly && !event.currentTarget.disabled && isPasteShortcut(event)) {
-          fallbackPasteFromKeyboard(event.currentTarget);
+        const target = event.currentTarget as UxpTextAreaElement;
+        if (!target.readOnly && !target.hasAttribute('disabled') && isPasteShortcut(event as unknown as KeyboardEvent<UxpTextAreaElement>)) {
+          fallbackPasteFromKeyboard(target);
         }
         if (event.key === 'Backspace' || event.key === 'Delete') {
-          scheduleDeleteSyncProbe(event.currentTarget, event.key);
+          scheduleDeleteSyncProbe(target, event.key);
         }
-        onKeyDown?.(event);
+        onKeyDown?.(event as unknown as KeyboardEvent<HTMLTextAreaElement>);
       }}
-      onKeyUp={syncFromKeyboard}
-      onPaste={fallbackPasteFromClipboardEvent}
-      onCut={syncAfterClipboard}
+      onKeyUp={(event) => syncFromKeyboard(event as unknown as KeyboardEvent<UxpTextAreaElement>)}
+      onPaste={(event) => fallbackPasteFromClipboardEvent(event as unknown as ClipboardEvent<UxpTextAreaElement>)}
+      onCut={(event) => syncAfterClipboard(event as unknown as ClipboardEvent<UxpTextAreaElement>)}
     />
-  );
-
-  return (
-    nativeTextArea
   );
 }
 
 /**
- * 为 settings 类多行输入提供稳定视觉外壳；native editor layer 只负责输入。
+ * 为 settings 类多行输入提供布局外壳；Spectrum widget 负责控件视觉。
  */
 export function UxpTextAreaField({
   shellClassName,

@@ -365,27 +365,6 @@ export const PAGES_CSS = `
   height:32px;
   min-height:32px;
   padding:0;
-  border-radius:var(--app-radius-small);
-  color:var(--app-color-text-secondary);
-}
-.settings-icon-button:hover{
-  color:var(--app-color-text-primary);
-  background:var(--app-color-hover-overlay);
-}
-.settings-icon-button:active{
-  background:var(--app-color-active-overlay);
-}
-.settings-icon-button:focus-visible{
-  outline:2px solid var(--app-color-focus-ring);
-  outline-offset:1px;
-}
-.settings-icon-button[data-disabled="true"]{
-  opacity:.45;
-  cursor:not-allowed;
-}
-.settings-icon-button.danger:hover{
-  color:var(--app-color-negative);
-  background:color-mix(in srgb, var(--app-color-negative) 10%, var(--app-color-hover-overlay));
 }
 .test-status{
   display:inline-flex;
@@ -687,45 +666,15 @@ export const PAGES_CSS = `
   margin-top:6px;
   width:100%;
   min-height:112px;
-  border:1px solid var(--app-color-border-default);
-  border-radius:var(--app-radius-small);
-  background:var(--app-color-background-layer-2);
-  box-sizing:border-box;
-}
-.field-textarea-shell[data-focused="true"]{
-  outline:2px solid var(--app-color-focus-ring);
-  outline-offset:0;
-  border-color:var(--app-color-focus-ring);
-}
-.field-textarea-shell[data-invalid="true"]{
-  border-color:var(--app-color-negative-default);
-}
-.field-textarea-shell[data-disabled="true"]{
-  opacity:.72;
-}
-.field-textarea-shell[data-native-editor-suspended="true"]{
-  background:color-mix(in srgb, var(--app-color-background-layer-2) 88%, transparent);
 }
 .field-textarea-input,
 .field-textarea-native{
   width:100%;
   min-height:110px;
-  padding:10px 12px;
-  border:none;
-  border-radius:inherit;
-  background:transparent;
-  color:var(--app-color-text-primary);
   font-family:var(--app-font-family-mono);
   font-size:12px;
   line-height:18px;
-  resize:vertical;
-  box-sizing:border-box;
-  outline:none;
-  appearance:none;
-  -webkit-appearance:none;
 }
-.field-textarea-input::placeholder,
-.field-textarea-native::placeholder{ color:var(--app-color-text-muted); }
 .provider-system-instructions-field{
   margin-top:14px;
 }
