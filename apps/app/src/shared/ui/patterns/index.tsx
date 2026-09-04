@@ -24,7 +24,8 @@ export interface SegmentedTab { readonly id: string; readonly label: string; rea
 export function SegmentedTabs({ tabs, selectedId, onSelect, className }: { readonly tabs: readonly SegmentedTab[]; readonly selectedId: string; readonly onSelect: (id: string) => void; readonly className?: string }) {
   const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     const enabled = tabs.filter((tab) => !tab.disabled);
-    const current = enabled.findIndex((tab) => tab.id === selectedId);
+    if (enabled.length === 0) return;
+    const current = Math.max(0, enabled.findIndex((tab) => tab.id === selectedId));
     const destination = event.key === 'Home' ? 0 : event.key === 'End' ? enabled.length - 1 : event.key === 'ArrowRight' ? (current + 1) % enabled.length : event.key === 'ArrowLeft' ? (current - 1 + enabled.length) % enabled.length : -1;
     if (destination < 0) return;
     event.preventDefault();
@@ -33,7 +34,7 @@ export function SegmentedTabs({ tabs, selectedId, onSelect, className }: { reado
     onSelect(next.id);
     (event.currentTarget.querySelector(`[data-tab-id="${next.id}"]`) as HTMLButtonElement | null)?.focus();
   };
-  return <div className={className ? `ui-segmented-tabs ${className}` : 'ui-segmented-tabs'} role="tablist" onKeyDown={onKeyDown}>{tabs.map((tab, index) => <button key={tab.id} data-testid={tab.testId} data-tab-id={tab.id} type="button" role="tab" aria-selected={tab.id === selectedId} disabled={tab.disabled} className={index === 0 ? 'ui-segmented-tab' : 'ui-segmented-tab ui-segmented-tab-spaced'} onClick={() => onSelect(tab.id)}>{tab.label}</button>)}</div>;
+  return <div className={className ? `ui-segmented-tabs ${className}` : 'ui-segmented-tabs'} role="tablist" onKeyDown={onKeyDown}>{tabs.map((tab, index) => <button key={tab.id} data-testid={tab.testId} data-tab-id={tab.id} type="button" role="tab" aria-selected={tab.id === selectedId} aria-disabled={tab.disabled || undefined} tabIndex={tab.id === selectedId ? 0 : -1} disabled={tab.disabled} className={index === 0 ? 'ui-segmented-tab' : 'ui-segmented-tab ui-segmented-tab-spaced'} onClick={() => { if (!tab.disabled) onSelect(tab.id); }}>{tab.label}</button>)}</div>;
 }
 
 export function SettingsListSection({ title, testId, children }: { readonly title?: ReactNode; readonly testId?: string; readonly children: ReactNode }) {

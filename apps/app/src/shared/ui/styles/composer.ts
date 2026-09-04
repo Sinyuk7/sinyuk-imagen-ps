@@ -212,6 +212,7 @@ export const COMPOSER_CSS = `
 }
 .cmp-body:focus-within{
   border-color:var(--app-color-focus-ring);
+  background:var(--app-color-accent-subtle);
   background:color-mix(in srgb, var(--app-color-accent-subtle) 22%, transparent);
 }
 .cmp-action-row,
@@ -330,13 +331,14 @@ export const COMPOSER_CSS = `
   align-items:center;
   width:100%;
   min-width:0;
+  height:28px;
   min-height:28px;
   margin-top:0;
   margin-right:0;
-  margin-bottom:0;
+  margin-bottom:2px;
   margin-left:0;
-  padding:5px 7px;
-  border-radius:6px;
+  padding:4px 7px;
+  border-radius:4px;
   border:none;
   background:transparent;
   color:var(--app-color-text-secondary);
@@ -346,9 +348,9 @@ export const COMPOSER_CSS = `
   line-height:14px;
   text-align:left;
 }
-.cmp-select-menu-model .cmp-select-option{ margin-bottom:2px; }
-.cmp-select-menu-model .cmp-select-option:last-child{ margin-bottom:0; }
+.cmp-select-option:last-child{ margin-bottom:0; }
 .cmp-select-menu-compact .cmp-select-option{
+  height:32px;
   min-height:32px;
   padding:6px 7px;
 }
@@ -380,7 +382,8 @@ export const COMPOSER_CSS = `
   margin-left:0;
 }
 .cmp-select-option-body{
-  display:block;
+  display:flex;
+  align-items:center;
   flex:1 1 auto;
   min-width:0;
 }
@@ -415,14 +418,6 @@ export const COMPOSER_CSS = `
   font-family:var(--app-font-family-base);
   font-size:9px;
   line-height:12px;
-}
-.cmp-select-option-check{
-  flex:0 0 auto;
-  margin-top:0;
-  margin-right:0;
-  margin-bottom:0;
-  margin-left:8px;
-  color:var(--app-color-accent-default);
 }
 .cmp-ta{
   margin-top:0; margin-right:0; margin-bottom:0; margin-left:0;
@@ -476,8 +471,10 @@ export const COMPOSER_CSS = `
   padding-right:8px;
   padding-bottom:6px;
   padding-left:8px;
+  border:1px solid var(--app-color-border-default);
   border:1px solid color-mix(in srgb, var(--app-color-notice) 36%, var(--app-color-border-default));
   border-radius:7px;
+  background:var(--app-color-background-elevated);
   background:color-mix(in srgb, var(--app-color-background-elevated) 90%, var(--app-color-notice) 10%);
   color:var(--app-color-text-primary);
   font-size:11px;
@@ -562,6 +559,7 @@ export const COMPOSER_CSS = `
 }
 .cmp-select-model .cmp-chip-icon.open,
 .cmp-select-output-size .cmp-chip-icon.open{
+  background:var(--app-color-accent-subtle);
   background:color-mix(in srgb, var(--app-color-accent-subtle) 24%, transparent);
 }
 .cmp-chip.dis{ opacity:.45; cursor:not-allowed; }
@@ -636,8 +634,6 @@ export const COMPOSER_CSS = `
   min-width:0;
   min-height:16px;
   line-height:16px;
-  position:relative;
-  top:1px;
   overflow:hidden;
   text-overflow:ellipsis;
   white-space:nowrap;
@@ -739,8 +735,6 @@ export const COMPOSER_CSS = `
   text-align:left;
   min-height:16px;
   line-height:16px;
-  position:relative;
-  top:1px;
 }
 .cmp-select-model .cmp-chip-overlay-value-icon,
 .cmp-select-output-size .cmp-chip-overlay-value-icon{

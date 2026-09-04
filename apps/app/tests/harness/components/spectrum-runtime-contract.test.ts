@@ -1,6 +1,7 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { SPECTRUM_CAPABILITY_MATRIX } from '../../../src/shared/ui/primitives/spectrum-capability-matrix';
 
 const APP_ROOT = process.cwd();
 
@@ -20,6 +21,13 @@ describe('Spectrum runtime contract', () => {
     expect(registry).toContain("customElements.define('sp-textfield', Textfield);");
   });
 
+  it('does not confuse declared Spectrum tags with runtime registration', () => {
+    const registered = SPECTRUM_CAPABILITY_MATRIX.filter((entry) => entry.registered).map((entry) => entry.tag);
+    expect(registered).toEqual(['sp-button', 'sp-action-button', 'sp-textfield']);
+    expect(SPECTRUM_CAPABILITY_MATRIX.find((entry) => entry.tag === 'sp-checkbox')).toMatchObject({ source: 'uxp-widget', registered: false, hostGate: true });
+    expect(SPECTRUM_CAPABILITY_MATRIX.find((entry) => entry.tag === 'sp-radio')).toMatchObject({ source: 'uxp-widget', registered: false, hostGate: true });
+  });
+
   it('keeps the UXP classic-script compatibility path around the locked wrappers', () => {
     const config = source('vite.uxp.config.ts');
 
@@ -28,6 +36,16 @@ describe('Spectrum runtime contract', () => {
     expect(config).toContain('uxpImportMetaCompatPlugin()');
     expect(config).toContain('inlineDynamicImports: true');
     expect(config).toContain('modulePreload: false');
+  });
+
+  it('keeps an existing UXP bundle free of module-runtime seams', () => {
+    const assetsRoot = join(APP_ROOT, 'dist', 'assets');
+    if (!existsSync(assetsRoot)) return;
+    for (const file of readdirSync(assetsRoot).filter((entry) => entry.endsWith('.js'))) {
+      const bundle = readFileSync(join(assetsRoot, file), 'utf8');
+      expect(bundle, `${file} contains import.meta`).not.toContain('import.meta');
+      expect(bundle, `${file} contains dynamic import`).not.toMatch(/\bimport\s*\(/u);
+    }
   });
 
   it('keeps the real Spectrum controls in the first-frame geometry harness', () => {
@@ -40,6 +58,8 @@ describe('Spectrum runtime contract', () => {
     expect(harness).toContain('data-testid="uxp-css-spectrum-textfield"');
     expect(harness).toContain('data-testid="uxp-css-spectrum-first-frame"');
     expect(harness).toContain('data-testid="uxp-css-spectrum-after-50ms"');
+    expect(harness).toContain('<Checkbox checked');
+    expect(harness).toContain('<Radio checked={false}');
     expect(harness).toContain('setAfterDelay(spectrumRuntimeSnapshot(rootRef.current)), 50');
   });
 

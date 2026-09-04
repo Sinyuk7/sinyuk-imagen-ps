@@ -13,11 +13,10 @@ import {
   type Ref,
 } from 'react';
 import { usePopupLayer } from '../components/popup-layer';
-import type { UxpTextInputType } from '../components/uxp-form-controls';
 import { registerSpectrumControls } from './spectrum-registry';
 
 type NativeButtonVariant = 'accent' | 'primary' | 'secondary' | 'negative';
-type NativeTextFieldType = UxpTextInputType;
+type NativeTextFieldType = 'text' | 'password' | 'url' | 'search';
 type TooltipPlacement =
   | 'top'
   | 'top-start'
@@ -49,12 +48,14 @@ interface CheckboxProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'che
   readonly checked: boolean;
   readonly onChecked: (checked: boolean) => void;
   readonly children?: ReactNode;
+  readonly invalid?: boolean;
 }
 
 interface RadioProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'checked' | 'defaultChecked' | 'onChange' | 'type'> {
   readonly checked: boolean;
   readonly onChecked: (checked: boolean) => void;
   readonly children?: ReactNode;
+  readonly invalid?: boolean;
 }
 
 interface ActionButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'type' | 'aria-pressed'> {
@@ -223,34 +224,84 @@ export function TextField({
   );
 }
 
-export function Checkbox({ checked, onChecked, disabled, children, className, ...props }: CheckboxProps) {
+type SpectrumChoiceElement = HTMLElement & { checked?: boolean; disabled?: boolean; invalid?: boolean };
+
+function SpectrumChoice({ type, checked, onChecked, disabled, invalid, children, className, ...props }: CheckboxProps & { readonly type: 'checkbox' | 'radio' }) {
+  const controlRef = useRef<SpectrumChoiceElement | null>(null);
+  const spectrumTag = type === 'checkbox' ? 'sp-checkbox' : 'sp-radio';
+  const spectrumAvailable = typeof customElements !== 'undefined' && customElements.get(spectrumTag) !== undefined;
+
+  useEffect(() => {
+    const control = controlRef.current;
+    if (!control) return;
+    let lastReported: boolean | undefined;
+    const sync = () => {
+      const next = Boolean(control.checked);
+      if (lastReported === next) return;
+      lastReported = next;
+      onChecked(next);
+    };
+    control.addEventListener('input', sync);
+    control.addEventListener('change', sync);
+    return () => {
+      control.removeEventListener('input', sync);
+      control.removeEventListener('change', sync);
+    };
+  }, [onChecked]);
+
+  useEffect(() => {
+    const control = controlRef.current;
+    if (!control) return;
+    control.checked = checked;
+    control.disabled = Boolean(disabled);
+    control.invalid = Boolean(invalid);
+  }, [checked, disabled, invalid]);
+
+  const onFallbackKeyDown = (event: ReactKeyboardEvent<HTMLSpanElement>) => {
+    if (disabled || (event.key !== ' ' && event.key !== 'Enter')) return;
+    event.preventDefault();
+    onChecked(!checked);
+  };
+
   return (
-    <label className={classNames('ui-checkbox', className)}>
-      <input
-        {...props}
-        type="checkbox"
-        checked={checked}
-        disabled={disabled}
-        onChange={(event) => onChecked(event.currentTarget.checked)}
-      />
+    <label className={classNames('ui-checkbox', className)} data-disabled={dataState(disabled)} data-invalid={dataState(invalid)}>
+      {spectrumAvailable ? (type === 'checkbox' ? <sp-checkbox
+        {...(props as HTMLAttributes<HTMLElement>)}
+        ref={controlRef}
+        checked={checked ? true : undefined}
+        disabled={disabled ? true : undefined}
+        invalid={invalid ? true : undefined}
+        data-spectrum-choice="checkbox"
+      /> : <sp-radio
+        {...(props as HTMLAttributes<HTMLElement>)}
+        ref={controlRef}
+        checked={checked ? true : undefined}
+        disabled={disabled ? true : undefined}
+        invalid={invalid ? true : undefined}
+        data-spectrum-choice="radio"
+      />) : <span
+        {...(props as HTMLAttributes<HTMLSpanElement>)}
+        role={type}
+        aria-checked={checked}
+        aria-disabled={disabled || undefined}
+        tabIndex={disabled ? -1 : 0}
+        className="ui-choice-fallback"
+        data-spectrum-choice-fallback={type}
+        data-invalid={dataState(invalid)}
+        onClick={() => { if (!disabled) onChecked(!checked); }}
+        onKeyDown={onFallbackKeyDown}
+      />}
       {children ? <span className="ui-checkbox-label">{children}</span> : null}
     </label>
   );
 }
 
-export function Radio({ checked, onChecked, disabled, children, className, ...props }: RadioProps) {
-  return (
-    <label className={classNames('ui-checkbox', 'ui-radio', className)}>
-      <input
-        {...props}
-        type="radio"
-        checked={checked}
-        disabled={disabled}
-        onChange={(event) => onChecked(event.currentTarget.checked)}
-      />
-      {children ? <span className="ui-checkbox-label">{children}</span> : null}
-    </label>
-  );
+export function Checkbox(props: CheckboxProps) {
+  return <SpectrumChoice {...props} type="checkbox" />;
+}
+
+export function Radio(props: RadioProps) {
+  return <SpectrumChoice {...props} type="radio" className={classNames('ui-radio', props.className)} />;
 }
 
 export const ActionButton = forwardRef<HTMLButtonElement, ActionButtonProps>(function ActionButton(

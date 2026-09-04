@@ -7,6 +7,7 @@ import { checkTaskV2 } from './policy/task-v2.mjs';
 import { checkThemeSource } from './policy/theme-source.mjs';
 import { checkUxpCss } from './policy/uxp-css.mjs';
 import { checkUiComposition } from './policy/ui-composition.mjs';
+import { checkSharedControlInventory } from './policy/shared-control-inventory.mjs';
 import { printViolations } from './policy/shared.mjs';
 
 const repoRoot = process.cwd();
@@ -20,6 +21,7 @@ const violations = [
   ...checkThemeSource(repoRoot),
   ...checkUxpCss(repoRoot),
   ...checkUiComposition(repoRoot),
+  ...checkSharedControlInventory(repoRoot),
 ];
 
 if (violations.length > 0) {

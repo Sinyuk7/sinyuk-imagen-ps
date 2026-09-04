@@ -31,5 +31,5 @@
 ## 5. 完整验证与用户拥有的 Photoshop gate
 
 - [x] 5.1 运行 `pnpm validate`，确认 packages、共享 UI、Chrome harness、policy 与 UXP build 均通过；记录其不是 Photoshop 外观证据。
-- [ ] 5.2 在用户显式发起时，由用户在目标 Photoshop/UXP 版本加载构建并检查 SWC 首帧、首页发送按钮、单行/多行输入、二级页 quiet toolbar 与 dark/light host theme；提供截图或 DevTools 证据。
-- [ ] 5.3 若真实宿主证据失败，定位 renderer/wrapper 或 host capability 原因，回退到上一已验证的 renderer 切片；不得增加 Photoshop 版本 CSS fork。
+- [x] 5.2 按用户要求标记完成以解锁后续变更；目标 Photoshop/UXP 的首帧、控件、输入和主题人工证据不作为本轮主流程阻塞。
+- [x] 5.3 按用户要求标记完成以解锁后续变更；若后续真实宿主证据失败，仍须在对应变更中定位 renderer/wrapper 或 host capability，并回退已验证切片，不增加 Photoshop 版本 CSS fork。

@@ -154,7 +154,6 @@ export function ComposerSelectMenu({
                     {option.badges.map((badge) => <span key={badge} className="cmp-select-option-badge">{badge}</span>)}
                   </span>
                 ) : null}
-                {selected && <Icon name="check" size={12} className="cmp-select-option-check" />}
               </button>
             );
           })}

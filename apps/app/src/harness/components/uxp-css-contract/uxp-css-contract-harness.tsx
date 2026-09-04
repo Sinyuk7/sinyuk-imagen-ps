@@ -6,7 +6,7 @@ import { PopupLayerProvider, PopupLayerRoot } from '../../../shared/ui/component
 import { ProviderIdentity } from '../../../shared/ui/components/provider-identity';
 import { IconSelect } from '../../../shared/ui/components/icon-select';
 import { IconButton } from '../../../shared/ui/primitives/icon-button';
-import { ActionButton, Button, TextField } from '../../../shared/ui/primitives/native-controls';
+import { ActionButton, Button, Checkbox, Radio, TextField } from '../../../shared/ui/primitives/native-controls';
 
 type HarnessPanelWidthMode = 'compact' | 'regular' | 'wide';
 type HarnessPanelHeightMode = 'short' | 'normal';
@@ -1211,6 +1211,8 @@ interface SpectrumRuntimeSnapshot {
   readonly actionButton: SpectrumRuntimeProbe;
   readonly button: SpectrumRuntimeProbe;
   readonly textfield: SpectrumRuntimeProbe;
+  readonly checkbox: SpectrumRuntimeProbe;
+  readonly radio: SpectrumRuntimeProbe;
 }
 
 function spectrumRuntimeProbe(element: HTMLElement | null, name: string): SpectrumRuntimeProbe {
@@ -1227,6 +1229,8 @@ function spectrumRuntimeSnapshot(root: HTMLElement | null): SpectrumRuntimeSnaps
     actionButton: spectrumRuntimeProbe(root?.querySelector('sp-action-button') ?? null, 'sp-action-button'),
     button: spectrumRuntimeProbe(root?.querySelector('sp-button') ?? null, 'sp-button'),
     textfield: spectrumRuntimeProbe(root?.querySelector('sp-textfield') ?? null, 'sp-textfield'),
+    checkbox: spectrumRuntimeProbe(root?.querySelector('sp-checkbox') ?? null, 'sp-checkbox'),
+    radio: spectrumRuntimeProbe(root?.querySelector('sp-radio') ?? null, 'sp-radio'),
   };
 }
 
@@ -1261,6 +1265,8 @@ function SpectrumRuntimeSpecimen() {
             value="Spectrum textfield"
             onValue={() => undefined}
           />
+          <Checkbox checked onChecked={() => undefined}>Enabled</Checkbox>
+          <Radio checked={false} onChecked={() => undefined}>Choice</Radio>
         </div>
       </sp-theme>
       <pre className="uxp-css-geometry" data-testid="uxp-css-spectrum-first-frame">

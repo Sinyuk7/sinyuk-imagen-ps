@@ -43,18 +43,41 @@ export const NATIVE_CONTROLS_CSS = `
 .ui-radio{
   display:inline-flex;
   align-items:center;
+  min-height:24px;
   min-width:0;
+  margin-top:0;
+  margin-right:8px;
+  margin-bottom:0;
+  margin-left:0;
   color:var(--app-color-text-primary);
   cursor:pointer;
 }
-.ui-checkbox input,
-.ui-radio input{
+.ui-checkbox > sp-checkbox,
+.ui-radio > sp-radio,
+.ui-choice-fallback{
   flex:0 0 auto;
+  width:16px;
+  min-width:16px;
+  height:16px;
   margin-top:0;
   margin-right:8px;
   margin-bottom:0;
   margin-left:0;
 }
+.ui-choice-fallback{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border:1px solid var(--app-color-border-default);
+  border-radius:3px;
+  background:var(--app-color-background-layer-2);
+  color:var(--app-color-text-primary);
+}
+.ui-choice-fallback[aria-checked="true"]{
+  border-color:var(--app-color-accent-default);
+  background:var(--app-color-accent-subtle);
+}
+.ui-choice-fallback[aria-disabled="true"]{ opacity:.45; cursor:not-allowed; }
 .ui-checkbox-label{
   display:block;
   min-width:0;
@@ -62,8 +85,8 @@ export const NATIVE_CONTROLS_CSS = `
   line-height:16px;
   color:var(--app-color-text-primary);
 }
-.ui-checkbox input:disabled + .ui-checkbox-label,
-.ui-radio input:disabled + .ui-checkbox-label{
+.ui-checkbox[data-disabled="true"] .ui-checkbox-label,
+.ui-radio[data-disabled="true"] .ui-checkbox-label{
   opacity:.45;
 }
 .ui-divider{
@@ -208,8 +231,6 @@ export const NATIVE_CONTROLS_CSS = `
 }
 .ui-icon-text-label{
   display:block;
-  position:relative;
-  top:1px;
 }
 
 .settings-page .ui-field-label{

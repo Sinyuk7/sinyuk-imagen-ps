@@ -50,6 +50,11 @@ describe('page patterns', () => {
     expect(PATTERNS_CSS).toContain('.ui-segmented-tab[aria-selected="true"]');
     expect(PATTERNS_CSS).toContain('.ui-segmented-tab:focus-visible');
     expect(PATTERNS_CSS).toContain('.ui-segmented-tab:disabled');
+    expect(container.querySelector('[data-tab-id="one"]')?.getAttribute('tabindex')).toBe('0');
+    expect(container.querySelector('[data-tab-id="two"]')?.getAttribute('tabindex')).toBe('-1');
+    expect(container.querySelector('[data-tab-id="three"]')?.getAttribute('aria-disabled')).toBe('true');
+    await act(async () => list.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true })));
+    expect(onSelect).toHaveBeenCalledWith('two');
   });
 
   it('provides bounded section, field, state, and footer shells', async () => {

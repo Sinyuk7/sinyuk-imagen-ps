@@ -180,6 +180,19 @@ describe('UXP panel CSS contract', () => {
     expect(unionSource).toContain('border-radius:inherit;');
   });
 
+  it('keeps selector options on a deterministic compact CSS lane', () => {
+    const composerSource = readFileSync(join(STYLES_ROOT, 'composer.ts'), 'utf8');
+    expect(composerSource).toContain('height:28px;');
+    expect(composerSource).toContain('margin-bottom:2px;');
+    expect(composerSource).toContain('.cmp-select-option:last-child{ margin-bottom:0; }');
+    expect(composerSource).toContain('height:32px;\n  min-height:32px;');
+    expect(composerSource).toContain('.cmp-select-option-body{\n  display:flex;\n  align-items:center;');
+    expect(composerSource).not.toContain('.cmp-select-option-check');
+    expect(composerSource).not.toMatch(/\.cmp-chip-value-icon,\n\.cmp-chip-value-text\{[^}]*top:1px;/u);
+    expect(composerSource).not.toMatch(/\.cmp-chip-overlay-value-icon,\n\.cmp-chip-overlay-value-text\{[^}]*top:1px;/u);
+    expect(composerSource).toContain('background:var(--app-color-accent-subtle);\n  background:color-mix');
+  });
+
   it('keeps toasts below the app header and fluid in compact panels', () => {
     const unionSource = CSS_SOURCES.map((path) => readFileSync(path, 'utf8')).join('\n');
     expect(unionSource).toContain('--app-header-height:48px');
