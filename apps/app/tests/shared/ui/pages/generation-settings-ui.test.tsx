@@ -76,9 +76,9 @@ describe('generation settings UI archetypes', () => {
     document.body.appendChild(container);
     await renderReadyMain(container);
 
-    const modelSelector = container.querySelector<HTMLButtonElement>('[data-testid="main-model-selector"]');
+    const modelSelector = container.querySelector<HTMLElement>('[data-testid="main-model-selector"]');
     expect(modelSelector?.getAttribute('data-selected-id')).toBe('gpt-image-2');
-    expect(modelSelector?.disabled).toBe(true);
+    expect(modelSelector?.getAttribute('aria-disabled')).toBe('true');
     expect(container.querySelector('[data-testid="composer-output-size-selector"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="composer-output-format-selector"]')).toBeNull();
     expect(container.querySelector('[data-testid="composer-output-ratio-selector"]')).toBeNull();
@@ -107,9 +107,9 @@ describe('generation settings UI archetypes', () => {
     document.body.appendChild(container);
     const harness = await createGenerationSettingsHarness(container, ratioModelOptions());
 
-    const modelSelector = container.querySelector<HTMLButtonElement>('[data-testid="main-model-selector"]');
+    const modelSelector = container.querySelector<HTMLElement>('[data-testid="main-model-selector"]');
     expect(modelSelector?.getAttribute('data-selected-id')).toBe('gemini-3.1-flash-image');
-    expect(modelSelector?.disabled).toBe(false);
+    expect(modelSelector?.getAttribute('aria-disabled')).toBeNull();
     await harness.selectModel('gemini-3-pro-image');
 
     expect(hostContainsIcon(container, 'composer-capture-button', 'capture-selection')).toBe(true);

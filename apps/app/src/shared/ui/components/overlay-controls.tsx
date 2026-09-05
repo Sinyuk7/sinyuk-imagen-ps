@@ -2,8 +2,8 @@ import {
   forwardRef,
   useEffect,
   useRef,
-  type ButtonHTMLAttributes,
   type ComponentPropsWithoutRef,
+  type HTMLAttributes,
   type ReactNode,
   type RefObject,
 } from 'react';
@@ -27,8 +27,9 @@ interface OverlayActionButtonProps extends Omit<ComponentPropsWithoutRef<typeof 
   readonly overlayClassName?: string;
 }
 
-interface OverlayTriggerButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'type' | 'children'> {
+interface OverlayTriggerButtonProps extends Omit<HTMLAttributes<HTMLElement>, 'children'> {
   readonly children?: ReactNode;
+  readonly disabled?: boolean;
   readonly open?: boolean;
   readonly overlay: ReactNode;
   readonly hostRef?: RefObject<HTMLDivElement | null>;
@@ -65,8 +66,8 @@ export function OverlayControlShell({
 
     const handleClick = (event: globalThis.MouseEvent) => {
       if (event.target instanceof Element && event.target.closest('.ui-overlay-icon-button')) return;
-      const button = host.querySelector<HTMLElement & { disabled?: boolean }>('.ui-overlay-icon-button');
-      if (!button || button.disabled) return;
+      const button = host.querySelector<HTMLElement>('.ui-overlay-icon-button');
+      if (!button || button.getAttribute('aria-disabled') === 'true' || button.dataset.disabled === 'true') return;
       event.preventDefault();
       event.stopPropagation();
       button.click();
@@ -134,7 +135,7 @@ export const OverlayActionButton = forwardRef<HTMLButtonElement, OverlayActionBu
   );
 });
 
-export const OverlayTriggerButton = forwardRef<HTMLButtonElement, OverlayTriggerButtonProps>(function OverlayTriggerButton(
+export const OverlayTriggerButton = forwardRef<HTMLElement, OverlayTriggerButtonProps>(function OverlayTriggerButton(
   {
     children,
     overlay,
@@ -159,17 +160,19 @@ export const OverlayTriggerButton = forwardRef<HTMLButtonElement, OverlayTrigger
       hostRef={hostRef}
       overlay={overlay}
     >
-      <button
+      <span
         {...props}
         onClick={onClick}
         onKeyDown={onKeyDown}
         ref={ref}
-        type="button"
+        role="button"
+        tabIndex={disabled ? -1 : 0}
         className={classNames('ui-overlay-icon-button', className)}
-        disabled={disabled}
+        aria-disabled={disabled || undefined}
+        data-disabled={disabled ? 'true' : undefined}
       >
         {children}
-      </button>
+      </span>
     </OverlayControlShell>
   );
 });

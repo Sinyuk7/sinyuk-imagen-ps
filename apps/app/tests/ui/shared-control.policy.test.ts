@@ -8,7 +8,7 @@ describe('shared control inventory', () => {
   it('records owner, line, tag, and explicit fallback reason', () => {
     const inventory = scanSharedControlInventory(REPO_ROOT);
     expect(inventory.find((entry) => entry.owner === 'SegmentedTabs')).toMatchObject({ tag: 'button', reason: 'custom-fallback', allowed: true });
-    expect(inventory.find((entry) => entry.owner === 'ComposerSelectMenu')).toMatchObject({ tag: 'button', reason: 'custom-fallback', allowed: true });
+    expect(inventory.find((entry) => entry.owner === 'ComposerSelectMenu')).toBeUndefined();
   });
 
   it('has no unregistered raw controls in shared owners', () => {

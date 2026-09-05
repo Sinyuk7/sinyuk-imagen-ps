@@ -11,8 +11,6 @@ const SHARED_ROOTS = [
 const RAW_CONTROL_NAMES = new Set(['button', 'input', 'textarea', 'select']);
 const ALLOWED_HOST_SEAMS = new Set(['notice.tsx']);
 const ALLOWED_CUSTOM_FALLBACKS = new Set([
-  'apps/app/src/shared/ui/components/composer-select-menu.tsx:ComposerSelectMenu:button',
-  'apps/app/src/shared/ui/components/overlay-controls.tsx:OverlayTriggerButton:button',
   'apps/app/src/shared/ui/patterns/index.tsx:SegmentedTabs:button',
 ]);
 

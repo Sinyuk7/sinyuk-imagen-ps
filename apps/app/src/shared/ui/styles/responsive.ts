@@ -74,7 +74,7 @@ export const RESPONSIVE_CSS = `
 .panel[data-panel-width-mode="wide"] .cmp-select-output-size .cmp-chip-value-icon{ max-width:none; }
 
 .panel[data-panel-height-mode="short"] .composer{ max-height:min(48%, 210px); padding-top:6px; padding-bottom:8px; }
-.panel[data-panel-height-mode="short"] .cmp-ta{ max-height:66px; }
+.panel[data-panel-height-mode="short"] .cmp-ta{ min-height:0; }
 .panel[data-panel-height-mode="short"] .cmp-toolbar{ padding-top:4px; }
 .panel[data-panel-height-mode="short"] .attach-picker,
 .panel[data-panel-height-mode="short"] .layer-list-wrap{ max-height:180px; }

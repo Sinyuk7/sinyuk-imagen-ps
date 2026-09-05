@@ -373,7 +373,7 @@ async function fillFormControl(locator, value) {
 
 async function clickControl(locator, label) {
   await locator.evaluate((control, expectedLabel) => {
-    if (!control || control.disabled) {
+    if (!control || control.disabled || control.getAttribute('aria-disabled') === 'true') {
       throw new Error(`${expectedLabel} was disabled or missing.`);
     }
     control.click();
@@ -382,17 +382,6 @@ async function clickControl(locator, label) {
 
 function normalizeAppUrl(url) {
   return url;
-}
-
-async function expectControlProperty(locator, property, expectedValue, label) {
-  await locator.evaluate((element, expectation) => {
-    const actualValue = element?.[expectation.property];
-    if (actualValue !== expectation.expectedValue) {
-      throw new Error(
-        `${expectation.label}: expected ${expectation.property}=${JSON.stringify(expectation.expectedValue)}, got ${JSON.stringify(actualValue)} on <${element.tagName.toLowerCase()}>.`,
-      );
-    }
-  }, { property, expectedValue, label });
 }
 
 async function expectControlDisabled(locator, label) {
@@ -950,7 +939,11 @@ async function mainProfileModelMenusScenario({ page, url, capture }) {
   await checkpoint(page, capture, '15-main-single-model-profile.png', async () => {
     await expectVisibleText(page, 'Mock Profile');
     const modelSelector = page.getByTestId('main-model-selector');
-    await expectControlProperty(modelSelector, 'disabled', true, 'Single-model selector');
+    await modelSelector.evaluate((control) => {
+      if (control.getAttribute('aria-disabled') !== 'true') {
+        throw new Error('Single-model selector was not disabled.');
+      }
+    });
     await modelSelector.evaluate((button) => {
       if (button.getAttribute('data-selected-id') !== 'gpt-image-2') {
         throw new Error('Single-model selector lost the explicit gpt-image-2 selection.');

@@ -39,6 +39,18 @@
 
 - [x] 6.1 运行 `pnpm --filter @imagen-ps/app test:ui`、`pnpm --filter @imagen-ps/app test:visual`、`pnpm --filter @imagen-ps/app build:uxp` 和 `pnpm check:policy`。
 - [x] 6.2 运行 `pnpm validate`，确认 shared behavior、Chrome surface、policy 和 UXP build 通过；结果不得表述为 Photoshop 外观证据。
-- [ ] 6.3 由用户在目标 Photoshop/UXP 检查 Checkbox/Radio、选择项间距、图标基线、tabs 键盘、dark/light、disabled/selected 和 popup hit-test，提供截图或 DevTools 证据。
-  - 用户-owned gate：当前环境未启动 Photoshop/UXP Developer Tool；自动化结果不替代真实宿主证据。
+- [x] 6.3 由用户在目标 Photoshop/UXP 检查 Checkbox/Radio、选择项间距、图标基线、tabs 键盘、dark/light、disabled/selected 和 popup hit-test，提供截图或 DevTools 证据。
+  - 2026-09-05 用户截图确认 gate 失败：raw/Spectrum button 皮肤泄漏、选择项间距异常、popup 双层背景、Composer textarea 未填充、Profile 动作重复。
 - [x] 6.4 记录宿主失败的 renderer/wrapper/capability 原因与回退结果，必要时将稳定事实写入 `docs/ENGINEERING_CONTEXT.md`。
+
+## 7. 真实宿主失败补救
+
+- [x] 7.1 将 `ComposerSelectMenu` option 与 `OverlayTriggerButton` 从泄漏宿主皮肤的 raw button 改为 repo-owned focusable renderer，保留 ARIA、键盘、disabled、focus return、placement 和 hit-test。
+- [x] 7.2 统一 header Provider selector 的 option 语义与极简皮肤；删除 check icon，只保留 selected 高亮和 `aria-selected`。
+- [x] 7.3 收敛 popup shell/motion/listbox 为单一背景和有限圆角；option 使用稳定非零间距，禁止双层黑底与连续胶囊。
+- [x] 7.4 修复 Composer `sp-textarea` stretch geometry，确保实际编辑区域填充 textarea shell。
+- [x] 7.5 收敛 `SecretField` 为单一边框、背景和 focus owner，使用 wrapper modifier variables 控制内部 `sp-textfield`。
+- [x] 7.6 简化 Provider Profile action hierarchy：移除主 Cancel、增加 dirty Save、删除确认替换主 footer，同时保留确认 Cancel。
+- [x] 7.7 增加 opened selector、existing Profile edit/delete confirmation、textarea/secret geometry 的 deterministic 与 Chrome visual cases。
+- [x] 7.8 运行 app UI、visual、UXP build、policy、`pnpm validate`，结果只作为自动化证据。
+- [x] 7.9 将稳定 UXP renderer 结论写入 `docs/ENGINEERING_CONTEXT.md`，等待用户 reload 后完成新一轮 Photoshop gate。

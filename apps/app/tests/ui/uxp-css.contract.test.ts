@@ -183,8 +183,9 @@ describe('UXP panel CSS contract', () => {
   it('keeps selector options on a deterministic compact CSS lane', () => {
     const composerSource = readFileSync(join(STYLES_ROOT, 'composer.ts'), 'utf8');
     expect(composerSource).toContain('height:28px;');
-    expect(composerSource).toContain('margin-bottom:2px;');
+    expect(composerSource).toContain('margin-bottom:4px;');
     expect(composerSource).toContain('.cmp-select-option:last-child{ margin-bottom:0; }');
+    expect(composerSource).toContain('background:transparent;\n  border-radius:inherit;');
     expect(composerSource).toContain('height:32px;\n  min-height:32px;');
     expect(composerSource).toContain('.cmp-select-option-body{\n  display:flex;\n  align-items:center;');
     expect(composerSource).not.toContain('.cmp-select-option-check');

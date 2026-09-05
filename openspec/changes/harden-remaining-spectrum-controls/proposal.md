@@ -11,6 +11,9 @@
 - 盘点并删除或统一未使用的 `UxpTextInput` raw `<input>` seam，避免未来重新引入第二套文本输入实现。
 - 为 selector trigger/menu 建立独立 capability spike，验证 popup placement、focus return、hit-test、disabled predicate、icon/badge 与键盘循环；未证明等价前保留当前 custom UI。
 - 扩展 shared-control policy 与 harness，区分允许的 clipboard fallback / 对照样本和生产 raw control。
+- 根据真实 Photoshop/UXP 截图回退不稳定的 raw button / Spectrum button 菜单皮肤：popup 只保留单一表面，选中项只使用高亮，不显示重复 check icon。
+- 收敛 Composer `sp-textarea` 与 Profile `sp-textfield` 的几何和皮肤 ownership，避免编辑器只占局部高度、双重边框和圆角背景穿帮。
+- 简化 Provider Profile 动作层级：页面返回负责放弃编辑，主操作区只保留必要动作；删除确认保留明确取消路径。
 
 ## Capabilities
 
@@ -26,7 +29,7 @@
 
 - 影响 `apps/app/src/shared/ui/primitives/native-controls.tsx`、`patterns/index.tsx`、`components/uxp-form-controls.tsx`、`components/composer-select-menu.tsx`、`components/overlay-controls.tsx`、`styles/composer.ts` 与 `styles/patterns.ts`。
 - 可能新增 `@swc-uxp-wrappers/*` 控件依赖；不得仅因 `swc-uxp-elements.d.ts` 存在声明就扩大 bundle。
-- 影响 shared UI registry、React custom-element adapter、UXP CSS policy、deterministic UI tests 与 Chrome visual baseline；不改 Provider、业务状态、持久化、路由和页面信息架构。
+- 影响 shared UI registry、React custom-element adapter、UXP CSS policy、deterministic UI tests、Chrome visual baseline、Provider Profile 表单动作和主页面 Provider selector；不改 Provider、业务状态、持久化或路由。
 - Photoshop UXP 仍是唯一产品 runtime；Chrome 只证明共享行为与结构。真实 Photoshop 外观和宿主 hit-test 证据仍由用户显式验收。
 - 外部依据（访问 2026-08-28）：
   - Adobe Spectrum UXP Reference: https://developer.adobe.com/photoshop/uxp/2022/uxp-api/reference-spectrum/

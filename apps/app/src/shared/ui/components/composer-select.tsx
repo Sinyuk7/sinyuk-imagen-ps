@@ -69,7 +69,7 @@ export function ComposerSelect(props: ComposerSelectProps) {
   const menuRef = useRef<HTMLDivElement | null>(null);
   const hostRef = useRef<HTMLDivElement | null>(null);
   const panelBoundaryRef = useRef<HTMLElement | null>(null);
-  const chipRef = useRef<HTMLButtonElement | null>(null);
+  const chipRef = useRef<HTMLElement | null>(null);
   const chipBodyRef = useRef<HTMLSpanElement | null>(null);
   const chipValueRef = useRef<HTMLSpanElement | null>(null);
   const chipArrowRef = useRef<HTMLSpanElement | null>(null);

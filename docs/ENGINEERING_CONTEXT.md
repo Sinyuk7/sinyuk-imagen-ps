@@ -463,17 +463,28 @@ surface apps -> application/session -> core-engine + providers + execution backe
   but they are user-owned evidence rather than an autonomous agent gate.
 - Shared control stability boundary: Checkbox/Radio use one owner-local
   Spectrum UXP widget adapter with native event listeners and `undefined` for
-  unchecked boolean attributes. `SegmentedTabs`, `ComposerSelectMenu`, and
-  `OverlayTriggerButton` remain explicit custom fallbacks until a host spike
-  proves equivalent keyboard, popup hit-test, focus-return, and first-frame
-  geometry behavior. Selector options use fixed height, explicit margins,
-  small radius, flex alignment, and one selected highlight; check icons and
-  single-element `top` baseline compensation are not required.
+  unchecked boolean attributes. `SegmentedTabs` remains the only raw-button
+  custom fallback. Selector behavior stays custom because the Spectrum menu
+  spike did not preserve popup hit-testing and geometry, but
+  `ComposerSelectMenu` options and `OverlayTriggerButton` now use repo-owned
+  focusable elements instead of host-skinned buttons. Selector options use
+  fixed height, explicit 4px margins, small radius, flex alignment, and one
+  selected highlight; check icons and single-element `top` baseline
+  compensation are not required. Popup shell owns the only visible popup
+  background, border, and radius.
 - The shared-control inventory is enforced by
   `scripts/policy/shared-control-inventory.mjs`; clipboard fallback and the
-  three documented custom fallbacks are explicit exceptions. The Spectrum
+  documented `SegmentedTabs` raw-button fallback are explicit exceptions. The Spectrum
   capability matrix records runtime registration separately from `.d.ts`
   declarations and requires real Photoshop evidence for host geometry.
+- Composer textarea height is owned by a column flex shell; the actual
+  `sp-textarea` stretches with that shell and has no fixed maximum height.
+  Profile secret fields keep border, background, radius, and focus indication
+  on the outer affordance while `--mod-textfield-*` variables neutralize the
+  nested Spectrum textfield skin.
+- Provider Profile header back owns abandoning edits. The main footer contains
+  only Delete, Test, and Save as applicable; unchanged existing Profiles keep
+  Save disabled, and delete confirmation replaces the main footer while active.
 - UXP first-frame geometry: Spectrum controls can establish custom element definitions and shadow trees but still report collapsed `0x0` first-frame geometry. This is a Photoshop UXP layout instability, not a missing-registration or late-CSS issue. User-supplied real-host geometry is authoritative for this boundary.
 - Provider-output base64 in `job.output` has no size cap; a large provider image exists simultaneously as base64 string, decoded copy, data URL, and decoded pixels. No global full-resolution concurrency cap on input resolve.
 - `apps/app` now applies best-effort retention at shell startup and after successful generation: task history and job history are count-capped, generated output assets use oldest-first high/low watermark eviction, and UXP logs under `logs/YYYY-MM-DD/imagen.jsonl` are bounded by day retention plus per-day size truncation. This is not a byte-accurate quota or historical orphan cleanup policy.

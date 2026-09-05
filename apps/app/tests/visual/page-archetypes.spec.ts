@@ -65,4 +65,20 @@ for (const size of providerSurfaceSizes) {
     await expect(page.getByTestId('provider-profile-form')).toBeVisible();
     await expect(page.locator('.ui-page-frame')).toHaveScreenshot(`provider-profile-${size.name}.png`);
   });
+
+  test(`provider profile edit and delete confirmation ${size.name}`, async ({ page }) => {
+    await page.setViewportSize({ width: size.width, height: size.height });
+    await openSettings(page);
+    await page.getByTestId('provider-row-mock-profile').click();
+    await expect(page.getByTestId('provider-profile-form')).toBeVisible();
+    await expect(page.getByTestId('provider-profile-save-button')).toBeDisabled();
+    await expect(page.getByTestId('provider-profile-form').getByText('取消', { exact: true })).toHaveCount(0);
+    await expect(page.locator('.ui-page-frame')).toHaveScreenshot(`provider-profile-edit-${size.name}.png`);
+
+    await page.getByTestId('provider-profile-delete-button').click();
+    await expect(page.getByTestId('provider-profile-delete-confirmation')).toBeVisible();
+    await expect(page.getByTestId('provider-profile-save-button')).toHaveCount(0);
+    await expect(page.getByTestId('provider-profile-cancel-delete')).toBeVisible();
+    await expect(page.locator('.ui-page-frame')).toHaveScreenshot(`provider-profile-delete-confirmation-${size.name}.png`);
+  });
 }

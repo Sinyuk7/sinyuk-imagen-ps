@@ -24,7 +24,6 @@ export function ProfileForm({
   initialDisplayName,
   hasSavedApiKey,
   existingDisplayNames,
-  onCancel,
   onSave,
   onDelete,
   onTest,
@@ -39,9 +38,16 @@ export function ProfileForm({
   const [deleteConfirmation, setDeleteConfirmation] = useState(false);
   const busyRef = useRef(false);
   const normalizedName = displayName.trim();
+  const initialNormalizedName = initialDisplayName.trim();
   const duplicateName = existingDisplayNames.some((name) => name.trim() === normalizedName);
   const requiresApiKey = !hasSavedApiKey && !apiKey.trim();
-  const saveDisabled = busyAction !== null || !normalizedName || duplicateName || requiresApiKey;
+  const isExistingProfile = Boolean(onDelete);
+  const isDirty = normalizedName !== initialNormalizedName || Boolean(apiKey.trim()) || removeSavedApiKey;
+  const saveDisabled = busyAction !== null
+    || !normalizedName
+    || duplicateName
+    || requiresApiKey
+    || (isExistingProfile && !isDirty);
 
   const run = async (action: 'save' | 'test' | 'delete', callback: () => Promise<void>) => {
     if (busyRef.current) return;
@@ -103,7 +109,13 @@ export function ProfileForm({
         <SettingsFormSection testId="provider-profile-delete-confirmation">
           <StatusNotice tone="warning" message={t.settings.deleteProfileConfirmation} />
           <FooterActions>
-            <Button disabled={busyAction !== null} onClick={() => setDeleteConfirmation(false)}>{t.common.cancel}</Button>
+            <Button
+              data-testid="provider-profile-cancel-delete"
+              disabled={busyAction !== null}
+              onClick={() => setDeleteConfirmation(false)}
+            >
+              {t.common.cancel}
+            </Button>
             <Button
               data-testid="provider-profile-confirm-delete"
               variant="negative"
@@ -114,42 +126,41 @@ export function ProfileForm({
             </Button>
           </FooterActions>
         </SettingsFormSection>
-      ) : null}
-
-      <FooterActions>
-        {onDelete ? (
+      ) : (
+        <FooterActions>
+          {onDelete ? (
+            <Button
+              data-testid="provider-profile-delete-button"
+              variant="negative"
+              disabled={busyAction !== null}
+              onClick={() => setDeleteConfirmation(true)}
+            >
+              {t.common.delete}
+            </Button>
+          ) : null}
+          {onTest ? (
+            <Button
+              data-testid="provider-profile-test-button"
+              disabled={busyAction !== null}
+              onClick={() => void run('test', onTest)}
+            >
+              {busyAction === 'test' ? t.settings.testingConnection : t.settings.testConnection}
+            </Button>
+          ) : null}
           <Button
-            data-testid="provider-profile-delete-button"
-            variant="negative"
-            disabled={busyAction !== null}
-            onClick={() => setDeleteConfirmation(true)}
+            data-testid="provider-profile-save-button"
+            variant="accent"
+            disabled={saveDisabled}
+            onClick={() => void run('save', async () => onSave({
+              displayName: normalizedName,
+              ...(apiKey.trim() ? { apiKey: apiKey.trim() } : {}),
+              ...(removeSavedApiKey ? { removeSavedApiKey: true } : {}),
+            }))}
           >
-            {t.common.delete}
+            {busyAction === 'save' ? t.settings.savingProvider : t.common.save}
           </Button>
-        ) : null}
-        {onTest ? (
-          <Button
-            data-testid="provider-profile-test-button"
-            disabled={busyAction !== null}
-            onClick={() => void run('test', onTest)}
-          >
-            {busyAction === 'test' ? t.settings.testingConnection : t.settings.testConnection}
-          </Button>
-        ) : null}
-        <Button disabled={busyAction !== null} onClick={onCancel}>{t.common.cancel}</Button>
-        <Button
-          data-testid="provider-profile-save-button"
-          variant="accent"
-          disabled={saveDisabled}
-          onClick={() => void run('save', async () => onSave({
-            displayName: normalizedName,
-            ...(apiKey.trim() ? { apiKey: apiKey.trim() } : {}),
-            ...(removeSavedApiKey ? { removeSavedApiKey: true } : {}),
-          }))}
-        >
-          {busyAction === 'save' ? t.settings.savingProvider : t.common.save}
-        </Button>
-      </FooterActions>
+        </FooterActions>
+      )}
     </>
   );
 }

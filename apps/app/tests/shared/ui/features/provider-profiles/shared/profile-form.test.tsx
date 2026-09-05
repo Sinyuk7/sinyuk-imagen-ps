@@ -34,7 +34,11 @@ describe('ProfileForm', () => {
     ));
 
     const key = container.querySelector<HTMLInputElement>('[data-testid="provider-profile-api-key-input"]')!;
+    const initialSave = container.querySelector<HTMLButtonElement>('[data-testid="provider-profile-save-button"]')!;
     expect(key.type).toBe('password');
+    expect(initialSave.disabled).toBe(true);
+    expect(Array.from(container.querySelectorAll('sp-button')).some((button) => button.textContent?.trim() === '取消')).toBe(false);
+    expect(container.querySelector('[data-testid="provider-profile-cancel-delete"]')).toBeNull();
     await act(async () => container.querySelector<HTMLElement>('[data-testid="provider-profile-api-key-toggle"]')?.click());
     expect(key.type).toBe('text');
     await act(async () => container.querySelector<HTMLElement>('[data-testid="provider-profile-api-key-clear"]')?.click());
@@ -45,9 +49,60 @@ describe('ProfileForm', () => {
 
     await act(async () => container.querySelector<HTMLElement>('[data-testid="provider-profile-delete-button"]')?.click());
     expect(container.querySelector('[data-testid="provider-profile-delete-confirmation"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="provider-profile-delete-button"]')).toBeNull();
+    expect(container.querySelector('[data-testid="provider-profile-save-button"]')).toBeNull();
+    expect(container.querySelector('[data-testid="provider-profile-cancel-delete"]')).not.toBeNull();
     await act(async () => container.querySelector<HTMLElement>('[data-testid="provider-profile-confirm-delete"]')?.click());
     await flush();
     expect(onDelete).toHaveBeenCalledTimes(1);
+  });
+
+  it('编辑现有 Profile 时仅在有实际变更后允许保存', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+    await act(async () => root?.render(
+      <TestI18nProvider>
+        <ProfileForm
+          initialDisplayName="Main"
+          hasSavedApiKey
+          existingDisplayNames={[]}
+          onCancel={vi.fn()}
+          onSave={vi.fn(async () => undefined)}
+          onDelete={vi.fn(async () => undefined)}
+          onTest={vi.fn(async () => undefined)}
+        />
+      </TestI18nProvider>,
+    ));
+
+    const name = container.querySelector<HTMLInputElement>('[data-testid="provider-profile-name-input"]')!;
+    const key = container.querySelector<HTMLInputElement>('[data-testid="provider-profile-api-key-input"]')!;
+    const save = () => container.querySelector<HTMLButtonElement>('[data-testid="provider-profile-save-button"]')!;
+
+    expect(save().disabled).toBe(true);
+    await act(async () => changeInput(name, 'Renamed'));
+    await flush();
+    expect(save().disabled).toBe(false);
+
+    await act(async () => changeInput(name, '  Main  '));
+    await flush();
+    expect(save().disabled).toBe(true);
+
+    await act(async () => changeInput(key, 'sk-replacement'));
+    await flush();
+    expect(save().disabled).toBe(false);
+
+    await act(async () => changeInput(key, ''));
+    await flush();
+    expect(save().disabled).toBe(true);
+
+    await act(async () => container.querySelector<HTMLElement>('[data-testid="provider-profile-delete-button"]')?.click());
+    expect(container.querySelector('[data-testid="provider-profile-test-button"]')).toBeNull();
+    expect(container.querySelector('[data-testid="provider-profile-save-button"]')).toBeNull();
+    await act(async () => container.querySelector<HTMLElement>('[data-testid="provider-profile-cancel-delete"]')?.click());
+    expect(container.querySelector('[data-testid="provider-profile-delete-confirmation"]')).toBeNull();
+    expect(container.querySelector('[data-testid="provider-profile-test-button"]')).not.toBeNull();
+    expect(save().disabled).toBe(true);
   });
 
   it('阻止重复名称和缺少 API Key 的新 Profile', async () => {

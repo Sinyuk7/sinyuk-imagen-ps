@@ -11,7 +11,7 @@ export interface SelectTriggerButtonCommonProps {
   readonly ariaDescribedBy?: string;
   readonly menuId?: string;
   readonly hostRef: RefObject<HTMLDivElement | null>;
-  readonly chipRef: RefObject<HTMLButtonElement | null>;
+  readonly chipRef: RefObject<HTMLElement | null>;
   readonly chipBodyRef: RefObject<HTMLSpanElement | null>;
   readonly chipValueRef: RefObject<HTMLSpanElement | null>;
   readonly chipArrowRef: RefObject<HTMLSpanElement | null>;

@@ -19,7 +19,7 @@ Photoshop UXP 不是完整浏览器。Adobe 官方资料同时提供内置 Spect
 
 **Non-Goals:**
 
-- 不改 Provider、任务、持久化、路由、业务状态、文案或页面信息架构。
+- 不改 Provider、任务、持久化、路由或业务状态；允许收敛 Provider Profile 的重复动作和 selector 信息表达。
 - 不强制把 `FieldLabel`、`HelpText`、`Divider`、Toast、Dialog 改成 Spectrum；它们当前稳定收益不足。
 - 不在没有 host 证据时替换 `ComposerSelectMenu`、`OverlayTriggerButton`，不直接引入 `sp-picker`、SWC multiline textarea、Slider 或 Progress。
 - 不使用 Photoshop 版本号、user agent 或页面 CSS fork 解决宿主差异。
@@ -54,6 +54,14 @@ renderer 集中处理 Web Component 的 boolean attribute（未选中传 `undefi
 
 每个控件先通过 deterministic contract、bundle/registry 检查和 Chrome visual baseline，再由用户在目标 Photoshop/UXP 中检查首帧、dark/light、键盘、disabled、selected、popup 命中和输入交互。Chrome 结果不得表述为 Photoshop 外观验收。
 
+### 7. 真实宿主失败后切换到单表面 renderer
+
+用户提供的 Photoshop 截图已经证明 raw HTML button selector option/trigger 和 `sp-button` profile menu row 会泄漏宿主圆角、边框与背景。继续增加 host 外层覆盖不能形成稳定皮肤。selector 保留现有 placement、focus、underlay 与 editor suspension 逻辑，但交互表面改为 repo-owned focusable element；键盘与 ARIA 由组件显式提供。popup shell 绘制唯一背景，option row 默认透明，selected 只绘制一层高亮且不显示 check icon。
+
+`sp-textfield` 的内部皮肤通过锁定 wrapper 支持的 `--mod-textfield-*` custom properties 调整；不得依赖对 custom-element host 设置 `border:none` 来清除 shadow input。Composer `sp-textarea` 使用明确 stretch geometry，避免 flex shell 与固定 `max-height` 同时拥有高度。
+
+Provider Profile 主 footer 删除与页头 back 重复的 Cancel。Save 增加 dirty gate。Delete confirmation 替换主 footer，而不是在其上方再追加第二套操作。
+
 ## Risks / Trade-offs
 
 - [新增 wrapper 导致 classic-script bundle、dynamic import 或 `import.meta` 回流] -> 只允许单组件 import，运行产物扫描并保留最小 registry。
@@ -72,6 +80,7 @@ renderer 集中处理 Web Component 的 boolean attribute（未选中传 `undefi
 4. 对 `SegmentedTabs` 做语义等价性 spike；通过才迁移，否则只替换状态 CSS。
 5. 对 selector trigger/menu 记录 capability 结果；失败时保持 custom UI，不增加版本 CSS fork。
 6. 任一宿主 gate 失败，回退到本变更前一已验证 renderer；不得以隐藏错误、扩大圆角或增加 overlay 作为修复。
+7. 将真实宿主失败转为 regression harness：打开状态 popup、regular-height textarea、existing Profile edit/confirmation 都必须有确定性断言和视觉 fixture。
 
 ## Open Questions
 

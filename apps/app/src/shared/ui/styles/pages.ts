@@ -703,11 +703,18 @@ export const PAGES_CSS = `
 .field-input-affordance .field-input-embedded{
   flex:1;
   min-width:0;
-}
-.field-input-affordance .field-input-embedded{
+  /* sp-textfield 影子输入层由 --mod-textfield-* 变量绘制；外层 affordance 独占边框与背景。 */
+  --mod-textfield-background-color:transparent;
+  --mod-textfield-border-width:0px;
+  --mod-textfield-border-color:transparent;
+  --mod-textfield-corner-radius:0px;
+  --mod-textfield-focus-indicator-width:0px;
+  --mod-textfield-focus-indicator-color:transparent;
+  --mod-textfield-border-color-focus:transparent;
+  --mod-textfield-border-color-keyboard-focus:transparent;
+  --mod-textfield-background-color-disabled:transparent;
+  --mod-textfield-border-color-disabled:transparent;
   background:transparent;
-  border:none;
-  border-radius:0;
 }
 .field-input-shell{
   min-height:32px;

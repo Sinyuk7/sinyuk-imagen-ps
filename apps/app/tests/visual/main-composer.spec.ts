@@ -20,11 +20,22 @@ async function expectNoHorizontalOverflow(page: Page) {
   await expect.poll(() => page.locator('#root').evaluate((root) => root.scrollWidth <= root.clientWidth)).toBe(true);
 }
 
+async function expectTextAreaFillsShell(page: Page) {
+  await expect.poll(() => page.locator('.cmp-ta-shell').evaluate((shell) => {
+    const editor = shell.querySelector('.cmp-ta');
+    if (!editor) return false;
+    const shellRect = shell.getBoundingClientRect();
+    const editorRect = editor.getBoundingClientRect();
+    return editorRect.height >= shellRect.height - 1 && editorRect.width >= shellRect.width - 1;
+  })).toBe(true);
+}
+
 for (const size of sizes) {
   test(`main composer ${size.name}`, async ({ page }) => {
     await page.setViewportSize({ width: size.width, height: size.height });
     await openMain(page);
     await expectNoHorizontalOverflow(page);
+    await expectTextAreaFillsShell(page);
     await expect(page.locator('#root')).toHaveScreenshot(`main-composer-${size.name}.png`);
   });
 
@@ -39,5 +50,20 @@ for (const size of sizes) {
     await expectNoHorizontalOverflow(page);
     await expect(page.getByTestId('toast')).toBeHidden();
     await expect(page.locator('#root')).toHaveScreenshot(`main-attachment-composer-${size.name}.png`);
+  });
+
+  test(`main opened selectors ${size.name}`, async ({ page }) => {
+    await page.setViewportSize({ width: size.width, height: size.height });
+    await openMain(page);
+    await page.getByTestId('main-profile-selector').click();
+    await expect(page.getByTestId('profile-menu-option-mock-profile')).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+    await expect(page.locator('#root')).toHaveScreenshot(`main-profile-selector-open-${size.name}.png`);
+
+    await page.getByTestId('profile-menu-option-mock-profile').click();
+    await page.getByTestId('composer-output-size-selector').click();
+    await expect(page.getByTestId('composer-output-size-selector-menu')).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+    await expect(page.locator('#root')).toHaveScreenshot(`main-output-selector-open-${size.name}.png`);
   });
 }

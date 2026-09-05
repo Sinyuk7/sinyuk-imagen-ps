@@ -65,3 +65,36 @@ policy/harness SHALL 扫描 shared UI owner 内的 raw interactive controls，�
 #### Scenario: Baseline compensation removed
 - **WHEN** icon/text layout 使用统一 flex/grid 对齐模型
 - **THEN** renderer SHALL 不再依赖 `top:1px` 等单元素位移补偿，图标与文字 SHALL 在 compact 和 regular 尺寸下保持同一视觉基线
+
+### Requirement: Single-surface selector rendering
+selector trigger、popup shell 与 option row SHALL 各自只有一个可见皮肤 owner。真实 UXP 中泄漏原生 button 或 Spectrum button 圆角、边框、背景的 renderer MUST 被替换，不得继续用外层 CSS 覆盖内部控件皮肤。
+
+#### Scenario: Selected provider option
+- **WHEN** 当前 Provider 出现在 header selector 中
+- **THEN** option SHALL 只显示单一 selected 高亮，不得同时显示 check icon；组件仍 MUST 暴露 `aria-selected=true`
+
+#### Scenario: Consecutive popup rows
+- **WHEN** popup 显示两个或更多 option
+- **THEN** popup SHALL 只有一个连续背景表面，option 间 SHALL 使用稳定非零间距，圆角外不得露出第二层黑色或宿主按钮背景
+
+### Requirement: Native editor geometry ownership
+Composer textarea 与 Profile secret field SHALL 使用单一几何和皮肤 owner。外层容器增长时，实际可编辑区域 MUST 同步增长或容器 MUST 按编辑器内容收缩。
+
+#### Scenario: Composer at regular panel height
+- **WHEN** Composer 获得超过 textarea 默认高度的可用空间
+- **THEN** `sp-textarea` 可编辑表面 SHALL 填充 textarea shell，不得在编辑区下方留下由 flex 增长产生的大块空白
+
+#### Scenario: Secret field with actions
+- **WHEN** API Key field 同时显示 clear/remove 与 reveal action
+- **THEN** 输入框与 action shell SHALL 只显示一套边框、背景和 focus ring，输入文本区域不得被重复圆角或内部背景压缩
+
+### Requirement: Minimal Profile action hierarchy
+Provider Profile 页面 SHALL 保持简洁且交互明确。页头返回 SHALL 负责放弃当前编辑；主 action area SHALL 只显示当前状态必要的 destructive、test 与 save 动作。
+
+#### Scenario: Editing an unchanged profile
+- **WHEN** display name、API Key action 均未变化
+- **THEN** Save SHALL disabled，主 action area SHALL NOT 显示与页头返回重复的 Cancel
+
+#### Scenario: Delete confirmation
+- **WHEN** 用户请求删除 Profile
+- **THEN** confirmation actions SHALL 临时替换主 action area，并提供 Cancel 与确认 Delete，不得同时显示两套 footer actions

@@ -57,7 +57,7 @@ export function ComposerSelectMenu({
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault();
       event.stopPropagation();
-      const items = Array.from(menuRef.current?.querySelectorAll<HTMLButtonElement>('[role="option"]:not(:disabled)') ?? []);
+      const items = Array.from(menuRef.current?.querySelectorAll<HTMLElement>('[role="option"]:not([aria-disabled="true"])') ?? []);
       if (items.length === 0) {
         return;
       }
@@ -72,10 +72,10 @@ export function ComposerSelectMenu({
     }
     const active = document.activeElement as HTMLElement | null;
     const id = active?.getAttribute('data-value');
-    if (!id) {
+    if (!id || !active) {
       return;
     }
-    if ((active as HTMLButtonElement).disabled) {
+    if (active.getAttribute('aria-disabled') === 'true') {
       return;
     }
     event.preventDefault();
@@ -129,15 +129,15 @@ export function ComposerSelectMenu({
             const selected = option.id === selectedId;
             const selectable = isOptionSelectable ? isOptionSelectable(option.id) : true;
             return (
-              <button
+              <div
                 key={option.id}
-                type="button"
                 data-testid={testId ? `${testId}-option-${option.id}` : undefined}
                 data-value={option.id}
                 className={`cmp-select-option${selected ? ' selected' : ''}${!selectable ? ' disabled' : ''}`}
                 role="option"
                 aria-selected={selected}
                 aria-disabled={!selectable ? true : undefined}
+                tabIndex={selectable ? 0 : -1}
                 onMouseDown={handlePressStart}
                 onPointerDown={handlePressStart}
                 onClick={(event) => {
@@ -154,7 +154,7 @@ export function ComposerSelectMenu({
                     {option.badges.map((badge) => <span key={badge} className="cmp-select-option-badge">{badge}</span>)}
                   </span>
                 ) : null}
-              </button>
+              </div>
             );
           })}
         </div>

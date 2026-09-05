@@ -380,12 +380,18 @@ export function MainPage({
   const modelGenerationSettings = workspace.providerSettings.model;
   const convRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<UxpTextAreaElement>(null);
+  const profileSelectorRef = useRef<HTMLButtonElement>(null);
+  const profileListboxRef = useRef<HTMLDivElement>(null);
+  const profileMenuFocusRef = useRef<'selected' | 'first' | 'last'>('selected');
+  const restoreProfileTriggerFocusRef = useRef(false);
+  const focusInitialProfileOptionRef = useCallback((element: HTMLDivElement | null) => element?.focus(), []);
   const layerPickerOpenStartedAtRef = useRef<number | null>(null);
   const promptFoldRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const promptTextRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const responseFoldRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const responseTextRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const lastNonEmptyLayersRef = useRef<readonly LayerInfo[]>(layers);
+  const focusProfileOption = useCallback((target: HTMLElement | undefined) => target?.focus(), []);
   useEffect(() => {
     if (layers.length > 0) {
       lastNonEmptyLayersRef.current = layers;
@@ -410,6 +416,14 @@ export function MainPage({
     workspace.setAttachmentPreparing(captureInFlight);
   }, [captureInFlight, workspace]);
 
+  useEffect(() => {
+    if (profileMenuOpen || !restoreProfileTriggerFocusRef.current) {
+      return;
+    }
+    restoreProfileTriggerFocusRef.current = false;
+    profileSelectorRef.current?.focus();
+  }, [profileMenuOpen]);
+
   function layerKindIcon(kind: string | undefined): 'layer-pixel' | 'layer-smart-object' | 'layer-text' | 'layer-group' | null {
     switch (kind) {
       case 'smartObject': return 'layer-smart-object';
@@ -431,6 +445,30 @@ export function MainPage({
   }
   const selectableProfiles = profiles;
   const comfyUiMode = viewModel.mode === 'comfyui';
+  const profileMenuOptionIds = comfyUiMode
+    ? ['mode:provider']
+    : [...selectableProfiles.map((profile) => `profile:${profile.profileId}`), 'mode:comfyui'];
+  const profileMenuInitialFocusId = profileMenuFocusRef.current === 'first'
+    ? profileMenuOptionIds[0]
+    : profileMenuFocusRef.current === 'last'
+      ? profileMenuOptionIds[profileMenuOptionIds.length - 1]
+      : !comfyUiMode && selectedProfileId
+        ? `profile:${selectedProfileId}`
+        : profileMenuOptionIds[0];
+  useEffect(() => {
+    if (!profileMenuOpen) {
+      return;
+    }
+    const options = Array.from(
+      profileListboxRef.current?.querySelectorAll<HTMLElement>('[role="option"]:not([aria-disabled="true"])') ?? [],
+    );
+    const target = profileMenuFocusRef.current === 'first'
+      ? options[0]
+      : profileMenuFocusRef.current === 'last'
+        ? options[options.length - 1]
+        : options.find((option) => option.getAttribute('aria-selected') === 'true') ?? options[0];
+    focusProfileOption(target);
+  }, [focusProfileOption, profileMenuInitialFocusId, profileMenuOpen]);
   const profileListState = !comfyUiMode && selectableProfiles.length === 0
     ? profilesError
       ? { kind: 'error' as const, title: profilesError }
@@ -673,6 +711,67 @@ export function MainPage({
     setAttachOpen(false);
     setLayerOpen(false);
   };
+  const closeProfileMenu = (restoreFocus = false) => {
+    restoreProfileTriggerFocusRef.current = restoreFocus;
+    setProfileMenuOpen(false);
+  };
+  const openProfileMenu = (focus: 'selected' | 'first' | 'last' = 'selected') => {
+    profileMenuFocusRef.current = focus;
+    setProfileMenuOpen(true);
+    setOpenMenu(null);
+  };
+  const handleProfileTriggerKeyDown = (event: React.KeyboardEvent<HTMLElement>) => {
+    if (event.key === 'Escape' && profileMenuOpen) {
+      event.preventDefault();
+      event.stopPropagation();
+      closeProfileMenu(true);
+      return;
+    }
+    if (event.key !== 'Enter' && event.key !== ' ' && event.key !== 'ArrowDown' && event.key !== 'ArrowUp') {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    openProfileMenu(event.key === 'ArrowDown' ? 'first' : event.key === 'ArrowUp' ? 'last' : 'selected');
+  };
+  const handleProfileListboxKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      closeProfileMenu(true);
+      return;
+    }
+    const options = Array.from(
+      profileListboxRef.current?.querySelectorAll<HTMLElement>('[role="option"]:not([aria-disabled="true"])') ?? [],
+    );
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp' || event.key === 'Home' || event.key === 'End') {
+      event.preventDefault();
+      event.stopPropagation();
+      if (options.length === 0) {
+        return;
+      }
+      const currentIndex = options.findIndex((option) => option === document.activeElement);
+      const nextIndex = event.key === 'Home'
+        ? 0
+        : event.key === 'End'
+          ? options.length - 1
+          : currentIndex < 0
+            ? event.key === 'ArrowDown' ? 0 : options.length - 1
+            : (currentIndex + (event.key === 'ArrowDown' ? 1 : -1) + options.length) % options.length;
+      focusProfileOption(options[nextIndex]);
+      return;
+    }
+    if (event.key !== 'Enter' && event.key !== ' ') {
+      return;
+    }
+    const active = document.activeElement as HTMLElement | null;
+    if (!active || active.getAttribute('role') !== 'option' || !profileListboxRef.current?.contains(active)) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    active.click();
+  };
   const openWorkspaceSettings = () => {
     workspace.setSettingsRoute(viewModel.settingsRoute);
     onNav('settings');
@@ -841,7 +940,12 @@ export function MainPage({
       composerDraft.clearAttachments();
     }
     void workspace.selectProfile(profileId);
-    setProfileMenuOpen(false);
+    closeProfileMenu(true);
+  };
+
+  const selectGenerationMode = (mode: 'provider' | 'comfyui') => {
+    workspace.setGenerationMode(mode);
+    closeProfileMenu(true);
   };
 
   const addLayer = async (layer: LayerInfo) => {
@@ -1068,11 +1172,14 @@ export function MainPage({
         />}
         center={<div className="hdr-center-wrap">
           <IconButton
+            ref={profileSelectorRef}
             data-testid="main-profile-selector"
+            id="main-profile-selector"
             className={`hdr-center hdr-provider-trigger${profileMenuOpen ? ' open' : ''}`}
             overlayClassName="hdr-provider-chevron"
             aria-haspopup="listbox"
-            aria-expanded={profileMenuOpen}
+            aria-expanded={profileMenuOpen ? 'true' : 'false'}
+            aria-controls="main-profile-menu"
             icon={<Icon name="chevron-down" />}
             iconSize={12}
             iconPlacement="end"
@@ -1080,18 +1187,43 @@ export function MainPage({
             tooltip={comfyUiMode ? t.settings.comfyUi : selectedProfile?.displayName ?? t.main.noProviderProfile}
             onClick={(event) => {
               event.stopPropagation();
-              setProfileMenuOpen((open) => !open);
-              setOpenMenu(null);
+              if (profileMenuOpen) {
+                closeProfileMenu();
+              } else {
+                openProfileMenu();
+              }
             }}
+            onKeyDown={handleProfileTriggerKeyDown}
           />
           <MotionPresenceView visible={profileMenuOpen} kind="popover">
             {({ ref, state }) => (
-            <div ref={ref} className="model-menu hdr-model-menu" data-motion-state={state} onClick={(event) => event.stopPropagation()}>
-              <List className="popup-list profile-popup-list" aria-label={t.common.profile}>
+            <div
+              ref={(element) => {
+                ref(element);
+                profileListboxRef.current = element;
+              }}
+              id="main-profile-menu"
+              className="model-menu hdr-model-menu"
+              data-motion-state={state}
+              role="listbox"
+              aria-label={t.common.profile}
+              aria-hidden={state === 'exiting' ? 'true' : undefined}
+              onClick={(event) => event.stopPropagation()}
+              onKeyDown={handleProfileListboxKeyDown}
+            >
+              <List className="popup-list profile-popup-list">
                 {comfyUiMode ? (
-                  <Button data-testid="main-mode-provider" className="model-opt" onClick={() => workspace.setGenerationMode('provider')}>
+                  <div
+                    data-testid="main-mode-provider"
+                    className="model-opt"
+                    role="option"
+                    aria-selected="false"
+                    tabIndex={0}
+                    ref={profileMenuInitialFocusId === 'mode:provider' ? focusInitialProfileOptionRef : undefined}
+                    onClick={() => selectGenerationMode('provider')}
+                  >
                     <span>{t.common.provider}</span>
-                  </Button>
+                  </div>
                 ) : (
                   <>
                   {profileListState ? (
@@ -1105,19 +1237,30 @@ export function MainPage({
                         : undefined}
                     />
                   ) : selectableProfiles.map((profile) => (
-                      <Button
+                      <div
                         key={profile.profileId}
                         data-testid={`profile-menu-option-${profile.profileId}`}
                         className={`model-opt${profile.profileId === selectedProfileId ? ' act' : ''}`}
+                        role="option"
+                        aria-selected={profile.profileId === selectedProfileId ? 'true' : 'false'}
+                        tabIndex={profile.profileId === selectedProfileId ? 0 : -1}
+                        ref={profileMenuInitialFocusId === `profile:${profile.profileId}` ? focusInitialProfileOptionRef : undefined}
                         onClick={() => selectProfile(profile.profileId)}
                       >
-                        {profile.profileId === selectedProfileId && <Icon name="check" />}
                         <span>{profile.displayName}</span>
-                      </Button>
+                      </div>
                     ))}
-                  <Button data-testid="main-mode-comfyui" className="model-opt" onClick={() => workspace.setGenerationMode('comfyui')}>
+                  <div
+                    data-testid="main-mode-comfyui"
+                    className="model-opt"
+                    role="option"
+                    aria-selected="false"
+                    tabIndex={selectedProfileId ? -1 : 0}
+                    ref={profileMenuInitialFocusId === 'mode:comfyui' ? focusInitialProfileOptionRef : undefined}
+                    onClick={() => selectGenerationMode('comfyui')}
+                  >
                     <span>{t.settings.comfyUi}</span>
-                  </Button>
+                  </div>
                   </>
                 )}
               </List>

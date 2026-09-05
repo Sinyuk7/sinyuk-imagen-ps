@@ -68,7 +68,8 @@ export const COMPOSER_CSS = `
  * 窄面板时由 responsive root mode 收敛到 panel 内 full-width containment。 */
 .model-menu{
   position:absolute; top:52px; left:84px; right:12px;
-  background:var(--app-color-background-elevated); border:1px solid var(--app-color-border-strong); border-radius:var(--app-radius-medium);
+  background:var(--app-color-background-elevated); border:1px solid var(--app-color-border-default); border-radius:var(--app-radius-small);
+  padding:4px;
   overflow-y:auto; min-width:140px; max-height:240px; z-index:200;
 }
 .hdr-model-menu{
@@ -81,12 +82,16 @@ export const COMPOSER_CSS = `
   margin-right:auto;
 }
 .model-opt{
-  padding:8px 12px; font-family:var(--app-font-family-mono); font-size:12px; color:var(--app-color-text-secondary);
-  cursor:pointer; display:flex; align-items:center; width:100%; border:none; background:transparent; text-align:left;
+  min-height:32px; padding:8px 10px; border:0; border-radius:4px; outline:none;
+  font-family:var(--app-font-family-mono); font-size:12px; color:var(--app-color-text-secondary);
+  cursor:pointer; display:flex; align-items:center; width:100%; background:transparent; text-align:left;
 }
 .model-opt [data-icon]{ margin-right:8px; }
-.model-opt:hover{ background:var(--app-color-hover-overlay); color:var(--app-color-text-primary); }
-.model-opt.act{ color:var(--app-color-accent-default); }
+.model-opt:hover,
+.model-opt:focus-visible{ background:var(--app-color-hover-overlay); color:var(--app-color-text-primary); }
+.model-opt.act{ background:var(--app-color-accent-subtle); color:var(--app-color-accent-default); }
+.profile-popup-list .ui-list-item-spaced{ margin-top:4px; }
+.profile-popup-list .ui-list-item-shell{ border:0; background:transparent; }
 .model-opt > span:last-child{
   min-width:0;
   overflow:hidden;
@@ -302,7 +307,7 @@ export const COMPOSER_CSS = `
 .cmp-select-menu-motion{
   width:100%;
   max-height:inherit;
-  background:inherit;
+  background:transparent;
   border-radius:inherit;
   overflow:hidden;
 }
@@ -335,7 +340,7 @@ export const COMPOSER_CSS = `
   min-height:28px;
   margin-top:0;
   margin-right:0;
-  margin-bottom:2px;
+  margin-bottom:4px;
   margin-left:0;
   padding:4px 7px;
   border-radius:4px;
@@ -348,24 +353,22 @@ export const COMPOSER_CSS = `
   line-height:14px;
   text-align:left;
 }
-.cmp-select-option:last-child{ margin-bottom:0; }
 .cmp-select-menu-compact .cmp-select-option{
   height:32px;
   min-height:32px;
   padding:6px 7px;
 }
+.cmp-select-option:last-child{ margin-bottom:0; }
 .cmp-select-option:hover,
 .cmp-select-option:focus-visible{
   background:var(--app-color-hover-overlay);
   color:var(--app-color-text-primary);
   outline:none;
 }
-.cmp-select-option:disabled,
 .cmp-select-option.disabled{
   cursor:not-allowed;
   opacity:.58;
 }
-.cmp-select-option:disabled:hover,
 .cmp-select-option.disabled:hover{
   background:transparent;
   color:var(--app-color-text-secondary);
@@ -421,13 +424,21 @@ export const COMPOSER_CSS = `
 }
 .cmp-ta{
   margin-top:0; margin-right:0; margin-bottom:0; margin-left:0;
-  display:block; min-height:76px; max-height:96px; width:100%;
+  display:block;
+  flex:1 1 auto;
+  min-height:0;
+  max-height:none;
+  width:100%;
+  height:100%;
 }
 .cmp-ta-shell{
   display:flex;
+  flex-direction:column;
   flex:1 1 auto;
   width:100%;
   min-height:82px;
+  min-width:0;
+  align-items:stretch;
 }
 .cmp-readiness{
   min-height:17px;
