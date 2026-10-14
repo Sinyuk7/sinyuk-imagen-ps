@@ -35,6 +35,15 @@ describe('billing protocol registry', () => {
     });
   });
 
+  it.each([
+    [{ code: 0, data: {} }, 'missing "credits"'],
+    [{ code: 0, data: { credits: Number.NaN } }, 'missing "credits"'],
+    [{ code: 0, data: { credits: 'Infinity' } }, 'missing "credits"'],
+    [{ code: 1, msg: 'denied', data: { credits: 1 } }, 'denied'],
+  ] as const)('rejects malformed credits response %#', (payload, message) => {
+    expect(() => parseCreditsBalanceResponse(payload)).toThrow(message);
+  });
+
   it('parses new-api balance responses into quota snapshots with used details', () => {
     expect(parseNewApiBalanceResponse({
       success: true,

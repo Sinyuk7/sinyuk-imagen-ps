@@ -155,6 +155,12 @@ export interface AppMessages {
     readonly errorActionReplaceImage: string;
     readonly errorActionCopyDetails: string;
     readonly errorActionFillComposer: string;
+    readonly billingUnknown: string;
+    readonly billingCredits: (value: string) => string;
+    readonly billingChecking: string;
+    readonly billingStale: string;
+    readonly billingRefreshFailed: string;
+    readonly billingLastChange: string;
   };
   readonly history: {
     readonly title: string;
@@ -466,6 +472,12 @@ const EN_MESSAGES: AppMessages = {
     errorActionReplaceImage: 'Replace image',
     errorActionCopyDetails: 'Copy details',
     errorActionFillComposer: 'Use in prompt box',
+    billingUnknown: 'Balance unavailable',
+    billingCredits: (value) => `${value} credits`,
+    billingChecking: 'Checking balance…',
+    billingStale: 'Stale balance',
+    billingRefreshFailed: 'Balance refresh failed',
+    billingLastChange: 'Balance change',
   },
   history: {
     title: 'History',
@@ -777,6 +789,12 @@ const ZH_CN_MESSAGES: AppMessages = {
     errorActionReplaceImage: '替换图片',
     errorActionCopyDetails: '复制详情',
     errorActionFillComposer: '填入输入框',
+    billingUnknown: '余额不可用',
+    billingCredits: (value) => `${value} credits`,
+    billingChecking: '正在检查余额…',
+    billingStale: '余额可能已过期',
+    billingRefreshFailed: '余额刷新失败',
+    billingLastChange: '余额变化',
   },
   history: {
     title: '历史',

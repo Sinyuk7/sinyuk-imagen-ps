@@ -6,6 +6,7 @@ import { assembleApiUrl } from '../../contract/api-format.js';
 import { assertProviderModelExecution, resolveProviderResolvedOutput } from '../../contract/image-model-capability.js';
 import type { CanonicalImageJobRequest } from '../../contract/request.js';
 import { httpRequest } from '../../shared/transport/http.js';
+import { executeBillingProtocolChain } from '../../transport/billing/protocol-registry.js';
 import { mockRequestSchema } from '../mock/request-schema.js';
 import { grsaiGenerateConfigSchema, type GrsaiGenerateProviderConfig } from './config-schema.js';
 import { grsaiGenerateDescriptor } from './descriptor.js';
@@ -121,6 +122,30 @@ export function createGrsaiGenerateProvider(): Provider<GrsaiGenerateProviderCon
     validateRequest(input) { return mockRequestSchema.parse(input); },
     async invoke(_args: ProviderInvokeArgs<GrsaiGenerateProviderConfig, CanonicalImageJobRequest>): Promise<ProviderInvokeResult> {
       throw new Error('GRSAI Generate uses async lifecycle.');
+    },
+    async queryBalance(config: GrsaiGenerateProviderConfig, input) {
+      const endpoint = getPrimaryProviderEndpoint(config.connection);
+      const billing = config.billing;
+      // Token source wins; no token source means API key query.
+      if (billing?.source === 'billing-token') {
+        const token = billing.tokenSecretRef.trim();
+        if (!token) throw new Error('GRSAI billing token is missing.');
+        return executeBillingProtocolChain({
+          endpointUrl: endpoint.url,
+          billing: { source: 'billing-token', path: '/client/openapi/getCredits', tokenSecretRef: token },
+          protocolIds: ['credits-token-json-v1'],
+          ...(input.signal ? { signal: input.signal } : {}),
+        });
+      }
+      const apiKey = config.apiKey.trim();
+      if (!apiKey) throw new Error('GRSAI API key is required for balance query.');
+      return executeBillingProtocolChain({
+        endpointUrl: endpoint.url,
+        billing: { source: 'profile-api-key', path: '/client/openapi/getAPIKeyCredits' },
+        protocolIds: ['credits-api-key-json-v1'],
+        apiKey,
+        ...(input.signal ? { signal: input.signal } : {}),
+      });
     },
     asyncLifecycle,
   };

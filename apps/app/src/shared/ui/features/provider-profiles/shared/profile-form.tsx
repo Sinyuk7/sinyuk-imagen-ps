@@ -7,11 +7,15 @@ export interface ProfileFormValue {
   readonly displayName: string;
   readonly apiKey?: string;
   readonly removeSavedApiKey?: boolean;
+  readonly billingToken?: string;
+  readonly removeSavedBillingToken?: boolean;
 }
 
 interface ProfileFormProps {
   readonly initialDisplayName: string;
   readonly hasSavedApiKey: boolean;
+  readonly enableBillingToken?: boolean;
+  readonly hasSavedBillingToken?: boolean;
   readonly existingDisplayNames: readonly string[];
   readonly onCancel: () => void;
   readonly onSave: (value: ProfileFormValue) => Promise<void>;
@@ -23,6 +27,8 @@ interface ProfileFormProps {
 export function ProfileForm({
   initialDisplayName,
   hasSavedApiKey,
+  enableBillingToken = false,
+  hasSavedBillingToken = false,
   existingDisplayNames,
   onSave,
   onDelete,
@@ -33,6 +39,9 @@ export function ProfileForm({
   const [apiKey, setApiKey] = useState('');
   const [showKey, setShowKey] = useState(false);
   const [removeSavedApiKey, setRemoveSavedApiKey] = useState(false);
+  const [billingToken, setBillingToken] = useState('');
+  const [showBillingToken, setShowBillingToken] = useState(false);
+  const [removeSavedBillingToken, setRemoveSavedBillingToken] = useState(false);
   const [busyAction, setBusyAction] = useState<'save' | 'test' | 'delete' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState(false);
@@ -42,7 +51,11 @@ export function ProfileForm({
   const duplicateName = existingDisplayNames.some((name) => name.trim() === normalizedName);
   const requiresApiKey = !hasSavedApiKey && !apiKey.trim();
   const isExistingProfile = Boolean(onDelete);
-  const isDirty = normalizedName !== initialNormalizedName || Boolean(apiKey.trim()) || removeSavedApiKey;
+  const isDirty = normalizedName !== initialNormalizedName
+    || Boolean(apiKey.trim())
+    || removeSavedApiKey
+    || Boolean(billingToken.trim())
+    || removeSavedBillingToken;
   const saveDisabled = busyAction !== null
     || !normalizedName
     || duplicateName
@@ -101,6 +114,32 @@ export function ProfileForm({
           clearPersistent={hasSavedApiKey}
           clearTooltip={apiKey ? t.settings.clearField : removeSavedApiKey ? t.common.cancel : t.settings.removeSecret}
         />
+        {enableBillingToken ? (
+          <SecretField
+            label="Token"
+            inputId="provider-profile-billing-token-input"
+            testIdPrefix="provider-profile-billing-token"
+            value={billingToken}
+            placeholder={hasSavedBillingToken && !removeSavedBillingToken ? t.settings.apiKeyReplacePlaceholder : 'token'}
+            showValue={showBillingToken}
+            onValue={(value) => {
+              setBillingToken(value);
+              if (value) setRemoveSavedBillingToken(false);
+            }}
+            onShowValueChange={setShowBillingToken}
+            disabled={busyAction !== null}
+            removalPending={removeSavedBillingToken}
+            onClear={() => {
+              if (billingToken) {
+                setBillingToken('');
+                return;
+              }
+              if (hasSavedBillingToken) setRemoveSavedBillingToken(!removeSavedBillingToken);
+            }}
+            clearPersistent={hasSavedBillingToken}
+            clearTooltip={billingToken ? t.settings.clearField : removeSavedBillingToken ? t.common.cancel : t.settings.removeSecret}
+          />
+        ) : null}
       </SettingsFormSection>
 
       {error ? <StatusNotice tone="negative" message={error} copyText={error} /> : null}
@@ -155,6 +194,8 @@ export function ProfileForm({
               displayName: normalizedName,
               ...(apiKey.trim() ? { apiKey: apiKey.trim() } : {}),
               ...(removeSavedApiKey ? { removeSavedApiKey: true } : {}),
+              ...(billingToken.trim() ? { billingToken: billingToken.trim() } : {}),
+              ...(removeSavedBillingToken ? { removeSavedBillingToken: true } : {}),
             }))}
           >
             {busyAction === 'save' ? t.settings.savingProvider : t.common.save}

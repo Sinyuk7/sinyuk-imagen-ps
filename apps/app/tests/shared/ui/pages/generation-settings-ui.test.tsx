@@ -117,7 +117,7 @@ describe('generation settings UI archetypes', () => {
     expect(hostContainsIcon(container, 'composer-output-ratio-selector', 'aspect-ratio')).toBe(true);
   });
 
-  it('keeps Prompt Optimizer before the mask toggle and removes billing from the footer', async () => {
+  it('keeps Prompt Optimizer before the mask toggle and hides GRSAI billing for non-GRSAI profiles', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     await renderReadyMain(container);
@@ -148,6 +148,21 @@ describe('generation settings UI archetypes', () => {
     expect(mask.getAttribute('aria-pressed')).toBe('true');
     expect(mask.getAttribute('aria-label')).toBe('蒙版：开启');
     expect(hostContainsIcon(container, 'composer-mask-toggle', 'mask-on-filled')).toBe(true);
+  });
+
+  it('shows GRSAI credits in Composer footer for current GRSAI Profile', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const fake = createFakeServices({
+      activeImageProfileId: 'grsai-profile',
+      profiles: [{ ...fakeProfile, profileId: 'grsai-profile', apiFormat: 'grsai', displayName: 'GRSAI' }],
+      profileModelItems: [profileModelItem('nano-banana-fast')],
+    });
+    await renderMainPage(container, fake);
+    await flush();
+    await flush();
+    expect(container.querySelector('[data-testid="main-billing-summary"]')?.textContent).toContain('credits');
+    expect(fake.spies.refreshProfileBalance).toHaveBeenCalled();
   });
 
   it('uses the same archetype rules on Provider Output Settings', async () => {

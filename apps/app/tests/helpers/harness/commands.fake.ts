@@ -58,11 +58,12 @@ export function createCommandsFake(options?: {
       return { ok: false as const, error: { category: 'validation' as const, message: 'Provider surface unavailable.' } };
     }
     const existing = profiles.find((profile) => profile.profileId === input.profileId);
-    const secretRefs = input.removeSavedApiKey
-      ? undefined
-      : input.apiKey || existing?.secretRefs?.apiKey
-        ? { ...(existing?.secretRefs ?? {}), apiKey: `secret:provider-profile:${input.profileId}:apiKey` }
-        : undefined;
+    const nextSecretRefs = { ...(existing?.secretRefs ?? {}) };
+    if (input.removeSavedApiKey) delete nextSecretRefs.apiKey;
+    if (input.removeSavedBillingToken) delete nextSecretRefs.billingToken;
+    if (input.apiKey) nextSecretRefs.apiKey = `secret:provider-profile:${input.profileId}:apiKey`;
+    if (input.billingToken) nextSecretRefs.billingToken = `secret:provider-profile:${input.profileId}:billingToken`;
+    const secretRefs = Object.keys(nextSecretRefs).length > 0 ? nextSecretRefs : undefined;
     const next: ProviderProfile = {
       ...(existing ?? fakeProfile),
       profileId: input.profileId,
@@ -104,6 +105,17 @@ export function createCommandsFake(options?: {
   const listTaskRecords = vi.fn(async () => taskRecords);
   const reconcileStaleRunningTaskRecords = vi.fn(async () => []);
   const listProviderProfiles = vi.fn(async () => ({ ok: true as const, value: profiles }));
+  const billingStates = new Map<string, any>();
+  const getProfileBillingState = vi.fn(async (profileId: string) => ({
+    ok: true as const,
+    value: billingStates.get(profileId) ?? { refreshState: 'idle' as const },
+  }));
+  const refreshProfileBalance = vi.fn(async (input: { readonly profileId: string }) => {
+    const balance = { profileId: input.profileId, apiFormat: 'grsai' as const, checkedAt: Date.now(), snapshot: { primary: { kind: 'quota' as const, remaining: '10000', unit: 'credits' } } };
+    const state = { refreshState: 'idle' as const, balance };
+    billingStates.set(input.profileId, state);
+    return { ok: true as const, value: { ...balance, state } };
+  });
 
   const commands: CommandsPort = {
     executeJob,
@@ -120,6 +132,8 @@ export function createCommandsFake(options?: {
     listProviderProfiles,
     getProviderProfile,
     deleteProviderProfile,
+    getProfileBillingState,
+    refreshProfileBalance,
     testProviderProfile,
     testProviderProfileConnection,
     ...modelConfig.commands,
@@ -141,6 +155,8 @@ export function createCommandsFake(options?: {
       deleteProviderProfile,
       testProviderProfile,
       testProviderProfileConnection,
+      getProfileBillingState,
+      refreshProfileBalance,
       ...modelConfig.spies,
       listTaskRecords,
       reconcileStaleRunningTaskRecords,

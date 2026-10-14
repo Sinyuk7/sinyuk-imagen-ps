@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { createImageEndpointProvider, type ProviderDescriptor } from '@imagen-ps/providers';
+import { createGrsaiGenerateProvider, createImageEndpointProvider, type ProviderDescriptor } from '@imagen-ps/providers';
 import {
   _resetForTesting,
   _setRuntimeInstanceForTesting,
@@ -133,11 +133,12 @@ beforeEach(() => {
   setSecretStorageAdapter(secrets);
 
   const provider = createImageEndpointProvider();
+  const grsai = createGrsaiGenerateProvider();
   _setRuntimeInstanceForTesting({
     providerRegistry: {
-      list: () => [provider.describe()],
-      get: (providerId: string) => (providerId === provider.id ? provider : undefined),
-      getByApiFormat: (apiFormat: string) => (apiFormat === 'openai-images' ? provider : undefined),
+      list: () => [provider.describe(), grsai.describe()],
+      get: (providerId: string) => providerId === provider.id ? provider : providerId === grsai.id ? grsai : undefined,
+      getByApiFormat: (apiFormat: string) => apiFormat === 'openai-images' ? provider : apiFormat === 'grsai' ? grsai : undefined,
     },
   } as never);
 });
@@ -225,6 +226,23 @@ describe('provider surface profile save', () => {
     expect(result.ok).toBe(true);
     expect(profiles.values.get('openai-edit')?.displayName).toBe('After');
     expect(secrets.values.get('secret:provider-profile:openai-edit:apiKey')).toBe('sk-after');
+  });
+
+  it('GRSAI Token 只写入 SecretStorage，并固定余额查询配置', async () => {
+    const result = await saveProviderSurfaceProfile({
+      implementationId: 'grsai-generate',
+      profileId: 'grsai-token',
+      displayName: 'GRSAI Token',
+      apiKey: 'grsai-key',
+      billingToken: 'grsai-token-secret',
+    });
+
+    expect(result.ok).toBe(true);
+    expect(profiles.values.get('grsai-token')?.config).toMatchObject({
+      billing: { source: 'billing-token', path: '/client/openapi/getCredits' },
+    });
+    expect(profiles.values.get('grsai-token')?.config).not.toHaveProperty('billingToken');
+    expect(secrets.values.get('secret:provider-profile:grsai-token:billingToken')).toBe('grsai-token-secret');
   });
 
   it('允许显式移除已保存 API Key，但不把旧 secret 写回 Profile', async () => {

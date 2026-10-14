@@ -26,6 +26,9 @@ import type { ImageAspectRatio, ImageOutputImageSize, ImageOutputSelection } fro
 import { configurationInstanceLabel, type UiModelInfo } from '../model-info';
 import type { GenerationWorkspaceController } from '../generation-workspace';
 import { Button, Divider, HelpText, Icon, IconButton, IconSelect, ImageFallbackContent, imageFallbackTitle, List, ListStateItem, MotionActivityDot, MotionActivityIcon, MotionButtonSurface, MotionContent, MotionDimSurface, MotionHighlight, MotionImage, MotionPresenceView, PageFrame, PageHeader, PageScroll, PageState, ProviderIdentity, ProviderMediaHeader, UxpTextArea, type UxpTextAreaElement, useToast } from '../ui-system';
+import { useProfileBilling } from '../hooks/use-profile-billing';
+import { formatBalanceChange, formatBillingPrimary } from '../../domain/mappers';
+import type { ProfileBillingState } from '@imagen-ps/application';
 
 function isImeCompositionKey(event: React.KeyboardEvent): boolean {
   const nativeEvent = event.nativeEvent as KeyboardEvent & { readonly isComposing?: boolean };
@@ -373,6 +376,8 @@ export function MainPage({
   const profilesError = provider?.profilesError ?? null;
   const selectedProfile = provider?.selectedProfile;
   const selectedProfileId = provider?.selectedProfileId ?? null;
+  const billingProfileId = selectedProfile?.apiFormat === 'grsai' ? selectedProfileId : null;
+  const billing = useProfileBilling(services, billingProfileId);
   const models = provider?.models ?? [];
   const modelsLoading = provider?.modelsLoading ?? false;
   const selectedModelId = provider?.selectedModelId ?? '';
@@ -392,6 +397,9 @@ export function MainPage({
   const responseTextRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const lastNonEmptyLayersRef = useRef<readonly LayerInfo[]>(layers);
   const focusProfileOption = useCallback((target: HTMLElement | undefined) => target?.focus(), []);
+  const previousRoundStatusRef = useRef<Record<string, ConversationRound['status']>>({});
+  const pendingBillingToastProfileIdRef = useRef<string | null>(null);
+  const lastBillingToastKeyRef = useRef<string | null>(null);
   useEffect(() => {
     if (layers.length > 0) {
       lastNonEmptyLayersRef.current = layers;
@@ -484,6 +492,29 @@ export function MainPage({
         : { kind: 'empty' as const, title: t.main.noAvailableLayers }
     : undefined;
   const selectedModelInfo = uniqueModels.find((model) => model.id === selectedModelId);
+
+  useEffect(() => {
+    const next: Record<string, ConversationRound['status']> = {};
+    let terminal = false;
+    for (const round of conversation.rounds) {
+      next[round.id] = round.status;
+      if (previousRoundStatusRef.current[round.id] === 'running' && round.status !== 'running') terminal = true;
+    }
+    previousRoundStatusRef.current = next;
+    if (terminal && billingProfileId) {
+      pendingBillingToastProfileIdRef.current = billingProfileId;
+      void billing.observeAsyncRefresh().then((state: ProfileBillingState | null) => {
+        if (pendingBillingToastProfileIdRef.current !== billingProfileId) return;
+        pendingBillingToastProfileIdRef.current = null;
+        const change = formatBalanceChange(state?.lastBalanceChange);
+        if (!change) return;
+        const key = `${billingProfileId}:${change}`;
+        if (lastBillingToastKeyRef.current === key) return;
+        lastBillingToastKeyRef.current = key;
+        show(`${t.main.billingLastChange}: ${change}`, 'positive', { durationMs: 3200, icon: 'check' });
+      });
+    }
+  }, [billing, billingProfileId, conversation.rounds, show, t.main.billingLastChange]);
   const selectedModelLabel = comfyUiMode
     ? viewModel.target.label
     : selectedModelInfo
@@ -2053,6 +2084,12 @@ export function MainPage({
           </div>
           <div className="cmp-footer">
             <div className="cmp-meta-row">
+              {billingProfileId ? (
+                <HelpText className="cmp-readiness" data-testid="main-billing-summary" title={billing.error ?? undefined}>
+                  {billing.loading ? t.main.billingChecking : formatBillingPrimary(billing.billing) ?? (billing.error ? t.main.billingRefreshFailed : t.main.billingUnknown)}
+                  {billing.billing?.refreshState === 'error' ? ` · ${t.main.billingStale}` : ''}
+                </HelpText>
+              ) : null}
               {showFooterReadiness ? <MotionContent watch={composerReadinessState}>
                 <HelpText className="cmp-readiness" data-testid="composer-readiness-status" data-state={composerReadinessState}>
                   {composerReadinessText}

@@ -49,4 +49,38 @@ describe('GRSAI Generate provider', () => {
     await expect(provider.asyncLifecycle!.submit({ config: provider.validateConfig(config), request: { ...request, prompt: ' ' } })).rejects.toThrow('prompt must not be empty');
     expect(fetch).not.toHaveBeenCalled();
   });
+
+  it('queries account credits with token and does not add auth headers', async () => {
+    const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ code: 0, msg: 'success', data: { credits: 10000 } }), { status: 200 }));
+    vi.stubGlobal('fetch', fetch);
+    const provider = createGrsaiGenerateProvider();
+    const resolved = provider.validateConfig({ ...config, billing: { source: 'billing-token', path: '/client/openapi/getCredits', tokenSecretRef: 'token-1' } });
+    const result = await provider.queryBalance!(resolved, {});
+    expect(result.protocolId).toBe('credits-token-json-v1');
+    expect(result.snapshot.primary).toEqual({ kind: 'quota', remaining: '10000', unit: 'credits' });
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(fetch.mock.calls[0]?.[0]).toBe('https://relay.test/client/openapi/getCredits');
+    expect(fetch.mock.calls[0]?.[1]).toMatchObject({ method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: 'token-1' }) });
+    expect(fetch.mock.calls[0]?.[1]?.headers).not.toHaveProperty('Authorization');
+  });
+
+  it('queries API key credits when token is absent', async () => {
+    const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ code: 0, data: { credits: 42 }, msg: 'success' }), { status: 200 }));
+    vi.stubGlobal('fetch', fetch);
+    const provider = createGrsaiGenerateProvider();
+    const resolved = provider.validateConfig(config);
+    const result = await provider.queryBalance!(resolved, {});
+    expect(result.protocolId).toBe('credits-api-key-json-v1');
+    expect(fetch.mock.calls[0]?.[0]).toBe('https://relay.test/client/openapi/getAPIKeyCredits');
+    expect(JSON.parse(String(fetch.mock.calls[0]?.[1]?.body))).toEqual({ apiKey: 'secret' });
+  });
+
+  it('does not fallback to API key when token query fails', async () => {
+    const fetch = vi.fn().mockResolvedValue(new Response('unauthorized', { status: 401 }));
+    vi.stubGlobal('fetch', fetch);
+    const provider = createGrsaiGenerateProvider();
+    const resolved = provider.validateConfig({ ...config, billing: { source: 'billing-token', path: '/client/openapi/getCredits', tokenSecretRef: 'token-1' } });
+    await expect(provider.queryBalance!(resolved, {})).rejects.toThrow('HTTP 401');
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
 });

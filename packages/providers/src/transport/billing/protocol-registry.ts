@@ -20,6 +20,8 @@ interface BillingProtocolContext {
   readonly billing: ActiveBillingConfig;
   readonly apiKey?: string;
   readonly signal?: AbortSignal;
+  /** Optional allow-list used by provider-fixed billing strategies. */
+  readonly protocolIds?: readonly BillingProtocolId[];
 }
 
 interface BillingProtocolDefinition {
@@ -99,8 +101,9 @@ const billingProtocolRegistry: readonly BillingProtocolDefinition[] = [
   },
 ] as const;
 
-function billingProtocolCandidates(billing: ActiveBillingConfig): readonly BillingProtocolDefinition[] {
-  const supported = billingProtocolRegistry.filter((definition) => definition.source === billing.source);
+function billingProtocolCandidates(billing: ActiveBillingConfig, protocolIds?: readonly BillingProtocolId[]): readonly BillingProtocolDefinition[] {
+  const allowed = protocolIds ? new Set(protocolIds) : undefined;
+  const supported = billingProtocolRegistry.filter((definition) => definition.source === billing.source && (!allowed || allowed.has(definition.id)));
   if (!billing.lastSuccessfulProtocolId) {
     return supported;
   }
@@ -113,16 +116,21 @@ function billingProtocolCandidates(billing: ActiveBillingConfig): readonly Billi
 
 export async function executeBillingProtocolChain(context: BillingProtocolContext): Promise<ProviderBalanceQueryResult> {
   const attempts: string[] = [];
-  for (const protocol of billingProtocolCandidates(context.billing)) {
+  let lastStatusCode: number | undefined;
+  for (const protocol of billingProtocolCandidates(context.billing, context.protocolIds)) {
     try {
       const snapshot = await protocol.execute(context);
       return { snapshot, protocolId: protocol.id };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+      const statusCode = (error as { readonly statusCode?: unknown } | null | undefined)?.statusCode;
+      if (typeof statusCode === 'number') lastStatusCode = statusCode;
       attempts.push(`${protocol.id}: ${message}`);
     }
   }
-  throw new Error(attempts.length > 0
+  const error = new Error(attempts.length > 0
     ? `Billing query failed for all candidate protocols. ${attempts.join(' | ')}`
     : 'Billing query has no candidate protocols for the current source.');
+  if (lastStatusCode !== undefined) Object.assign(error, { statusCode: lastStatusCode });
+  throw error;
 }

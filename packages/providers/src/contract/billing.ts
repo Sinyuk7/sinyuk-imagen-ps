@@ -87,4 +87,8 @@ export interface ProviderBalanceQueryResult {
 
 export interface ProviderBillingCapability {
   readonly query?: 'supported' | 'unsupported';
+  /** 固定策略表示 endpoint、method、body 均由 Provider 拥有。 */
+  readonly mode?: 'configurable' | 'fixed';
+  /** Provider 固定支持的 billing protocol。 */
+  readonly protocols?: readonly BillingProtocolId[];
 }

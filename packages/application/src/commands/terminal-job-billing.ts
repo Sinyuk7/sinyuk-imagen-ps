@@ -35,6 +35,14 @@ export async function runTerminalJobBillingFollowUp(
   if (job.status !== 'completed' && job.status !== 'failed') {
     return;
   }
-  await noteExactTaskCost(job, profileId, implementationId);
-  await scheduleProfileBalanceRefresh(profileId);
+  try {
+    await noteExactTaskCost(job, profileId, implementationId);
+  } catch {
+    // 精确费用属于附加观测，失败不得阻塞余额刷新或终态任务。
+  }
+  try {
+    await scheduleProfileBalanceRefresh(profileId);
+  } catch {
+    // 余额刷新属于非阻塞 follow-up，失败不得改变任务结果。
+  }
 }

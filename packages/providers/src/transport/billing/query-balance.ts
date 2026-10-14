@@ -18,8 +18,9 @@ export function resolveRootBillingUrl(endpointUrl: string, billingPath: string):
 }
 
 function createHttpError(status: number, bodyText: string): Error & { readonly statusCode: number } {
-  const message = bodyText.trim().length > 0
-    ? `Billing query failed with HTTP ${status}: ${bodyText.trim()}`
+  const safeBody = bodyText.trim().slice(0, 512).replace(/("?(?:token|apiKey|authorization)"?\s*[:=]\s*")([^"\n]+)(")/gi, '$1[redacted]$3');
+  const message = safeBody.length > 0
+    ? `Billing query failed with HTTP ${status}: ${safeBody}`
     : `Billing query failed with HTTP ${status}.`;
   return Object.assign(new Error(message), {
     statusCode: status,
@@ -97,11 +98,21 @@ export function parseCreditsBalanceResponse(raw: unknown): ProviderBalanceSnapsh
   if (!isRecord(raw)) {
     throw new Error('Credits balance response is not a JSON object.');
   }
-  if (typeof raw.code === 'number' && raw.code !== 0) {
+  if (typeof raw.code !== 'number') {
+    throw new Error('Credits balance response missing "code".');
+  }
+  if (raw.code !== 0) {
     throw new Error(typeof raw.msg === 'string' ? raw.msg : `Credits balance query failed with code ${raw.code}.`);
   }
-  const data = isRecord(raw.data) ? raw.data : raw;
-  const remaining = parseDecimalString(data.credits);
+  if (!isRecord(raw.data)) {
+    throw new Error('Credits balance response missing "data".');
+  }
+  const data = raw.data;
+  const remaining = typeof data.credits === 'number'
+    ? (Number.isFinite(data.credits) ? String(data.credits) : undefined)
+    : typeof data.credits === 'string' && data.credits.trim().length > 0 && Number.isFinite(Number(data.credits))
+      ? data.credits.trim()
+      : undefined;
   if (remaining === undefined) {
     throw new Error('Credits balance response missing "credits".');
   }

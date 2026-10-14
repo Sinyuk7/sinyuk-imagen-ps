@@ -40,8 +40,10 @@ export {
 } from './model-generation-preferences.js';
 export { testProviderProfileConnection } from './profile-connection-test.js';
 export {
+  getProfileBillingState,
   invalidateProfileBillingState,
   noteProfileTaskBilling,
+  refreshProfileBalance,
   scheduleProfileBalanceRefresh,
 } from './profile-billing.js';
 

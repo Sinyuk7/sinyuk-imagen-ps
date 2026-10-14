@@ -12,4 +12,9 @@ export const grsaiGenerateDescriptor: ProviderDescriptor = {
   invokeMode: 'async',
   defaultModelTemplates: GRSAI_DEFAULT_MODEL_TEMPLATES,
   profileTemplate: grsaiProfileTemplate,
+  billing: {
+    query: 'supported',
+    mode: 'fixed',
+    protocols: ['credits-token-json-v1', 'credits-api-key-json-v1'],
+  },
 };

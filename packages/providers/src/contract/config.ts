@@ -232,6 +232,8 @@ export interface GrsaiGenerateProviderConfig {
   readonly paths: GrsaiGeneratePaths;
   /** GRSAI Bearer API key。 */
   readonly apiKey: string;
+  /** 可选余额查询配置；secret 值由 runtime resolver 注入。 */
+  readonly billing?: ProviderBillingConfig;
   /** 缺省 model target。 */
   readonly defaultModel?: string;
   /** 兼容非标准 gateway 所需的附加 headers。 */

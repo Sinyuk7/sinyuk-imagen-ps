@@ -334,7 +334,18 @@ async function performBalanceRefresh(
   const result = await provider.queryBalance(resolved.providerConfig as never, {
     ...(input.signal ? { signal: input.signal } : {}),
   });
-  await persistSuccessfulBillingProtocol(profile, result.protocolId, checkedAt);
+  const latestProfile = await getProviderProfileRepository().get(input.profileId);
+  if (!latestProfile || latestProfile.updatedAt !== profile.updatedAt || billingConfigFingerprint(latestProfile.config as Record<string, unknown>) !== billingConfigFingerprint(profile.config as Record<string, unknown>)) {
+    throw createProviderError('Balance result discarded because profile credentials changed.', {
+      profileId: input.profileId,
+      stale: true,
+    });
+  }
+  // GRSAI billing protocol is provider-owned and fixed; do not persist a
+  // protocol hint from a stale profile snapshot.
+  if (profile.apiFormat !== 'grsai') {
+    await persistSuccessfulBillingProtocol(profile, result.protocolId, checkedAt);
+  }
   const snapshot = result.snapshot;
   const nextBalance = createProfileBalanceResult(input.profileId, profile.apiFormat, checkedAt, snapshot, result.protocolId);
   const fingerprint = billingConfigFingerprint(profile.config as Record<string, unknown>);

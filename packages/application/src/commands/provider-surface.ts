@@ -32,6 +32,9 @@ export interface SaveProviderSurfaceProfileInput {
   readonly displayName: string;
   readonly apiKey?: string;
   readonly removeSavedApiKey?: boolean;
+  /** GRSAI 余额查询 Token；只写入 SecretStorage。 */
+  readonly billingToken?: string;
+  readonly removeSavedBillingToken?: boolean;
 }
 
 /** 将 Provider descriptor 投影为不泄露 wire/transport 配置的 UI surface。 */
@@ -55,7 +58,7 @@ export function projectProviderSurface(descriptor: ProviderDescriptor): Provider
   };
 }
 
-function profileConfigFromDescriptor(descriptor: ProviderDescriptor): ProviderProfileConfig {
+function profileConfigFromDescriptor(descriptor: ProviderDescriptor, billingTokenPresent = false): ProviderProfileConfig {
   const template = descriptor.profileTemplate;
   if (!template) {
     throw new Error(`Provider "${descriptor.id}" does not define a profile template.`);
@@ -68,7 +71,13 @@ function profileConfigFromDescriptor(descriptor: ProviderDescriptor): ProviderPr
     },
     paths: template.paths as unknown as ProviderProfileConfig[string],
     authMode: template.authMode,
-    billing: { source: 'disabled' },
+    ...(descriptor.apiFormat === 'grsai'
+      ? {
+          billing: billingTokenPresent
+            ? { source: 'billing-token', path: '/client/openapi/getCredits', tokenSecretRef: '' }
+            : { source: 'profile-api-key', path: '/client/openapi/getAPIKeyCredits' },
+        }
+      : { billing: { source: 'disabled' } }),
     defaultModel: template.defaultModelId,
   };
 }
@@ -90,6 +99,7 @@ export async function saveProviderSurfaceProfile(
 
   const existing = await getProviderProfileRepository().get(input.profileId);
   const apiKey = input.apiKey?.trim();
+  const billingToken = input.billingToken?.trim();
   if (!existing && !apiKey) {
     return {
       ok: false,
@@ -104,9 +114,14 @@ export async function saveProviderSurfaceProfile(
     profileId: input.profileId,
     apiFormat: descriptor.apiFormat,
     displayName: input.displayName,
-    config: profileConfigFromDescriptor(descriptor),
-    ...(apiKey ? { secretValues: { apiKey } } : {}),
-    ...(input.removeSavedApiKey ? { removedSecretNames: ['apiKey'] } : {}),
+    config: profileConfigFromDescriptor(
+      descriptor,
+      Boolean(billingToken || (existing?.secretRefs?.billingToken && !input.removeSavedBillingToken)),
+    ),
+    ...((apiKey || billingToken) ? { secretValues: { ...(apiKey ? { apiKey } : {}), ...(billingToken ? { billingToken } : {}) } } : {}),
+    ...((input.removeSavedApiKey || input.removeSavedBillingToken)
+      ? { removedSecretNames: [ ...(input.removeSavedApiKey ? ['apiKey'] : []), ...(input.removeSavedBillingToken ? ['billingToken'] : []) ] }
+      : {}),
   } as const;
 
   if (existing) {
