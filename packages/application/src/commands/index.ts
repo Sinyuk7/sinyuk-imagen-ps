@@ -9,6 +9,7 @@
  */
 
 export { listProviderAccounts, saveProviderAccount } from './provider-accounts.js';
+export { getCatalogParameterPreference, saveCatalogParameterPreference } from './catalog-parameter-preferences.js';
 export { executeJob } from './execute-job.js';
 export type { ExecuteJobInput } from './execute-job.js';
 export { getJob } from './get-job.js';
@@ -16,37 +17,10 @@ export { subscribeJobEvents } from './subscribe-job-events.js';
 
 export { listProviders } from './list-providers.js';
 export { describeProvider } from './describe-provider.js';
-export { projectProviderSurface, saveProviderSurfaceProfile } from './provider-surface.js';
 export { resolveModelBrand } from './resolve-model-brand.js';
 export type { ResolveModelBrandInput } from './resolve-model-brand.js';
 export { resolveProviderMaskExecutionPlan } from './provider-mask-plan.js';
 export type { MaskExecutionPlan } from '@imagen-ps/providers';
-export {
-  deleteProviderProfile,
-  getProviderProfile,
-  listProviderProfiles,
-  recoverProviderProfileSetups,
-  testProviderProfile,
-} from './provider-profiles.js';
-export {
-  listProfileModels,
-} from './profile-models.js';
-export {
-  listOfficialModelConfigPresets,
-} from './model-configs.js';
-export {
-  deleteModelGenerationPreference,
-  getModelGenerationSettings,
-  saveModelGenerationPreference,
-} from './model-generation-preferences.js';
-export { testProviderProfileConnection } from './profile-connection-test.js';
-export {
-  getProfileBillingState,
-  invalidateProfileBillingState,
-  noteProfileTaskBilling,
-  refreshProfileBalance,
-  scheduleProfileBalanceRefresh,
-} from './profile-billing.js';
 
 export { getJobHistoryRecord, listJobHistoryRecords } from './job-history.js';
 export { getTaskRecord, listTaskRecords, putTaskRecord, reconcileStaleRunningTaskRecords } from './task-history.js';
@@ -55,8 +29,8 @@ export { resolveSecretValue } from './secret-utils.js';
 export { assertTaskRecord, decodeTaskRecord, sanitizeTaskEvidenceUrl } from '../task.js';
 export type {
   CommandResult,
-  ApiFormat,
-  DeleteProviderProfileOptions,
+  CatalogParameterPreference,
+  CatalogParameterPreferenceRepository,
   AssetStore,
   Asset,
   DecodeTaskRecordResult,
@@ -68,37 +42,7 @@ export type {
   JobEventHandler,
   JobStatus,
   JobHistoryStore,
-  ProviderProfileTestResult,
-  ProviderProfileConnectionTestResult,
-  EndpointMeasurementFailureKind,
-  EndpointMeasurementResult,
   EndpointClassification,
-  ExactTaskCost,
-  BalanceChange,
-  ImageAspectRatio,
-  ImageOutputFormat,
-  ImageOutputImageSize,
-  ImageOutputSelection,
-  ImageOutputSizeOptionId,
-  ImageOutputMatrix,
-  ImageOutputMatrixCell,
-  OfficialModelPreset,
-  ModelGenerationPreference,
-  ModelGenerationPreferenceKey,
-  ModelGenerationPreferenceRepository,
-  ModelGenerationPreferenceSelection,
-  ModelGenerationSettings,
-  MeasureProfileEndpointsInput,
-  MeasureProfileEndpointsResult,
-  RefreshDraftProfileModelsInput,
-  ProfileBalanceResult,
-  ProfileBillingState,
-  ProviderResolvedOutput,
-  UserModelOutputExposure,
-  RefreshProfileBalanceInput,
-  RefreshProfileBalanceResult,
-  RequestStrategy,
-  RequestStrategyId,
   Rect,
   ResolvedPreview,
   ResolvedTaskResource,
@@ -115,52 +59,34 @@ export type {
   TaskResourceRef,
   TaskStatus,
   TaskStore,
-  TestProviderProfileConnectionInput,
-  TestProviderProfileOptions,
   Unsubscribe,
 } from './types.js';
 
+export type { ApiFormat } from '@imagen-ps/providers';
+
 export type {
   ProviderConfig,
-  ProviderConfigResolver,
   ProviderDescriptor,
   ModelBrand,
-  ProfileModelItem,
   ProviderModelInfo,
-  ProviderProfile,
   ProviderAccount,
   ProviderAccountRepository,
-  ProviderProfileConfig,
-  ProviderProfileConfigValue,
-  ProviderProfileLifecycle,
-  ProviderProfileRepository,
-  ResolvedProviderConfig,
-  SaveModelGenerationPreferenceInput,
   SecretResolver,
   SecretStorageAdapter,
-  UserModelConfig,
-  UserModelConfigRepository,
 } from './types.js';
-export type {
-  ProviderSurfaceIdentity,
-  ProviderSurfaceProjection,
-  SaveProviderSurfaceProfileInput,
-} from './provider-surface.js';
+
 
 // Adapter injection（暴露给 UI / host adapters 注入自定义实现）
 export {
   getAssetStore,
   getProviderAccountRepository,
-  getModelGenerationPreferenceRepository,
-  getUserModelConfigRepository,
+  getFixedProviderResolver,
+  getCatalogParameterPreferenceRepository,
   setAssetStore,
   setProviderAccountRepository,
+  setCatalogParameterPreferenceRepository,
   setJobHistoryStore,
-  setModelGenerationPreferenceRepository,
-  setProviderConfigResolver,
-  setProviderProfileRepository,
   setSecretStorageAdapter,
-  setUserModelConfigRepository,
   setTaskStore,
   configureRuntimeLogging,
   getRuntimeLogger,

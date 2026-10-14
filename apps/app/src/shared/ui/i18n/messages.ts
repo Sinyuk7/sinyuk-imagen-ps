@@ -33,9 +33,9 @@ export interface AppMessages {
   };
   readonly main: {
     readonly history: string;
-    readonly noProviderProfile: string;
+    readonly noProvider: string;
     readonly loadingProfiles: string;
-    readonly addProviderProfile: string;
+    readonly configureProvider: string;
     readonly currentSession: string;
     readonly emptyHint: string;
     readonly promptSuggestionProductValue: string;
@@ -225,7 +225,7 @@ export interface AppMessages {
     readonly comfyUiChooseWorkflow: string;
     readonly comfyUiNoWorkflowSelected: string;
     readonly loading: string;
-    readonly noProviderProfile: string;
+    readonly noProvider: string;
     readonly config: string;
     readonly alias: string;
     readonly apiKeyReplacePlaceholder: string;
@@ -248,14 +248,14 @@ export interface AppMessages {
     readonly promptSettings: string;
     readonly promptOptimization: string;
     readonly promptSettingsSummary: string;
-    readonly optimizerProfile: string;
+    readonly optimizerProvider: string;
     readonly none: string;
     readonly optimizationTemplate: string;
     readonly templatePlaceholder: string;
     readonly templateInputHint: string;
-    readonly optimizationNoProfile: string;
+    readonly optimizationNoProvider: string;
     readonly optimizationInvalidTemplate: string;
-    readonly optimizationMissingProfile: string;
+    readonly optimizationMissingProvider: string;
     readonly promptPresets: string;
     readonly promptPresetsLoading: string;
     readonly promptPresetsEmpty: string;
@@ -293,7 +293,7 @@ export interface AppMessages {
     readonly fileNeedsNormalization: string;
     readonly captureAdded: string;
     readonly captureFailed: string;
-    readonly selectProviderProfileFirst: string;
+    readonly selectProviderFirst: string;
     readonly noPlaceableImage: string;
     readonly placedOnCanvas: string;
     readonly placeFailed: string;
@@ -339,9 +339,9 @@ const EN_MESSAGES: AppMessages = {
   },
   main: {
     history: 'History',
-    noProviderProfile: 'No provider configured',
+    noProvider: 'No provider configured',
     loadingProfiles: 'Loading profiles…',
-    addProviderProfile: 'Add provider profile',
+    configureProvider: 'Add provider profile',
     currentSession: 'Current session',
     emptyHint: 'Start creating (｡•̀ᴗ-)✧',
     promptSuggestionProductValue: 'Create an illustration of a girl with pink hair',
@@ -542,7 +542,7 @@ const EN_MESSAGES: AppMessages = {
     comfyUiChooseWorkflow: 'Choose workflow',
     comfyUiNoWorkflowSelected: 'No saved workflow selected.',
     loading: 'Loading…',
-    noProviderProfile: 'No profiles (´･ω･`)',
+    noProvider: 'No profiles (´･ω･`)',
     config: 'Configuration',
     alias: 'Alias',
     apiKeyReplacePlaceholder: 'Enter a new API Key to replace it',
@@ -565,14 +565,14 @@ const EN_MESSAGES: AppMessages = {
     promptSettings: 'Prompt Settings',
     promptOptimization: 'Prompt Optimization',
     promptSettingsSummary: 'Templates and presets',
-    optimizerProfile: 'Profile',
+    optimizerProvider: 'Profile',
     none: 'None',
     optimizationTemplate: 'Template',
     templatePlaceholder: 'Write instructions and include {prompt}',
     templateInputHint: 'Instructions + {prompt} placeholder',
-    optimizationNoProfile: 'Select a profile to enable.',
+    optimizationNoProvider: 'Select a profile to enable.',
     optimizationInvalidTemplate: 'Fix the placeholder.',
-    optimizationMissingProfile: 'Saved profile is missing.',
+    optimizationMissingProvider: 'Saved profile is missing.',
     promptPresets: 'Prompt Presets',
     promptPresetsLoading: 'Loading presets...',
     promptPresetsEmpty: 'No prompt presets yet.',
@@ -610,7 +610,7 @@ const EN_MESSAGES: AppMessages = {
     fileNeedsNormalization: 'Size unsupported. Resize, Capture, or Layer.',
     captureAdded: 'Capture added ✨',
     captureFailed: 'Couldn’t capture the Photoshop image',
-    selectProviderProfileFirst: 'Add and select a provider profile first',
+    selectProviderFirst: 'Add and select a provider profile first',
     noPlaceableImage: 'No image available to place',
     placedOnCanvas: 'Placed in Photoshop ✨',
     placeFailed: 'Failed to place in Photoshop',
@@ -656,9 +656,9 @@ const ZH_CN_MESSAGES: AppMessages = {
   },
   main: {
     history: '历史记录',
-    noProviderProfile: '选择 Provider 配置',
+    noProvider: '选择 Provider 配置',
     loadingProfiles: '加载配置…',
-    addProviderProfile: '添加 Provider 配置',
+    configureProvider: '添加 Provider 配置',
     currentSession: '本次会话',
     emptyHint: '开始创作吧 (｡•̀ᴗ-)✧',
     promptSuggestionProductValue: '生成一张粉色头发女孩的插画',
@@ -859,7 +859,7 @@ const ZH_CN_MESSAGES: AppMessages = {
     comfyUiChooseWorkflow: '选择 Workflow',
     comfyUiNoWorkflowSelected: '尚未选择已保存的 Workflow。',
     loading: '加载中…',
-    noProviderProfile: '暂无 Provider 配置 (´･ω･`)',
+    noProvider: '暂无 Provider 配置 (´･ω･`)',
     config: '配置',
     alias: '别名',
     apiKeyReplacePlaceholder: '输入新的 API Key 以替换',
@@ -882,14 +882,14 @@ const ZH_CN_MESSAGES: AppMessages = {
     promptSettings: '提示词设置',
     promptOptimization: '提示词优化',
     promptSettingsSummary: '模板与预设',
-    optimizerProfile: 'Provider 配置',
+    optimizerProvider: 'Provider 配置',
     none: '无',
     optimizationTemplate: '模板',
     templatePlaceholder: '输入提示词，并保留 {prompt} 占位符',
     templateInputHint: '提示词 + {prompt} 占位符',
-    optimizationNoProfile: '选择 Provider 配置后启用。',
+    optimizationNoProvider: '选择 Provider 配置后启用。',
     optimizationInvalidTemplate: '请修正占位符。',
-    optimizationMissingProfile: '已保存配置不存在。',
+    optimizationMissingProvider: '已保存配置不存在。',
     promptPresets: '提示词预设',
     promptPresetsLoading: '正在加载预设...',
     promptPresetsEmpty: '暂无提示词预设。',
@@ -927,7 +927,7 @@ const ZH_CN_MESSAGES: AppMessages = {
     fileNeedsNormalization: '尺寸不支持。请缩放或改用捕获/图层。',
     captureAdded: '已添加捕获 ✨',
     captureFailed: 'Photoshop 图像捕获失败',
-    selectProviderProfileFirst: '请先选择配置',
+    selectProviderFirst: '请先选择配置',
     noPlaceableImage: '暂无可置入图片',
     placedOnCanvas: '已置入 Photoshop 画布 ✨',
     placeFailed: '置入 Photoshop 失败',

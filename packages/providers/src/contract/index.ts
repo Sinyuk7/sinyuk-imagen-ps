@@ -156,7 +156,6 @@ export type {
   ProviderEndpointMeasurementOptions,
   ProviderEndpointMeasurementResult,
   ProviderInvokeArgs,
-  ProviderProfileTemplate,
   ProviderSafeProbeContext,
   ProviderSafeProbeReason,
   ProviderSafeProbeResult,

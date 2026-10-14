@@ -22,13 +22,10 @@ import {
 } from '../composer-readiness';
 import { classifyRoundError, type ErrorPrimaryAction } from '../error-action';
 import { comfyUiExecutionNodeLabel } from '../comfyui-execution-error';
-import type { ImageAspectRatio, ImageOutputImageSize, ImageOutputSelection } from '@imagen-ps/application';
+import type { ImageOutputSelection } from '@imagen-ps/providers';
 import { configurationInstanceLabel, type UiModelInfo } from '../model-info';
 import type { GenerationWorkspaceController } from '../generation-workspace';
 import { Button, Divider, HelpText, Icon, IconButton, IconSelect, ImageFallbackContent, imageFallbackTitle, List, ListStateItem, MotionActivityDot, MotionActivityIcon, MotionButtonSurface, MotionContent, MotionDimSurface, MotionHighlight, MotionImage, MotionPresenceView, PageFrame, PageHeader, PageScroll, PageState, ProviderIdentity, ProviderMediaHeader, UxpTextArea, type UxpTextAreaElement, useToast } from '../ui-system';
-import { useProfileBilling } from '../hooks/use-profile-billing';
-import { formatBalanceChange, formatBillingPrimary } from '../../domain/mappers';
-import type { ProfileBillingState } from '@imagen-ps/application';
 
 function isImeCompositionKey(event: React.KeyboardEvent): boolean {
   const nativeEvent = event.nativeEvent as KeyboardEvent & { readonly isComposing?: boolean };
@@ -59,7 +56,7 @@ interface MainPageProps {
   readonly reloadLayers: () => Promise<void>;
   readonly conversation: ConversationController;
   readonly highlightedRoundId?: string | null;
-  readonly onEditProfile?: (profileId: string) => void;
+  readonly onEditProfile?: (providerId: string) => void;
   readonly restoreFailedRoundId?: string | null;
   readonly onFailedRoundRestored?: (roundId: string) => void;
 }
@@ -354,8 +351,8 @@ export function MainPage({
 }: MainPageProps) {
   const services = useAppServices();
   const { messages: t } = useI18n();
-  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-  const [openMenu, setOpenMenu] = useState<'model' | 'output-size' | 'output-ratio' | null>(null);
+  const [providerMenuOpen, setProfileMenuOpen] = useState(false);
+  const [openMenu, setOpenMenu] = useState<'model' | 'output-size' | 'output-ratio' | `catalog:${string}` | null>(null);
   const [attachOpen, setAttachOpen] = useState(false);
   const [layerOpen, setLayerOpen] = useState(false);
   const [captureInFlight, setCaptureInFlight] = useState(false);
@@ -371,35 +368,31 @@ export function MainPage({
   const [scrolledAway, setScrolledAway] = useState(false);
   const { viewModel, composerDraft } = workspace;
   const provider = viewModel.provider;
-  const profiles = provider?.profiles ?? [];
-  const profilesLoading = provider?.profilesLoading ?? false;
-  const profilesError = provider?.profilesError ?? null;
-  const selectedProfile = provider?.selectedProfile;
-  const selectedProfileId = provider?.selectedProfileId ?? null;
-  const billingProfileId = selectedProfile?.apiFormat === 'grsai' ? selectedProfileId : null;
-  const billing = useProfileBilling(services, billingProfileId);
+  const providers = ([{ profileId: 'grsai', displayName: 'GRSAI' }, { profileId: 'runninghub', displayName: 'RunningHub' }] as const);
+  const providersLoading = false;
+  const providersError = null;
+  const selectedProviderId = provider?.providerId ?? 'grsai';
+  const selectedProvider = providers.find((profile) => profile.profileId === selectedProviderId) ?? providers[0];
   const models = provider?.models ?? [];
   const modelsLoading = provider?.modelsLoading ?? false;
   const selectedModelId = provider?.selectedModelId ?? '';
+  const catalogParameters = provider?.parameters ?? {};
+  const catalogParameterValues = workspace.catalogParameterValues;
   const generationSettings = workspace.providerSettings.generation;
-  const modelGenerationSettings = workspace.providerSettings.model;
   const convRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<UxpTextAreaElement>(null);
-  const profileSelectorRef = useRef<HTMLButtonElement>(null);
-  const profileListboxRef = useRef<HTMLDivElement>(null);
-  const profileMenuFocusRef = useRef<'selected' | 'first' | 'last'>('selected');
-  const restoreProfileTriggerFocusRef = useRef(false);
-  const focusInitialProfileOptionRef = useCallback((element: HTMLDivElement | null) => element?.focus(), []);
+  const providerSelectorRef = useRef<HTMLButtonElement>(null);
+  const providerListboxRef = useRef<HTMLDivElement>(null);
+  const providerMenuFocusRef = useRef<'selected' | 'first' | 'last'>('selected');
+  const restoreProviderTriggerFocusRef = useRef(false);
+  const focusInitialProviderOptionRef = useCallback((element: HTMLDivElement | null) => element?.focus(), []);
   const layerPickerOpenStartedAtRef = useRef<number | null>(null);
   const promptFoldRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const promptTextRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const responseFoldRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const responseTextRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const lastNonEmptyLayersRef = useRef<readonly LayerInfo[]>(layers);
-  const focusProfileOption = useCallback((target: HTMLElement | undefined) => target?.focus(), []);
-  const previousRoundStatusRef = useRef<Record<string, ConversationRound['status']>>({});
-  const pendingBillingToastProfileIdRef = useRef<string | null>(null);
-  const lastBillingToastKeyRef = useRef<string | null>(null);
+  const focusProviderOption = useCallback((target: HTMLElement | undefined) => target?.focus(), []);
   useEffect(() => {
     if (layers.length > 0) {
       lastNonEmptyLayersRef.current = layers;
@@ -425,12 +418,12 @@ export function MainPage({
   }, [captureInFlight, workspace]);
 
   useEffect(() => {
-    if (profileMenuOpen || !restoreProfileTriggerFocusRef.current) {
+    if (providerMenuOpen || !restoreProviderTriggerFocusRef.current) {
       return;
     }
-    restoreProfileTriggerFocusRef.current = false;
-    profileSelectorRef.current?.focus();
-  }, [profileMenuOpen]);
+    restoreProviderTriggerFocusRef.current = false;
+    providerSelectorRef.current?.focus();
+  }, [providerMenuOpen]);
 
   function layerKindIcon(kind: string | undefined): 'layer-pixel' | 'layer-smart-object' | 'layer-text' | 'layer-group' | null {
     switch (kind) {
@@ -451,38 +444,38 @@ export function MainPage({
       default: return kind ? kind.charAt(0).toUpperCase() + kind.slice(1) : t.main.layerKindDefault;
     }
   }
-  const selectableProfiles = profiles;
+  const selectableProviders = providers;
   const comfyUiMode = viewModel.mode === 'comfyui';
-  const profileMenuOptionIds = comfyUiMode
+  const providerMenuOptionIds = comfyUiMode
     ? ['mode:provider']
-    : [...selectableProfiles.map((profile) => `profile:${profile.profileId}`), 'mode:comfyui'];
-  const profileMenuInitialFocusId = profileMenuFocusRef.current === 'first'
-    ? profileMenuOptionIds[0]
-    : profileMenuFocusRef.current === 'last'
-      ? profileMenuOptionIds[profileMenuOptionIds.length - 1]
-      : !comfyUiMode && selectedProfileId
-        ? `profile:${selectedProfileId}`
-        : profileMenuOptionIds[0];
+    : [...selectableProviders.map((profile) => `provider:${profile.profileId}`), 'mode:comfyui'];
+  const providerMenuInitialFocusId = providerMenuFocusRef.current === 'first'
+    ? providerMenuOptionIds[0]
+    : providerMenuFocusRef.current === 'last'
+      ? providerMenuOptionIds[providerMenuOptionIds.length - 1]
+      : !comfyUiMode && selectedProviderId
+        ? `provider:${selectedProviderId}`
+        : providerMenuOptionIds[0];
   useEffect(() => {
-    if (!profileMenuOpen) {
+    if (!providerMenuOpen) {
       return;
     }
     const options = Array.from(
-      profileListboxRef.current?.querySelectorAll<HTMLElement>('[role="option"]:not([aria-disabled="true"])') ?? [],
+      providerListboxRef.current?.querySelectorAll<HTMLElement>('[role="option"]:not([aria-disabled="true"])') ?? [],
     );
-    const target = profileMenuFocusRef.current === 'first'
+    const target = providerMenuFocusRef.current === 'first'
       ? options[0]
-      : profileMenuFocusRef.current === 'last'
+      : providerMenuFocusRef.current === 'last'
         ? options[options.length - 1]
         : options.find((option) => option.getAttribute('aria-selected') === 'true') ?? options[0];
-    focusProfileOption(target);
-  }, [focusProfileOption, profileMenuInitialFocusId, profileMenuOpen]);
-  const profileListState = !comfyUiMode && selectableProfiles.length === 0
-    ? profilesError
-      ? { kind: 'error' as const, title: profilesError }
-      : profilesLoading
+    focusProviderOption(target);
+  }, [focusProviderOption, providerMenuInitialFocusId, providerMenuOpen]);
+  const providerListState = !comfyUiMode && selectableProviders.length < 1
+    ? providersError
+      ? { kind: 'error' as const, title: providersError }
+      : providersLoading
         ? { kind: 'loading' as const, title: t.main.loadingProfiles }
-        : { kind: 'empty' as const, title: t.main.addProviderProfile }
+        : { kind: 'empty' as const, title: t.main.noProvider }
     : undefined;
   const layerListState = flatLayers.length === 0
     ? layersError
@@ -493,28 +486,6 @@ export function MainPage({
     : undefined;
   const selectedModelInfo = uniqueModels.find((model) => model.id === selectedModelId);
 
-  useEffect(() => {
-    const next: Record<string, ConversationRound['status']> = {};
-    let terminal = false;
-    for (const round of conversation.rounds) {
-      next[round.id] = round.status;
-      if (previousRoundStatusRef.current[round.id] === 'running' && round.status !== 'running') terminal = true;
-    }
-    previousRoundStatusRef.current = next;
-    if (terminal && billingProfileId) {
-      pendingBillingToastProfileIdRef.current = billingProfileId;
-      void billing.observeAsyncRefresh().then((state: ProfileBillingState | null) => {
-        if (pendingBillingToastProfileIdRef.current !== billingProfileId) return;
-        pendingBillingToastProfileIdRef.current = null;
-        const change = formatBalanceChange(state?.lastBalanceChange);
-        if (!change) return;
-        const key = `${billingProfileId}:${change}`;
-        if (lastBillingToastKeyRef.current === key) return;
-        lastBillingToastKeyRef.current = key;
-        show(`${t.main.billingLastChange}: ${change}`, 'positive', { durationMs: 3200, icon: 'check' });
-      });
-    }
-  }, [billing, billingProfileId, conversation.rounds, show, t.main.billingLastChange]);
   const selectedModelLabel = comfyUiMode
     ? viewModel.target.label
     : selectedModelInfo
@@ -535,16 +506,6 @@ export function MainPage({
     const model = uniqueModels.find((item) => item.id === modelId);
     return model ? configurationInstanceLabel(model) : modelId;
   };
-  const outputSizeOptions = useMemo(
-    () => modelGenerationSettings.imageSizeOptions,
-    [modelGenerationSettings.imageSizeOptions],
-  );
-  const outputRatioOptions = useMemo(
-    () => modelGenerationSettings.ratioOptions,
-    [modelGenerationSettings.ratioOptions],
-  );
-  const selectedOutputSize = modelGenerationSettings.selection?.imageSize ?? 'auto';
-  const selectedOutputRatio = modelGenerationSettings.selection?.ratio ?? 'auto';
   const currentPromptValue = () => taRef.current?.value ?? input;
   const composerTextAreaNeedsUxpPopupOverlapWorkaround = openMenu !== null;
   const syncComposerInputBeforeMenuOpen = useCallback(() => {
@@ -554,7 +515,7 @@ export function MainPage({
     }
     taRef.current?.blur();
   }, [composerDraft, input]);
-  const handleOpenComposerMenu = useCallback((menu: 'model' | 'output-size' | 'output-ratio', open: boolean) => {
+  const handleOpenComposerMenu = useCallback((menu: 'model' | 'output-size' | 'output-ratio' | `catalog:${string}`, open: boolean) => {
     setProfileMenuOpen(false);
     if (open) {
       syncComposerInputBeforeMenuOpen();
@@ -742,20 +703,20 @@ export function MainPage({
     setAttachOpen(false);
     setLayerOpen(false);
   };
-  const closeProfileMenu = (restoreFocus = false) => {
-    restoreProfileTriggerFocusRef.current = restoreFocus;
+  const closeProviderMenu = (restoreFocus = false) => {
+    restoreProviderTriggerFocusRef.current = restoreFocus;
     setProfileMenuOpen(false);
   };
-  const openProfileMenu = (focus: 'selected' | 'first' | 'last' = 'selected') => {
-    profileMenuFocusRef.current = focus;
+  const openProviderMenu = (focus: 'selected' | 'first' | 'last' = 'selected') => {
+    providerMenuFocusRef.current = focus;
     setProfileMenuOpen(true);
     setOpenMenu(null);
   };
-  const handleProfileTriggerKeyDown = (event: React.KeyboardEvent<HTMLElement>) => {
-    if (event.key === 'Escape' && profileMenuOpen) {
+  const handleProviderTriggerKeyDown = (event: React.KeyboardEvent<HTMLElement>) => {
+    if (event.key === 'Escape' && providerMenuOpen) {
       event.preventDefault();
       event.stopPropagation();
-      closeProfileMenu(true);
+      closeProviderMenu(true);
       return;
     }
     if (event.key !== 'Enter' && event.key !== ' ' && event.key !== 'ArrowDown' && event.key !== 'ArrowUp') {
@@ -763,17 +724,17 @@ export function MainPage({
     }
     event.preventDefault();
     event.stopPropagation();
-    openProfileMenu(event.key === 'ArrowDown' ? 'first' : event.key === 'ArrowUp' ? 'last' : 'selected');
+    openProviderMenu(event.key === 'ArrowDown' ? 'first' : event.key === 'ArrowUp' ? 'last' : 'selected');
   };
-  const handleProfileListboxKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+  const handleProviderListboxKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.key === 'Escape') {
       event.preventDefault();
       event.stopPropagation();
-      closeProfileMenu(true);
+      closeProviderMenu(true);
       return;
     }
     const options = Array.from(
-      profileListboxRef.current?.querySelectorAll<HTMLElement>('[role="option"]:not([aria-disabled="true"])') ?? [],
+      providerListboxRef.current?.querySelectorAll<HTMLElement>('[role="option"]:not([aria-disabled="true"])') ?? [],
     );
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp' || event.key === 'Home' || event.key === 'End') {
       event.preventDefault();
@@ -789,14 +750,14 @@ export function MainPage({
           : currentIndex < 0
             ? event.key === 'ArrowDown' ? 0 : options.length - 1
             : (currentIndex + (event.key === 'ArrowDown' ? 1 : -1) + options.length) % options.length;
-      focusProfileOption(options[nextIndex]);
+      focusProviderOption(options[nextIndex]);
       return;
     }
     if (event.key !== 'Enter' && event.key !== ' ') {
       return;
     }
     const active = document.activeElement as HTMLElement | null;
-    if (!active || active.getAttribute('role') !== 'option' || !profileListboxRef.current?.contains(active)) {
+    if (!active || active.getAttribute('role') !== 'option' || !providerListboxRef.current?.contains(active)) {
       return;
     }
     event.preventDefault();
@@ -966,17 +927,17 @@ export function MainPage({
     composerDraft.removeAttachment(attachmentId);
   };
 
-  const selectProfile = (profileId: string) => {
-    if (profileId !== selectedProfileId) {
+  const selectProvider = (profileId: string) => {
+    if (profileId !== selectedProviderId) {
       composerDraft.clearAttachments();
     }
-    void workspace.selectProfile(profileId);
-    closeProfileMenu(true);
+    void workspace.selectProvider(profileId as 'grsai' | 'runninghub');
+    closeProviderMenu(true);
   };
 
   const selectGenerationMode = (mode: 'provider' | 'comfyui') => {
     workspace.setGenerationMode(mode);
-    closeProfileMenu(true);
+    closeProviderMenu(true);
   };
 
   const addLayer = async (layer: LayerInfo) => {
@@ -1176,18 +1137,6 @@ export function MainPage({
     }
   };
 
-  const selectOutputSize = async (nextSize: ImageOutputImageSize) => {
-    const saved = await modelGenerationSettings.selectImageSize(nextSize);
-    if (!saved && modelGenerationSettings.validationMessage) {
-      show(modelGenerationSettings.validationMessage, 'warning', { key: `output-size-rejected:${nextSize}` });
-    }
-  };
-  const selectOutputRatio = async (nextRatio: ImageAspectRatio) => {
-    const saved = await modelGenerationSettings.selectRatio(nextRatio);
-    if (!saved && modelGenerationSettings.validationMessage) {
-      show(modelGenerationSettings.validationMessage, 'warning', { key: `output-ratio-rejected:${nextRatio}` });
-    }
-  };
   return (
     <PageFrame watch="main"><div className="page" onClick={closeAll}>
       <PageHeader
@@ -1203,44 +1152,44 @@ export function MainPage({
         />}
         center={<div className="hdr-center-wrap">
           <IconButton
-            ref={profileSelectorRef}
-            data-testid="main-profile-selector"
-            id="main-profile-selector"
-            className={`hdr-center hdr-provider-trigger${profileMenuOpen ? ' open' : ''}`}
+            ref={providerSelectorRef}
+            data-testid="main-provider-selector"
+            id="main-provider-selector"
+            className={`hdr-center hdr-provider-trigger${providerMenuOpen ? ' open' : ''}`}
             overlayClassName="hdr-provider-chevron"
             aria-haspopup="listbox"
-            aria-expanded={profileMenuOpen ? 'true' : 'false'}
-            aria-controls="main-profile-menu"
+            aria-expanded={providerMenuOpen ? 'true' : 'false'}
+            aria-controls="main-provider-menu"
             icon={<Icon name="chevron-down" />}
             iconSize={12}
             iconPlacement="end"
-            text={comfyUiMode ? t.settings.comfyUi : selectedProfile?.displayName ?? t.main.noProviderProfile}
-            tooltip={comfyUiMode ? t.settings.comfyUi : selectedProfile?.displayName ?? t.main.noProviderProfile}
+            text={comfyUiMode ? t.settings.comfyUi : selectedProvider?.displayName ?? selectedProviderId}
+            tooltip={comfyUiMode ? t.settings.comfyUi : selectedProvider?.displayName ?? selectedProviderId}
             onClick={(event) => {
               event.stopPropagation();
-              if (profileMenuOpen) {
-                closeProfileMenu();
+              if (providerMenuOpen) {
+                closeProviderMenu();
               } else {
-                openProfileMenu();
+                openProviderMenu();
               }
             }}
-            onKeyDown={handleProfileTriggerKeyDown}
+            onKeyDown={handleProviderTriggerKeyDown}
           />
-          <MotionPresenceView visible={profileMenuOpen} kind="popover">
+          <MotionPresenceView visible={providerMenuOpen} kind="popover">
             {({ ref, state }) => (
             <div
               ref={(element) => {
                 ref(element);
-                profileListboxRef.current = element;
+                providerListboxRef.current = element;
               }}
-              id="main-profile-menu"
+              id="main-provider-menu"
               className="model-menu hdr-model-menu"
               data-motion-state={state}
               role="listbox"
               aria-label={t.common.profile}
               aria-hidden={state === 'exiting' ? 'true' : undefined}
               onClick={(event) => event.stopPropagation()}
-              onKeyDown={handleProfileListboxKeyDown}
+              onKeyDown={handleProviderListboxKeyDown}
             >
               <List className="popup-list profile-popup-list">
                 {comfyUiMode ? (
@@ -1250,33 +1199,33 @@ export function MainPage({
                     role="option"
                     aria-selected="false"
                     tabIndex={0}
-                    ref={profileMenuInitialFocusId === 'mode:provider' ? focusInitialProfileOptionRef : undefined}
+                    ref={providerMenuInitialFocusId === 'mode:provider' ? focusInitialProviderOptionRef : undefined}
                     onClick={() => selectGenerationMode('provider')}
                   >
                     <span>{t.common.provider}</span>
                   </div>
                 ) : (
                   <>
-                  {profileListState ? (
+                  {providerListState ? (
                     <ListStateItem
                       className="popup-list-state profile-popup-state"
-                      data-testid={`profile-list-state-${profileListState.kind}`}
-                      kind={profileListState.kind}
-                      title={profileListState.title}
-                      action={profileListState.kind === 'empty'
+                      data-testid={`profile-list-state-${providerListState.kind}`}
+                      kind={providerListState.kind}
+                      title={providerListState.title}
+                      action={providerListState.kind === 'empty'
                         ? { label: t.common.addProvider, onPress: () => onNav('provider-picker') }
                         : undefined}
                     />
-                  ) : selectableProfiles.map((profile) => (
+                  ) : selectableProviders.map((profile) => (
                       <div
                         key={profile.profileId}
                         data-testid={`profile-menu-option-${profile.profileId}`}
-                        className={`model-opt${profile.profileId === selectedProfileId ? ' act' : ''}`}
+                        className={`model-opt${profile.profileId === selectedProviderId ? ' act' : ''}`}
                         role="option"
-                        aria-selected={profile.profileId === selectedProfileId ? 'true' : 'false'}
-                        tabIndex={profile.profileId === selectedProfileId ? 0 : -1}
-                        ref={profileMenuInitialFocusId === `profile:${profile.profileId}` ? focusInitialProfileOptionRef : undefined}
-                        onClick={() => selectProfile(profile.profileId)}
+                        aria-selected={profile.profileId === selectedProviderId ? 'true' : 'false'}
+                        tabIndex={profile.profileId === selectedProviderId ? 0 : -1}
+                        ref={providerMenuInitialFocusId === `provider:${profile.profileId}` ? focusInitialProviderOptionRef : undefined}
+                        onClick={() => selectProvider(profile.profileId)}
                       >
                         <span>{profile.displayName}</span>
                       </div>
@@ -1286,8 +1235,8 @@ export function MainPage({
                     className="model-opt"
                     role="option"
                     aria-selected="false"
-                    tabIndex={selectedProfileId ? -1 : 0}
-                    ref={profileMenuInitialFocusId === 'mode:comfyui' ? focusInitialProfileOptionRef : undefined}
+                    tabIndex={selectedProviderId ? -1 : 0}
+                    ref={providerMenuInitialFocusId === 'mode:comfyui' ? focusInitialProviderOptionRef : undefined}
                     onClick={() => selectGenerationMode('comfyui')}
                   >
                     <span>{t.settings.comfyUi}</span>
@@ -1428,8 +1377,8 @@ export function MainPage({
                     const handlePrimaryErrorAction = () => {
                       switch (failure.primaryAction) {
                         case 'open-provider-settings':
-                          if (round.profileId && onEditProfile) {
-                            onEditProfile(round.profileId);
+                          if (round.providerId && onEditProfile) {
+                            onEditProfile(round.providerId);
                           }
                           return;
                         case 'choose-supported-size':
@@ -1518,10 +1467,10 @@ export function MainPage({
                       <ProviderIdentity
                         providerName={round.providerName}
                         modelLabel={visibleLabelForModelId(round.modelId)}
-                        disabled={!onEditProfile || !round.profileId}
+                        disabled={!onEditProfile || !round.providerId}
                         onClick={(event) => {
                           event.stopPropagation();
-                          if (round.profileId && onEditProfile) onEditProfile(round.profileId);
+                          if (round.providerId && onEditProfile) onEditProfile(round.providerId);
                         }}
                       />
                       <div className="prov-status">
@@ -1560,11 +1509,11 @@ export function MainPage({
                       <ProviderIdentity
                         providerName={round.providerName}
                         modelLabel={visibleLabelForModelId(round.modelId)}
-                        disabled={!onEditProfile || !round.profileId}
+                        disabled={!onEditProfile || !round.providerId}
                         onClick={(event) => {
                           event.stopPropagation();
-                          if (round.profileId && onEditProfile) {
-                            onEditProfile(round.profileId);
+                          if (round.providerId && onEditProfile) {
+                            onEditProfile(round.providerId);
                           }
                         }}
                       />
@@ -1667,12 +1616,12 @@ export function MainPage({
                         statusLabel={t.status.done}
                         durationLabel={round.elapsedLabel}
                         statusTone={statusDot(round.status)}
-                        disabled={!onEditProfile || !round.profileId}
+                        disabled={!onEditProfile || !round.providerId}
                         testIdPrefix={`result-media-card-${round.id}`}
                         onClick={(event) => {
                           event.stopPropagation();
-                          if (round.profileId && onEditProfile) {
-                            onEditProfile(round.profileId);
+                          if (round.providerId && onEditProfile) {
+                            onEditProfile(round.providerId);
                           }
                         }}
                       />
@@ -1681,11 +1630,11 @@ export function MainPage({
                         <ProviderIdentity
                           providerName={round.providerName}
                           modelLabel={providerModelLabel}
-                          disabled={!onEditProfile || !round.profileId}
+                          disabled={!onEditProfile || !round.providerId}
                           onClick={(event) => {
                             event.stopPropagation();
-                            if (round.profileId && onEditProfile) {
-                              onEditProfile(round.profileId);
+                            if (round.providerId && onEditProfile) {
+                              onEditProfile(round.providerId);
                             }
                           }}
                         />
@@ -1981,7 +1930,7 @@ export function MainPage({
                   data-testid="composer-textarea"
                   controlRef={taRef}
                   className="cmp-ta"
-                  placeholder={comfyUiMode || selectedProfile ? t.main.promptPlaceholderReady : t.main.promptPlaceholderNoProfile}
+                  placeholder={comfyUiMode || selectedProvider ? t.main.promptPlaceholderReady : t.main.promptPlaceholderNoProfile}
                   value={input}
                   onValue={composerDraft.setInput}
                   nativeEditorSuspended={composerTextAreaNeedsUxpPopupOverlapWorkaround}
@@ -2084,12 +2033,6 @@ export function MainPage({
           </div>
           <div className="cmp-footer">
             <div className="cmp-meta-row">
-              {billingProfileId ? (
-                <HelpText className="cmp-readiness" data-testid="main-billing-summary" title={billing.error ?? undefined}>
-                  {billing.loading ? t.main.billingChecking : formatBillingPrimary(billing.billing) ?? (billing.error ? t.main.billingRefreshFailed : t.main.billingUnknown)}
-                  {billing.billing?.refreshState === 'error' ? ` · ${t.main.billingStale}` : ''}
-                </HelpText>
-              ) : null}
               {showFooterReadiness ? <MotionContent watch={composerReadinessState}>
                 <HelpText className="cmp-readiness" data-testid="composer-readiness-status" data-state={composerReadinessState}>
                   {composerReadinessText}
@@ -2121,44 +2064,25 @@ export function MainPage({
               />
             </div>
             {!comfyUiMode ? <div className="cmp-toolbar-right">
-              <IconSelect
-                testId="composer-output-size-selector"
-                containerClassName="cmp-select cmp-select-output-size"
-                menuClassName="cmp-select-menu cmp-select-menu-compact"
-                label={t.main.outputSize}
-                value={optionLabel(outputSizeOptions, selectedOutputSize)}
-                disabled={outputSizeOptions.length === 0}
-                open={openMenu === 'output-size'}
-                onOpenChange={(open) => {
-                  handleOpenComposerMenu('output-size', open);
-                }}
-                options={outputSizeOptions}
-                selectedId={selectedOutputSize}
-                onSelect={(value) => {
-                  void selectOutputSize(value as ImageOutputImageSize);
-                }}
-                icon="image-size"
-              />
-              {modelGenerationSettings.showRatio ? (
-                <IconSelect
-                  testId="composer-output-ratio-selector"
+              {Object.entries(catalogParameters).map(([name, parameter]) => {
+                const options = parameter.options.map((option) => ({ id: option.value, label: option.label }));
+                const value = catalogParameterValues[name] ?? parameter.default;
+                return <IconSelect
+                  key={name}
+                  testId={`composer-catalog-parameter-${name}`}
                   containerClassName="cmp-select cmp-select-output-size"
                   menuClassName="cmp-select-menu cmp-select-menu-compact"
-                  label={t.main.aspectRatio}
-                  value={optionLabel(outputRatioOptions, selectedOutputRatio)}
-                  disabled={outputRatioOptions.length === 0}
-                  open={openMenu === 'output-ratio'}
-                  onOpenChange={(open) => {
-                    handleOpenComposerMenu('output-ratio', open);
-                  }}
-                  options={outputRatioOptions}
-                  selectedId={selectedOutputRatio}
-                  onSelect={(value) => {
-                    void selectOutputRatio(value as ImageAspectRatio);
-                  }}
-                  icon="aspect-ratio"
-                />
-              ) : null}
+                  label={name}
+                  value={optionLabel(options, value)}
+                  disabled={options.length === 0}
+                  open={openMenu === `catalog:${name}`}
+                  onOpenChange={(open) => handleOpenComposerMenu(`catalog:${name}`, open)}
+                  options={options}
+                  selectedId={value}
+                  onSelect={(next) => workspace.setCatalogParameter(name, next)}
+                  icon="algorithm"
+                />;
+              })}
             </div> : null}
           </div>
           </div>

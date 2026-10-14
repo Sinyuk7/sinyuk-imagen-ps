@@ -2,26 +2,23 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { AppServicesProvider } from '../ports/app-services-context';
 import type { AppServices } from '../ports/app-services';
 import type { LayerInfo } from '../ports/host-port';
-import type { ProviderProfile } from '@imagen-ps/application';
 import type { SupportedLocale } from '../domain/locale';
 import type { PluginAppModel } from '../domain/plugin-app-model';
 import { useConversation, type RoundStatus } from './hooks/use-conversation';
 import { useComposerDraft } from './hooks/use-composer-draft';
 import { useImagenSession } from './hooks/use-imagen-session';
 import { useGenerationSettings } from './hooks/use-generation-settings';
-import { useModelGenerationSettings } from './hooks/use-model-generation-settings';
 import { usePromptSettings } from './hooks/use-prompt-settings';
 import { useJobHistory } from './hooks/use-job-history';
-import { useProfileModels, useProviderAccounts, useProviderProfiles } from './hooks/use-provider-settings';
+import { useProviderAccounts } from './hooks/use-provider-settings';
 import { MainPage } from './pages/main-page';
 import { HistoryPage } from './pages/history-page';
 import { SettingsPage } from './pages/settings-page';
 import { GlobalGenerationSettingsPage } from './pages/global-generation-settings-page';
-import { ProviderOutputSettingsPage } from './pages/provider-output-settings-page';
 import { PromptSettingsPage } from './pages/prompt-settings-page';
 import { PromptPresetDetailPage } from './pages/prompt-preset-detail-page';
 import { ProviderAccountSettingsPage } from './pages/provider-account-settings-page';
-import { ToastHost, ToastProvider, useToast } from './components/toast-host';
+import { ToastHost, ToastProvider } from './components/toast-host';
 import { PopupLayerProvider, PopupLayerRoot } from './components/popup-layer';
 import { I18nProvider, useI18n } from './i18n/i18n-context';
 import { ensurePanelCss } from './panel-bootstrap';
@@ -29,18 +26,10 @@ import { registerSpectrumTheme } from './primitives/spectrum-registry';
 import { placeTaskOutputOnCanvas, saveTaskOutputToFile } from '../domain/task-actions';
 import type { TaskRecord } from '@imagen-ps/application';
 import { MotionPageFrame } from './components/motion-ui';
-import { mainSelectableModels, type UiModelInfo } from './model-info';
+import { fixedProviderModels, mainSelectableModels, type UiModelInfo } from './model-info';
 import { useComfyUiManagement } from './hooks/use-comfyui-management';
 import { useGenerationWorkspace } from './hooks/use-generation-workspace';
 import { settingsBackRoute, type SettingsRoute, type SettingsTab } from './settings-route';
-import { ProviderPickerPage } from './features/provider-profiles/provider-picker-page';
-import { GrsaiProfilePage } from './features/provider-profiles/grsai/grsai-profile-page';
-import { GeminiProfilePage } from './features/provider-profiles/gemini/gemini-profile-page';
-import { OpenAiImagesProfilePage } from './features/provider-profiles/openai-images/openai-images-profile-page';
-import {
-  surfaceForRoute,
-  surfaceRouteForProfile,
-} from './features/provider-profiles/routes';
 
 export interface AppShellHost {
   readonly app: PluginAppModel;
@@ -57,9 +46,7 @@ type View =
   | 'main'
   | 'history'
   | 'settings'
-  | 'provider-picker'
-  | 'provider-profile'
-  | 'provider-accounts'
+  | 'provider-account'
   | 'global-generation-settings'
   | 'prompt-settings'
   | 'prompt-preset-detail';
@@ -67,12 +54,6 @@ type AppTheme = 'dark' | 'light';
 type AppThemeOverride = AppTheme | undefined;
 type PanelWidthMode = 'compact' | 'regular' | 'wide';
 type PanelHeightMode = 'short' | 'normal';
-type ActiveImageProfileSelectionSource =
-  | 'main-profile-menu'
-  | 'fallback-reconcile'
-  | 'profile-created'
-  | 'settings-profile-activate';
-
 const PANEL_COMPACT_MAX_WIDTH = 339;
 const PANEL_WIDE_MIN_WIDTH = 520;
 const PANEL_SHORT_MAX_HEIGHT = 459;
@@ -80,19 +61,15 @@ const PANEL_SHORT_MAX_HEIGHT = 459;
 function viewForSettingsRoute(route: SettingsRoute): View {
   switch (route.kind) {
     case 'root': return 'settings';
-    case 'provider-output':
     case 'global-settings': return 'global-generation-settings';
-    case 'provider-picker': return 'provider-picker';
-    case 'provider-accounts': return 'provider-accounts';
-    case 'provider-create':
-    case 'provider-edit': return 'provider-profile';
+    case 'provider-account': return 'provider-account';
     case 'prompt-settings': return 'prompt-settings';
     case 'prompt-preset-detail': return 'prompt-preset-detail';
   }
 }
 
 function rootTabForSettingsRoute(route: SettingsRoute): SettingsTab {
-  if (route.kind === 'provider-output' || route.kind === 'provider-accounts' || route.kind === 'provider-picker' || route.kind === 'provider-create' || route.kind === 'provider-edit') return 'provider';
+  if (route.kind === 'provider-account') return 'provider';
   if (route.kind === 'global-settings' || route.kind === 'prompt-settings' || route.kind === 'prompt-preset-detail') return 'general';
   return route.tab;
 }
@@ -259,68 +236,14 @@ function AppShellContent({ host }: AppShellProps) {
   const panelRef = useRef<HTMLDivElement | null>(null);
   const themeOverride = readThemeOverride();
   const [view, setView] = useState<View>('main');
-  const [selectedImageProfileId, setSelectedImageProfileId] = useState<string | null>(null);
-  const [activeImageProfileHydrated, setActiveImageProfileHydrated] = useState(false);
-  const [highlightedSettingsProfileId, setHighlightedSettingsProfileId] = useState<string | null>(null);
+  const [selectedProviderId, setSelectedProviderId] = useState<'grsai' | 'runninghub'>('grsai');
   const [selectedModelId, setSelectedModelId] = useState('');
   const [highlightedRoundId, setHighlightedRoundId] = useState<string | null>(null);
   const [restoreFailedRoundId, setRestoreFailedRoundId] = useState<string | null>(null);
-  const activeImageProfileRequestRef = useRef(0);
-  const activeImageProfileWriteTailRef = useRef<Promise<void>>(Promise.resolve());
-  const selectImageProfile = useCallback(async (
-    profileId: string | null,
-    source: ActiveImageProfileSelectionSource,
-  ) => {
-    const requestId = activeImageProfileRequestRef.current + 1;
-    activeImageProfileRequestRef.current = requestId;
-    setSelectedImageProfileId(profileId);
-    await services.diagnostics?.checkpoint('ui.active_image_profile.select.requested', {
-      source,
-      requestId,
-      profileId,
-    });
-
-    const write = activeImageProfileWriteTailRef.current
-      .catch(() => undefined)
-      .then(async () => {
-        if (requestId !== activeImageProfileRequestRef.current) {
-          await services.diagnostics?.checkpoint('ui.active_image_profile.select.superseded', {
-            source,
-            requestId,
-            profileId,
-          });
-          return;
-        }
-        await services.diagnostics?.checkpoint('ui.active_image_profile.write.start', {
-          source,
-          requestId,
-          profileId,
-        });
-        await services.activeImageProfile.save(profileId);
-        await services.diagnostics?.checkpoint('ui.active_image_profile.write.ok', {
-          source,
-          requestId,
-          profileId,
-        });
-      });
-    activeImageProfileWriteTailRef.current = write;
-    await write;
-  }, [services.activeImageProfile, services.diagnostics]);
-  const profilesState = useProviderProfiles(services);
-  const providerSurfaces = useMemo(() => services.commands.listProviders(), [services.commands]);
-  const imageProfiles = useMemo(
-    () => profilesState.profiles.filter((profile): profile is ProviderProfile => Boolean(profile?.profileId)),
-    [profilesState.profiles],
-  );
-  const selectedProfile = useMemo(
-    () => imageProfiles.find((profile) => profile.profileId === selectedImageProfileId),
-    [imageProfiles, selectedImageProfileId],
-  );
-  const selectedProfileModelsRevision = selectedProfile?.updatedAt ?? '';
-  const modelsState = useProfileModels(services, selectedImageProfileId, selectedProfileModelsRevision);
+  const providerAccountsState = useProviderAccounts(services);
   const imageModels = useMemo(
-    () => mergeConfiguredDefaultModel(modelsState.models),
-    [modelsState.models],
+    () => mergeConfiguredDefaultModel(fixedProviderModels(selectedProviderId)),
+    [selectedProviderId],
   );
   const generationSettings = useGenerationSettings(services);
   const promptSettings = usePromptSettings(services);
@@ -328,61 +251,29 @@ function AppShellContent({ host }: AppShellProps) {
   const imagenSession = useImagenSession(services);
   const conversation = useConversation(services, imagenSession, generationSettings.settings, t.conversation);
   const composerDraft = useComposerDraft();
-  const modelGenerationSettings = useModelGenerationSettings(services, {
-    profileId: selectedImageProfileId,
-    apiFormat: selectedProfile?.apiFormat ?? null,
-    modelId: selectedModelId,
-    operation: composerDraft.operation,
-  });
   const generationWorkspace = useGenerationWorkspace({
     host: services.host,
     conversation,
     composerDraft,
     comfyUi: comfyUiManagement,
-    profiles: imageProfiles,
-    profilesLoading: profilesState.loading,
-    profilesError: profilesState.error,
-    ...(selectedProfile ? { selectedProfile } : {}),
-    selectedProfileId: selectedImageProfileId,
-    selectProfile: (profileId) => selectImageProfile(profileId, 'main-profile-menu'),
+    providerId: selectedProviderId,
+    selectProvider: setSelectedProviderId,
     models: imageModels,
-    modelsLoading: modelsState.loading,
-    modelsError: modelsState.error,
+    modelsLoading: false,
+    modelsError: null,
     selectedModelId,
     selectModel: setSelectedModelId,
     generationSettings,
-    modelGenerationSettings,
+    commands: services.commands,
   });
   const [settingsRoute, setSettingsRoute] = useState<SettingsRoute>({ kind: 'root', tab: 'provider' });
   const history = useJobHistory(services);
   const { records: historyRecords, loading: historyLoading, error: historyError, reload: reloadHistory } = history;
   const { layers, layersError, layersLoading, reloadLayers } = useHostLayers(host);
-  const { show } = useToast();
   const previousRoundStatusRef = useRef<Record<string, RoundStatus>>({});
   const reconciledHistoryRef = useRef(false);
   usePanelResponsiveAttributes(panelRef);
 
-  useEffect(() => {
-    let cancelled = false;
-    void services.activeImageProfile.load().then((profileId) => {
-      if (cancelled) {
-        return;
-      }
-      if (activeImageProfileRequestRef.current === 0) {
-        setSelectedImageProfileId(profileId);
-        void services.diagnostics?.checkpoint('ui.active_image_profile.hydration.applied', { profileId });
-      } else {
-        void services.diagnostics?.checkpoint('ui.active_image_profile.hydration.ignored', {
-          profileId,
-          latestRequestId: activeImageProfileRequestRef.current,
-        });
-      }
-      setActiveImageProfileHydrated(true);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [services.activeImageProfile, services.diagnostics]);
 
   useEffect(() => {
     if (reconciledHistoryRef.current) {
@@ -401,40 +292,13 @@ function AppShellContent({ host }: AppShellProps) {
   }, [imagenSession.snapshot.jobs, reloadHistory, services.commands]);
 
   useEffect(() => {
-    if (!activeImageProfileHydrated) {
-      return;
-    }
-    if (profilesState.loading || profilesState.error) {
-      return;
-    }
-    if (selectedImageProfileId && imageProfiles.some((profile) => profile.profileId === selectedImageProfileId)) {
-      return;
-    }
-    const fallbackProfileId = imageProfiles[0]?.profileId ?? null;
-    if (selectedImageProfileId === fallbackProfileId) {
-      return;
-    }
-    void selectImageProfile(fallbackProfileId, 'fallback-reconcile');
-  }, [
-    activeImageProfileHydrated,
-    imageProfiles,
-    profilesState.error,
-    profilesState.loading,
-    selectImageProfile,
-    selectedImageProfileId,
-  ]);
-
-  useEffect(() => {
     const available = imageModels;
     const stillValid = available.some((model) => model.id === selectedModelId);
     if (stillValid) {
       return;
     }
-    const defaultModelId = selectedProfile
-      ? providerSurfaces.find((surface) => surface.identity.apiFormat === selectedProfile.apiFormat)?.defaultModelId
-      : undefined;
-    setSelectedModelId(defaultModelId && available.some((model) => model.id === defaultModelId) ? defaultModelId : '');
-  }, [imageModels, providerSurfaces, selectedModelId, selectedProfile]);
+    setSelectedModelId(available[0]?.id ?? '');
+  }, [imageModels, selectedModelId, selectedProviderId]);
 
   const setAppView = useCallback((next: View) => {
     setView(next);
@@ -455,10 +319,6 @@ function AppShellContent({ host }: AppShellProps) {
   }, [openSettingsRoute, setAppView, settingsRoute]);
 
   const onNav = useCallback((next: string) => {
-    if (next === 'provider-picker') {
-      openSettingsRoute({ kind: 'provider-picker' });
-      return;
-    }
     if (next === 'prompt-settings') {
       openSettingsRoute({ kind: 'prompt-settings' });
       return;
@@ -472,39 +332,6 @@ function AppShellContent({ host }: AppShellProps) {
     }
     setAppView(next as View);
   }, [generationWorkspace.settingsRoute, openSettingsRoute, setAppView, settingsRoute]);
-
-  const onEditProfile = useCallback(
-    (profileId: string) => {
-      const profile = imageProfiles.find((item) => item.profileId === profileId);
-      if (!profile) return;
-      openSettingsRoute({ kind: 'provider-edit', surfaceId: surfaceRouteForProfile(profile), profileId });
-    },
-    [imageProfiles, openSettingsRoute],
-  );
-
-  const completeProfileSave = useCallback(async (profile: ProviderProfile, created: boolean) => {
-    await profilesState.reload();
-    if (selectedImageProfileId === null) {
-      await selectImageProfile(profile.profileId, 'profile-created');
-    }
-    setHighlightedSettingsProfileId(profile.profileId);
-    show(
-      created ? t.settings.profileCreated(profile.displayName) : t.settings.profileSaved(profile.displayName),
-      'positive',
-      { key: created ? 'settings-profile-created' : 'settings-profile-saved' },
-    );
-    openSettingsRoute({ kind: 'root', tab: 'provider' });
-  }, [openSettingsRoute, profilesState, selectImageProfile, selectedImageProfileId, show, t.settings]);
-
-  const completeProfileDelete = useCallback(async (profileId: string) => {
-    if (selectedImageProfileId === profileId) {
-      await selectImageProfile(null, 'fallback-reconcile');
-    }
-    await profilesState.reload();
-    setHighlightedSettingsProfileId(null);
-    show(t.settings.profileDeleted, 'positive', { key: 'settings-profile-deleted' });
-    openSettingsRoute({ kind: 'root', tab: 'provider' });
-  }, [openSettingsRoute, profilesState, selectImageProfile, selectedImageProfileId, show, t.settings.profileDeleted]);
 
   const onLocateRound = useCallback(
     (roundId: string) => {
@@ -587,7 +414,6 @@ function AppShellContent({ host }: AppShellProps) {
           reloadLayers={reloadLayers}
           conversation={conversation}
           highlightedRoundId={highlightedRoundId}
-          onEditProfile={onEditProfile}
           restoreFailedRoundId={restoreFailedRoundId}
           onFailedRoundRestored={(roundId) => {
             if (restoreFailedRoundId === roundId) {
@@ -624,63 +450,25 @@ function AppShellContent({ host }: AppShellProps) {
             openSettingsRoute({ kind: 'root', tab });
           }}
           onBack={goBackInSettings}
-          profiles={imageProfiles}
-          highlightedProfileId={highlightedSettingsProfileId}
-          loading={profilesState.loading}
-          error={profilesState.error}
-          onOpenProfile={(profileId) => {
-            if (highlightedSettingsProfileId === profileId) setHighlightedSettingsProfileId(null);
-            const profile = imageProfiles.find((item) => item.profileId === profileId);
-            if (!profile) return;
-            openSettingsRoute({ kind: 'provider-edit', surfaceId: surfaceRouteForProfile(profile), profileId });
-          }}
-          onOpenProviderOutput={() => openSettingsRoute({ kind: 'provider-output' })}
-          onOpenProviderNew={() => {
-            setHighlightedSettingsProfileId(null);
-            openSettingsRoute({ kind: 'provider-picker' });
-          }}
+          accounts={providerAccountsState.accounts}
+          loading={providerAccountsState.loading}
+          error={providerAccountsState.error}
+          onOpenProviderAccounts={(providerId) => openSettingsRoute({ kind: 'provider-account', providerId })}
           onOpenGlobalSettings={() => openSettingsRoute({ kind: 'global-settings' })}
           onOpenPromptSettings={() => openSettingsRoute({ kind: 'prompt-settings' })}
           generationSettings={generationSettings.settings}
-          modelGenerationSettings={modelGenerationSettings}
           comfyUi={comfyUiManagement}
           />
         </MotionPageFrame>
       )}
-      {view === 'provider-picker' && settingsRoute.kind === 'provider-picker' && (
-        <ProviderPickerPage
-          surfaces={providerSurfaces}
+      {view === 'provider-account' && settingsRoute.kind === 'provider-account' && (
+        <ProviderAccountSettingsPage
+          services={services}
+          providerId={settingsRoute.providerId}
+          accounts={providerAccountsState.accounts}
           onBack={goBackInSettings}
-          onSelect={(surfaceId) => openSettingsRoute({ kind: 'provider-create', surfaceId })}
+          onSaved={() => void providerAccountsState.reload()}
         />
-      )}
-      {view === 'provider-profile' && (settingsRoute.kind === 'provider-create' || settingsRoute.kind === 'provider-edit') && (() => {
-        const surface = surfaceForRoute(providerSurfaces, settingsRoute.surfaceId);
-        const profile = settingsRoute.kind === 'provider-edit'
-          ? imageProfiles.find((item) => item.profileId === settingsRoute.profileId)
-          : undefined;
-        if (!surface || (settingsRoute.kind === 'provider-edit' && !profile)) return null;
-        const pageProps = {
-          surface,
-          ...(profile ? { profile } : {}),
-          existingDisplayNames: imageProfiles
-            .filter((item) => item.profileId !== profile?.profileId)
-            .map((item) => item.displayName),
-          onBack: goBackInSettings,
-          onSaved: (saved: ProviderProfile) => completeProfileSave(saved, settingsRoute.kind === 'provider-create'),
-          onDeleted: completeProfileDelete,
-        };
-        if (settingsRoute.surfaceId === 'grsai') return <GrsaiProfilePage {...pageProps} />;
-        if (settingsRoute.surfaceId === 'gemini') return <GeminiProfilePage {...pageProps} />;
-        return <OpenAiImagesProfilePage {...pageProps} />;
-      })()}
-      {view === 'global-generation-settings' && settingsRoute.kind === 'provider-output' && (
-        <MotionPageFrame watch={view}>
-          <ProviderOutputSettingsPage
-          modelGenerationSettings={modelGenerationSettings}
-          onBack={goBackInSettings}
-          />
-        </MotionPageFrame>
       )}
       {view === 'global-generation-settings' && settingsRoute.kind === 'global-settings' && (
         <MotionPageFrame watch={view}>
@@ -699,7 +487,7 @@ function AppShellContent({ host }: AppShellProps) {
           <PromptSettingsPage
           onNav={onNav}
           settings={promptSettings.settings}
-          profiles={promptSettings.profiles}
+          providers={promptSettings.providers}
           loading={promptSettings.loading}
           error={promptSettings.error}
           saveState={promptSettings.saveState}

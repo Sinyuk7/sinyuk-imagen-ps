@@ -4,22 +4,15 @@ import {
   type StoredAssetRef,
 } from '@imagen-ps/core-engine';
 import {
-  implementationIdForApiFormat,
   resolveMaskExecutionPlan,
   type ProviderOperation,
   type ProviderOutputOptions,
   type ProviderRegistry,
   type ProviderRequest,
+  type FixedGenerationRequest,
+  type ApiFormat,
 } from '@imagen-ps/providers';
-import { resolveConfiguredModel, toProviderModelExecution } from '../commands/model-config-resolution.js';
-import { catalogProviderIdForApiFormat } from '../commands/api-format-profile.js';
-import { resolveModelGenerationSettingsValue } from '../commands/model-generation-preference-resolution.js';
-import type {
-  ModelGenerationPreferenceRepository,
-  ProviderProfile,
-  ProviderProfileRepository,
-  UserModelConfigRepository,
-} from '../commands/types.js';
+import type { createFixedProviderResolver } from './fixed-provider-resolution.js';
 import {
   assertTaskRecord,
   type TaskOutput,
@@ -42,16 +35,16 @@ import type {
 /** Provider generation policy 的稳定 backend id。 */
 export const PROVIDER_GENERATION_BACKEND_ID = 'provider';
 
-/** Provider profile lane 的固定并发上限。 */
-export const PROVIDER_PROFILE_LANE_MAX_CONCURRENCY = 2;
+/** Provider lane 的固定并发上限。 */
+export const PROVIDER_LANE_MAX_CONCURRENCY = 2;
 
 /** Provider generation 支持的 canonical operation。 */
 export type ProviderGenerationOperation = Extract<ProviderOperation, 'text_to_image' | 'image_edit'>;
 
 /** Provider GenerationBackend 独占解释的 admission payload。 */
 export interface ProviderGenerationPayload {
-  /** Non-secret profile reference。 */
-  readonly profileId: string;
+  /** 固定 provider identity。 */
+  readonly providerId: 'grsai' | 'runninghub';
 
   /** 本次用户意图对应的 Provider operation。 */
   readonly operation: ProviderGenerationOperation;
@@ -68,8 +61,8 @@ export interface ProviderExecutionInput {
   /** Admission 已选择的 exact Provider implementation id。 */
   readonly implementationId: string;
 
-  /** Dispatch-time config resolver 使用的 non-secret profile ref。 */
-  readonly profileId: string;
+  /** Dispatch-time account/provider identity。 */
+  readonly providerId: 'grsai' | 'runninghub';
 
   /** Admission 已构造的 canonical Provider request。 */
   readonly request: ProviderRequest;
@@ -80,8 +73,8 @@ export interface ProviderAdmissionRequestPreparationInput {
   /** 已冻结的 GenerationCommand。 */
   readonly command: GenerationCommand;
 
-  /** Admission 时读取的 sanitized profile。 */
-  readonly profile: ProviderProfile;
+  /** Admission 时读取的固定 provider identity。 */
+  readonly providerId: 'grsai' | 'runninghub';
 
   /** 本次 Provider operation。 */
   readonly operation: ProviderGenerationOperation;
@@ -95,8 +88,8 @@ export interface ProviderTerminalOutputMaterializationInput extends TerminalProj
   /** Admission 固定的 exact Provider implementation id。 */
   readonly implementationId: string;
 
-  /** Admission 固定的 non-secret profile ref。 */
-  readonly profileId: string;
+  /** Admission 固定的 provider identity。 */
+  readonly providerId: 'grsai' | 'runninghub';
 }
 
 /** Terminal Task projector hook 的 bounded 输入。 */
@@ -110,23 +103,16 @@ export interface ProviderTerminalPolicyFollowUpInput extends TerminalFollowUpInp
   /** Admission 固定的 exact Provider implementation id。 */
   readonly implementationId: string;
 
-  /** Admission 固定的 non-secret profile ref。 */
-  readonly profileId: string;
+  /** Admission 固定的 provider identity。 */
+  readonly providerId: 'grsai' | 'runninghub';
 }
 
 /** Provider GenerationBackend 的 injected owner dependencies。 */
 export interface ProviderGenerationBackendDependencies {
-  /** Sanitized Provider profile repository。 */
-  readonly profileRepository: Pick<ProviderProfileRepository, 'get'>;
-
+  /** 固定 provider 的 catalog/account admission resolver。 */
+  readonly fixedProviderResolver?: ReturnType<typeof createFixedProviderResolver>;
   /** Exact implementation lookup registry。 */
   readonly providerRegistry: Pick<ProviderRegistry, 'get'>;
-
-  /** Profile-owned model config repository。 */
-  readonly userModelConfigRepository: Pick<UserModelConfigRepository, 'get' | 'list'>;
-
-  /** Model-scoped output preference repository。 */
-  readonly modelGenerationPreferenceRepository: Pick<ModelGenerationPreferenceRepository, 'get'>;
 
   /** 可选 admission request preparation；只允许返回 durable refs，不得返回 bytes。 */
   readonly prepareRequest?: (
@@ -171,7 +157,7 @@ function assertNonEmptyString(value: unknown, path: string): asserts value is st
 function providerPayload(command: GenerationCommand): ProviderGenerationPayload {
   assertRecord(command.payload, 'ProviderGenerationPayload');
   const payload = command.payload;
-  const allowed = new Set(['profileId', 'operation', 'request', 'runningTask']);
+  const allowed = new Set(['providerId', 'operation', 'request', 'runningTask']);
   for (const key of Object.keys(payload)) {
     if (!allowed.has(key)) {
       throw createValidationError(`ProviderGenerationPayload contains unsupported field "${key}".`, {
@@ -179,7 +165,9 @@ function providerPayload(command: GenerationCommand): ProviderGenerationPayload 
       });
     }
   }
-  assertNonEmptyString(payload.profileId, 'ProviderGenerationPayload.profileId');
+  if (payload.providerId !== 'grsai' && payload.providerId !== 'runninghub') {
+    throw createValidationError('ProviderGenerationPayload.providerId must be grsai or runninghub.');
+  }
   if (payload.operation !== 'text_to_image' && payload.operation !== 'image_edit') {
     throw createValidationError('ProviderGenerationPayload.operation must be text_to_image or image_edit.');
   }
@@ -277,9 +265,8 @@ function assertPreparedInputs(
 function canonicalRequest(args: {
   readonly operation: ProviderGenerationOperation;
   readonly prepared: Readonly<Record<string, unknown>>;
-  readonly model: ReturnType<typeof toProviderModelExecution>;
-  readonly capabilityModelId: string;
-  readonly apiFormat: ProviderProfile['apiFormat'];
+  readonly modelId: string;
+  readonly apiFormat: ApiFormat;
   readonly output: ProviderOutputOptions;
 }): ProviderRequest {
   const { prepared } = args;
@@ -292,14 +279,19 @@ function canonicalRequest(args: {
   }
   const providerOptions = providerOptionsWithoutModel(prepared.providerOptions);
   const maskExecutionPlan = resolveMaskExecutionPlan({
-    providerId: catalogProviderIdForApiFormat(args.apiFormat),
-    capabilityModelId: args.capabilityModelId,
+    providerId: args.apiFormat === 'grsai' ? 'grsai-generate' : 'image-endpoint',
+    capabilityModelId: args.modelId,
     hasReadyMask: prepared.maskImage !== undefined,
   });
   const admitsMask = maskExecutionPlan.kind === 'provider-native';
   return {
     operation: args.operation,
     prompt: prepared.prompt,
+    ...(prepared.providerId === 'grsai' || prepared.providerId === 'runninghub' ? { providerId: prepared.providerId } : {}),
+    ...(typeof prepared.modelId === 'string' ? { modelId: prepared.modelId } : {}),
+    ...(isRecord(prepared.parameters) && Object.values(prepared.parameters).every((value) => typeof value === 'string')
+      ? { parameters: prepared.parameters as Readonly<Record<string, string>> }
+      : {}),
     ...(Array.isArray(prepared.images) ? { images: prepared.images as ProviderRequest['images'] } : {}),
     ...(typeof prepared.primaryAttachmentId === 'string'
       ? { primaryAttachmentId: prepared.primaryAttachmentId }
@@ -313,8 +305,6 @@ function canonicalRequest(args: {
     ...(prepared.inputContext !== undefined
       ? { inputContext: prepared.inputContext as ProviderRequest['inputContext'] }
       : {}),
-    model: args.model,
-    capabilityModelId: args.capabilityModelId,
     ...(providerOptions !== undefined ? { providerOptions } : {}),
   };
 }
@@ -326,7 +316,7 @@ function operationForTask(operation: ProviderGenerationOperation): TaskRecord['o
 function runningTaskForAdmission(args: {
   readonly command: GenerationCommand;
   readonly payload: ProviderGenerationPayload;
-  readonly profile: ProviderProfile;
+  readonly providerId: 'grsai' | 'runninghub';
   readonly configModelId: string;
   readonly prompt: string;
 }): TaskRecord {
@@ -353,7 +343,7 @@ function runningTaskForAdmission(args: {
     ...source,
     execution: {
       backend: { id: PROVIDER_GENERATION_BACKEND_ID, label: 'Provider' },
-      connection: { id: args.profile.profileId, label: args.profile.displayName },
+      connection: { id: args.providerId, label: args.providerId === 'grsai' ? 'GRSAI' : 'RunningHub' },
       target: {
         id: args.configModelId,
         label: source.execution?.target?.id === args.configModelId
@@ -374,7 +364,7 @@ function executionInput(admitted: AdmittedGeneration): ProviderExecutionInput {
   }
   const input = admitted.execution.input;
   assertRecord(input, 'ProviderExecutionInput');
-  const allowed = new Set(['implementationId', 'profileId', 'request']);
+  const allowed = new Set(['implementationId', 'providerId', 'request']);
   for (const key of Object.keys(input)) {
     if (!allowed.has(key)) {
       throw createValidationError(`ProviderExecutionInput contains unsupported field "${key}".`, {
@@ -383,7 +373,7 @@ function executionInput(admitted: AdmittedGeneration): ProviderExecutionInput {
     }
   }
   assertNonEmptyString(input.implementationId, 'ProviderExecutionInput.implementationId');
-  assertNonEmptyString(input.profileId, 'ProviderExecutionInput.profileId');
+  if (input.providerId !== 'grsai' && input.providerId !== 'runninghub') throw createValidationError('ProviderExecutionInput.providerId is invalid.');
   assertRecord(input.request, 'ProviderExecutionInput.request');
   return input as unknown as ProviderExecutionInput;
 }
@@ -463,133 +453,25 @@ export function createProviderGenerationBackend(
         });
       }
       const payload = providerPayload(normalizedCommand);
-      const profile = await dependencies.profileRepository.get(payload.profileId);
-      if (!profile) {
-        throw createValidationError(`Provider profile "${payload.profileId}" not found.`, {
-          profileId: payload.profileId,
-        });
-      }
-      if (profile.lifecycle !== 'ready') {
-        throw createValidationError(`Provider profile "${payload.profileId}" is not ready.`, {
-          profileId: payload.profileId,
-        });
-      }
-      const implementationId = implementationIdForApiFormat(profile.apiFormat);
-      const provider = dependencies.providerRegistry.get(implementationId);
-      if (!provider || provider.id !== implementationId) {
-        throw createValidationError(`Provider implementation "${implementationId}" is not registered.`, {
-          implementationId,
-          profileId: profile.profileId,
-        });
-      }
-      const descriptor = provider.describe();
-      if (!descriptor.operations.includes(payload.operation)) {
-        throw createValidationError(
-          `Provider implementation "${implementationId}" does not support operation "${payload.operation}".`,
-          { implementationId, operation: payload.operation },
-        );
-      }
-
-      const prepared = dependencies.prepareRequest
-        ? await dependencies.prepareRequest({
-            command: normalizedCommand,
-            profile,
-            operation: payload.operation,
-            request: payload.request,
-          })
-        : payload.request;
-      assertRecord(prepared, 'Prepared Provider request');
-      assertPreparedInputs(payload.operation, prepared);
-
-      const configuredModelId = explicitConfigModelId(prepared, payload.runningTask);
-      if (!configuredModelId) {
-        throw createValidationError(`Provider profile "${profile.profileId}" has no configured model for admission.`, {
-          profileId: profile.profileId,
-        });
-      }
-      const resolvedModel = await resolveConfiguredModel({
-        profileId: profile.profileId,
-        apiFormat: profile.apiFormat,
-        modelId: configuredModelId,
-        userModelConfigRepository: dependencies.userModelConfigRepository,
-      });
-      const preferenceKey = {
-        profileId: profile.profileId,
-        apiFormat: profile.apiFormat,
-        modelId: resolvedModel.configModelId,
-        operation: payload.operation,
-      } as const;
-      const generationSettings = resolveModelGenerationSettingsValue({
-        key: preferenceKey,
-        preference: await dependencies.modelGenerationPreferenceRepository.get(preferenceKey),
-        userConfig: resolvedModel.source === 'user' ? resolvedModel : undefined,
-      });
-      const request = canonicalRequest({
-        operation: payload.operation,
-        prepared,
-        model: toProviderModelExecution(resolvedModel),
-        capabilityModelId: resolvedModel.capabilityModelId,
-        apiFormat: profile.apiFormat,
-        output: { selection: generationSettings.selection.effectiveSelection },
-      });
-      const runningTask = runningTaskForAdmission({
-        command: normalizedCommand,
-        payload,
-        profile,
-        configModelId: resolvedModel.configModelId,
-        prompt: request.prompt,
-      });
-      const admitted: AdmittedGeneration = {
-        taskId: normalizedCommand.taskId,
-        backendId: PROVIDER_GENERATION_BACKEND_ID,
-        execution: {
-          workflow: payload.operation === 'image_edit' ? 'provider-edit' : 'provider-generate',
-          input: {
-            implementationId,
-            profileId: profile.profileId,
-            request,
-          },
-        },
-        runningTask,
-        lane: {
-          key: `${PROVIDER_GENERATION_BACKEND_ID}:${profile.profileId}`,
-          maxConcurrency: PROVIDER_PROFILE_LANE_MAX_CONCURRENCY,
-        },
-        retry: { allowed: true },
-      };
-      return normalizeAdmittedGeneration(normalizedCommand, backend.id, admitted);
+      const provider = dependencies.providerRegistry.get(payload.providerId === 'grsai' ? 'grsai-generate' : 'runninghub-generate');
+      if (!provider) throw createValidationError('Fixed provider implementation is not registered.', { providerId: payload.providerId });
+      if (!provider.describe().operations.includes(payload.operation)) throw createValidationError('Provider implementation does not support requested operation.');
+      let prepared = dependencies.prepareRequest ? await dependencies.prepareRequest({ command: normalizedCommand, providerId: payload.providerId, operation: payload.operation, request: payload.request }) : payload.request;
+      assertRecord(prepared, 'Prepared Provider request'); assertPreparedInputs(payload.operation, prepared);
+      const modelId = typeof prepared.modelId === 'string' && prepared.modelId.trim() ? prepared.modelId.trim() : explicitConfigModelId(prepared, payload.runningTask);
+      if (!modelId) throw createValidationError('Fixed provider admission requires modelId.');
+      if (!dependencies.fixedProviderResolver) throw createValidationError('Fixed provider resolver is unavailable.');
+      const fixedResolved = await dependencies.fixedProviderResolver.resolveGeneration({ providerId: payload.providerId, modelId, operation: payload.operation, prompt: String(prepared.prompt ?? ''), ...(Array.isArray(prepared.images) ? { images: prepared.images as FixedGenerationRequest['images'] } : {}), ...(prepared.maskImage ? { maskImage: prepared.maskImage as FixedGenerationRequest['maskImage'] } : {}), parameters: isRecord(prepared.parameters) && Object.values(prepared.parameters).every((value) => typeof value === 'string') ? prepared.parameters as Readonly<Record<string, string>> : {} });
+      prepared = { ...prepared, providerId: payload.providerId, modelId: fixedResolved.request.modelId, parameters: fixedResolved.request.parameters };
+      const apiFormat: ApiFormat = payload.providerId === 'grsai' ? 'grsai' : 'openai-images';
+      const request = canonicalRequest({ operation: payload.operation, prepared, modelId: fixedResolved.request.modelId, apiFormat, output: {} });
+      const runningTask = runningTaskForAdmission({ command: normalizedCommand, payload, providerId: payload.providerId, configModelId: fixedResolved.request.modelId, prompt: request.prompt });
+      return normalizeAdmittedGeneration(normalizedCommand, backend.id, { taskId: normalizedCommand.taskId, backendId: PROVIDER_GENERATION_BACKEND_ID, execution: { workflow: payload.operation === 'image_edit' ? 'provider-edit' : 'provider-generate', input: { implementationId: provider.id, providerId: payload.providerId, request } }, runningTask, lane: { key: 'provider:' + payload.providerId, maxConcurrency: PROVIDER_LANE_MAX_CONCURRENCY }, retry: { allowed: true } });
     },
 
     async checkReadiness(submission): Promise<ReadinessDecision> {
       const input = executionInput(submission);
-      const profile = await dependencies.profileRepository.get(input.profileId);
-      if (!profile) {
-        return {
-          status: 'reject',
-          error: createValidationError(`Provider profile "${input.profileId}" not found.`, {
-            profileId: input.profileId,
-          }),
-        };
-      }
-      if (profile.lifecycle !== 'ready') {
-        return {
-          status: 'reject',
-          error: createValidationError(`Provider profile "${input.profileId}" is not ready.`, {
-            profileId: input.profileId,
-          }),
-        };
-      }
-      const currentImplementationId = implementationIdForApiFormat(profile.apiFormat);
-      if (currentImplementationId !== input.implementationId) {
-        return {
-          status: 'reject',
-          error: createValidationError('Provider profile API format changed after admission.', {
-            profileId: input.profileId,
-            admittedImplementationId: input.implementationId,
-            currentImplementationId,
-          }),
-        };
-      }
+      if (!input.providerId) return { status: 'reject', error: createValidationError('Provider ID is missing.') };
       const provider = dependencies.providerRegistry.get(input.implementationId);
       if (!provider || provider.id !== input.implementationId) {
         return {
@@ -619,7 +501,7 @@ export function createProviderGenerationBackend(
       const materializationInput: ProviderTerminalOutputMaterializationInput = {
         ...input,
         implementationId: providerInput.implementationId,
-        profileId: providerInput.profileId,
+        providerId: providerInput.providerId,
       };
       const outputRefs = input.job.status === 'completed'
         ? await dependencies.materializeOutput(materializationInput)
@@ -663,7 +545,7 @@ export function createProviderGenerationBackend(
       }
       const latestInput = input.latestJob.input;
       assertRecord(latestInput.request, 'Provider retry Job input.request');
-      assertNonEmptyString(latestInput.profileId, 'Provider retry Job input.profileId');
+      if (latestInput.providerId !== 'grsai' && latestInput.providerId !== 'runninghub') throw createValidationError('Provider retry Job input.providerId is invalid.');
       const canonical = latestInput.request;
       const providerOptions = {
         ...(isRecord(canonical.providerOptions) ? canonical.providerOptions : {}),
@@ -701,7 +583,7 @@ export function createProviderGenerationBackend(
         taskId: input.task.taskId,
         backendId: PROVIDER_GENERATION_BACKEND_ID,
         payload: {
-          profileId: latestInput.profileId,
+          providerId: latestInput.providerId,
           operation: input.task.operation === 'image-edit' ? 'image_edit' : 'text_to_image',
           request: retryRequest,
           runningTask: runningTaskForRetry(input.task, now()),
@@ -725,7 +607,7 @@ export function createProviderGenerationBackend(
       await dependencies.afterTerminal({
         ...input,
         implementationId: providerInput.implementationId,
-        profileId: providerInput.profileId,
+        providerId: providerInput.providerId,
       });
     },
   };

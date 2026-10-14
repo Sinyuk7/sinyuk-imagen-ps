@@ -34,6 +34,7 @@
   },
   "dependencies": {
     "@imagen-ps/application": "workspace:*",
+    "@imagen-ps/providers": "workspace:*",
     "@imagen-ps/foundation": "workspace:*",
     "@spectrum-web-components/action-button": "0.37.0",
     "@spectrum-web-components/button": "0.37.0",

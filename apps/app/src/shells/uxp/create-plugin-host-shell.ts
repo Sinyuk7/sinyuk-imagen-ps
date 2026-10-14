@@ -1,12 +1,10 @@
 import {
   setAssetStore,
   setJobHistoryStore,
-  setModelGenerationPreferenceRepository,
-  setProviderProfileRepository,
-  recoverProviderProfileSetups,
+  setCatalogParameterPreferenceRepository,
+  setProviderAccountRepository,
   setSecretStorageAdapter,
   setTaskStore,
-  setUserModelConfigRepository,
   configureRuntimeLogging,
   getRuntimeLogger,
 } from '@imagen-ps/application';
@@ -25,12 +23,10 @@ import {
 import { resolveUxpModules } from '../../adapters/uxp/uxp-api';
 import { createUxpAssetStore, createUxpJobHistoryStore, createUxpTaskStore } from '../../adapters/uxp/uxp-job-history-adapter';
 import { createUxpStorageAdmin } from '../../adapters/uxp/uxp-job-history-adapter';
-import { createUxpActiveImageProfileStore } from '../../adapters/uxp/uxp-active-image-profile-store';
-import { createUxpProviderProfileRepository } from '../../adapters/uxp/uxp-provider-profile-repository';
 import { createUxpSecretStorageAdapter } from '../../adapters/uxp/uxp-secret-storage-adapter';
 import {
-  createUxpModelGenerationPreferenceRepository,
-  createUxpUserModelConfigRepository,
+  createUxpCatalogParameterPreferenceRepository,
+  createUxpProviderAccountRepository,
 } from '../../adapters/uxp/uxp-model-repositories';
 import { createUxpGenerationSettingsStore } from '../../adapters/uxp/uxp-generation-settings-store';
 import { createUxpPromptSettingsStore } from '../../adapters/uxp/uxp-prompt-settings-store';
@@ -107,38 +103,31 @@ export function createPluginHostShell(): PluginHostShell {
   const span = logger.startSpan('panel.startup');
 
   try {
-    const profileRepository = createUxpProviderProfileRepository(uxpModules);
+    const providerAccountRepository = createUxpProviderAccountRepository(uxpModules);
     const secretStorage = createUxpSecretStorageAdapter(uxpModules);
     const jobHistoryStore = createUxpJobHistoryStore(uxpModules);
     const taskStore = createUxpTaskStore(uxpModules);
     const assetStore = createUxpAssetStore(uxpModules);
-    const userModelConfigRepository = createUxpUserModelConfigRepository(uxpModules);
-    const modelGenerationPreferenceRepository = createUxpModelGenerationPreferenceRepository(uxpModules);
+    setCatalogParameterPreferenceRepository(createUxpCatalogParameterPreferenceRepository(uxpModules));
     const storageAdmin = createUxpStorageAdmin(uxpModules);
     const generationSettings = createUxpGenerationSettingsStore(uxpModules);
     const promptSettings = createUxpPromptSettingsStore(uxpModules);
-    const activeImageProfile = createUxpActiveImageProfileStore(uxpModules);
     const comfyUiRepositories = createUxpComfyUiRepositories(uxpModules);
     const comfyUiBridgeLogger = logger.child({ component: 'transport' });
 
     logger.info('panel.adapters.initialized', {
-      hasProfileRepository: true,
+      hasProviderAccountRepository: true,
       hasSecretStorage: true,
       hasJobHistoryStore: true,
       hasTaskStore: true,
       hasAssetStore: true,
     });
 
-    setProviderProfileRepository(profileRepository);
+    setProviderAccountRepository(providerAccountRepository);
     setSecretStorageAdapter(secretStorage);
     setJobHistoryStore(jobHistoryStore);
     setTaskStore(taskStore);
     setAssetStore(assetStore);
-    setUserModelConfigRepository(userModelConfigRepository);
-    setModelGenerationPreferenceRepository(modelGenerationPreferenceRepository);
-    void recoverProviderProfileSetups().then((result) => {
-      if (!result.ok) logger.error('panel.profile_setup_recovery.failed', { message: result.error.message });
-    });
 
     const hostLogger = logger.child({ component: 'host' });
     const retentionPolicy = defaultTaskLinkedRetentionPolicy();
@@ -195,9 +184,7 @@ export function createPluginHostShell(): PluginHostShell {
         generationBackends: comfyUiRuntime.generationBackends,
         host: hostBridge,
         generationSettings,
-        modelGenerationPreferences: modelGenerationPreferenceRepository,
         promptSettings,
-        activeImageProfile,
         pathInfo: {
           getPathInfo: async () => resolveUxpPathInfo(uxpModules),
         },

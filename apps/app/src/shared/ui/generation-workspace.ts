@@ -7,11 +7,12 @@ import type {
   WorkflowPrimitiveValue,
 } from '@imagen-ps/application';
 import { composeWorkflowMutations } from '@imagen-ps/application';
-import type { ApiFormat, ImageOutputSelection, ProviderProfile } from '@imagen-ps/application';
+import type { ImageOutputSelection } from '@imagen-ps/providers';
+type FixedProviderId = 'grsai' | 'runninghub';
+type CatalogParameter = { readonly type: 'choice'; readonly default: string; readonly options: readonly { readonly value: string; readonly label: string }[] };
 import type { AppGenerationSettings, AppProviderInputSizePreset } from '../ports/app-generation-settings';
 import type { ComposerDraftController } from './hooks/use-composer-draft';
 import type { MaskBindingState, MaskPreference } from '../domain/edit-region';
-import type { ModelGenerationSettingsController } from './hooks/use-model-generation-settings';
 import type { UiModelInfo } from './model-info';
 
 export type GenerationMode = 'provider' | 'comfyui';
@@ -19,13 +20,13 @@ export type GenerationSettingsRoute = GenerationMode;
 
 export interface ProviderSubmitIntent {
   readonly backend: 'provider';
-  readonly profileId: string;
-  readonly apiFormat: ApiFormat;
+  readonly providerId: FixedProviderId;
   readonly providerName: string;
   readonly modelId?: string;
   readonly operation: 'image-edit' | 'text-to-image';
   readonly output?: ImageOutputSelection;
   readonly providerInputSizePreset?: AppProviderInputSizePreset;
+  readonly parameters?: Readonly<Record<string, string>>;
 }
 
 export interface ComfyUiSubmitIntent {
@@ -54,7 +55,7 @@ export interface GenerationTargetSummary {
   readonly label: string;
   readonly workflowId?: string;
   readonly remotePath?: string;
-  readonly profileId?: string;
+  readonly providerId?: FixedProviderId;
   readonly modelId?: string;
 }
 
@@ -68,25 +69,18 @@ export interface GenerationComposerViewModel {
   readonly settingsRoute: GenerationSettingsRoute;
   readonly submitIntent?: GenerationSubmitIntent;
   readonly provider?: {
-    readonly profiles: readonly ProviderProfile[];
-    readonly profilesLoading: boolean;
-    readonly profilesError: string | null;
-    readonly selectedProfile?: ProviderProfile;
-    readonly selectedProfileId: string | null;
     readonly models: readonly UiModelInfo[];
     readonly modelsLoading: boolean;
     readonly modelsError: string | null;
     readonly selectedModelId: string;
     readonly selectedModel?: UiModelInfo;
+    readonly providerId?: FixedProviderId;
+    readonly parameters?: Readonly<Record<string, CatalogParameter>>;
   };
 }
 
 export interface ProviderComposerBuilderInput {
-  readonly profiles: readonly ProviderProfile[];
-  readonly profilesLoading: boolean;
-  readonly profilesError: string | null;
-  readonly selectedProfile?: ProviderProfile;
-  readonly selectedProfileId: string | null;
+  readonly providerId: FixedProviderId;
   readonly models: readonly UiModelInfo[];
   readonly modelsLoading: boolean;
   readonly modelsError: string | null;
@@ -98,6 +92,8 @@ export interface ProviderComposerBuilderInput {
   readonly imageInputDisabledReason?: string;
   readonly output?: ImageOutputSelection;
   readonly providerInputSizePreset?: AppProviderInputSizePreset;
+  readonly parameters?: Readonly<Record<string, CatalogParameter>>;
+  readonly parameterValues?: Readonly<Record<string, string>>;
 }
 
 export interface ComfyUiComposerBuilderInput {
@@ -120,21 +116,20 @@ export interface ComfyUiComposerBuilderInput {
 export function buildProviderComposerViewModel(input: ProviderComposerBuilderInput): GenerationComposerViewModel {
   const target: GenerationTargetSummary = {
     kind: 'provider',
-    label: input.selectedProfile?.displayName ?? 'Provider',
-    ...(input.selectedProfileId ? { profileId: input.selectedProfileId } : {}),
+    label: input.providerId === 'grsai' ? 'GRSAI' : 'RunningHub',
+    providerId: input.providerId,
     ...(input.selectedModelId ? { modelId: input.selectedModelId } : {}),
   };
-  const submitIntent = input.selectedProfile === undefined
-    ? undefined
-    : {
+  const providerId = input.providerId;
+  const submitIntent = {
         backend: 'provider' as const,
-        profileId: input.selectedProfile.profileId,
-        apiFormat: input.selectedProfile.apiFormat,
-        providerName: input.selectedProfile.displayName,
+        providerId: input.providerId,
+        providerName: input.providerId === 'grsai' ? 'GRSAI' : 'RunningHub',
         ...(input.selectedModelId ? { modelId: input.selectedModelId } : {}),
         operation: input.operation,
         ...(input.output ? { output: input.output } : {}),
         ...(input.providerInputSizePreset ? { providerInputSizePreset: input.providerInputSizePreset } : {}),
+        ...(input.parameterValues ? { parameters: input.parameterValues } : {}),
       };
   return {
     mode: 'provider',
@@ -144,18 +139,16 @@ export function buildProviderComposerViewModel(input: ProviderComposerBuilderInp
     ...(input.imageInputDisabledReason ? { imageInputDisabledReason: input.imageInputDisabledReason } : {}),
     notices: [],
     settingsRoute: 'provider',
-    ...(submitIntent ? { submitIntent } : {}),
+    submitIntent,
     provider: {
-      profiles: input.profiles,
-      profilesLoading: input.profilesLoading,
-      profilesError: input.profilesError,
-      ...(input.selectedProfile ? { selectedProfile: input.selectedProfile } : {}),
-      selectedProfileId: input.selectedProfileId,
+      providerId: input.providerId,
       models: input.models,
       modelsLoading: input.modelsLoading,
       modelsError: input.modelsError,
       selectedModelId: input.selectedModelId,
       ...(input.selectedModel ? { selectedModel: input.selectedModel } : {}),
+      ...(providerId ? { providerId } : {}),
+      ...(input.parameters ? { parameters: input.parameters } : {}),
     },
   };
 }
@@ -215,7 +208,6 @@ export interface GenerationWorkspaceController {
   readonly composerDraft: ComposerDraftController;
   readonly providerSettings: {
     readonly generation: AppGenerationSettings;
-    readonly model: ModelGenerationSettingsController;
   };
   readonly viewModel: GenerationComposerViewModel;
   readonly setGenerationMode: (mode: GenerationMode) => void;
@@ -227,6 +219,8 @@ export interface GenerationWorkspaceController {
   readonly setMaskEnabled: (enabled: boolean) => void;
   readonly retryMask: () => void;
   readonly send: (prompt: string) => Promise<boolean>;
-  readonly selectProfile: (profileId: string | null) => Promise<void>;
+  readonly selectProvider: (providerId: FixedProviderId) => void;
   readonly selectModel: (modelId: string) => void;
+  readonly catalogParameterValues: Readonly<Record<string, string>>;
+  readonly setCatalogParameter: (name: string, value: string) => void;
 }

@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   resolveProviderMaskExecutionPlan,
   type MaskExecutionPlan,
-  type ProviderProfile,
   type WorkflowMappingProjection,
 } from '@imagen-ps/application';
 import type { ComfyUiManagementController } from './use-comfyui-management';
@@ -22,7 +21,8 @@ import {
   type GenerationReadinessProjection,
 } from '../generation-workspace';
 import type { UiModelInfo } from '../model-info';
-import type { ModelGenerationSettingsController } from './use-model-generation-settings';
+import { getProviderCatalog } from '@imagen-ps/providers';
+import type { CommandsPort } from '../../ports/commands-port';
 import type { GenerationSettingsState } from './use-generation-settings';
 import {
   deriveComposerReadiness,
@@ -35,19 +35,15 @@ export interface GenerationWorkspaceOptions {
   readonly conversation: ConversationController;
   readonly composerDraft: ComposerDraftController;
   readonly comfyUi: ComfyUiManagementController;
-  readonly profiles: readonly ProviderProfile[];
-  readonly profilesLoading: boolean;
-  readonly profilesError: string | null;
-  readonly selectedProfile?: ProviderProfile;
-  readonly selectedProfileId: string | null;
-  readonly selectProfile: (profileId: string | null) => Promise<void>;
+  readonly providerId: 'grsai' | 'runninghub';
+  readonly selectProvider: (providerId: 'grsai' | 'runninghub') => void;
   readonly models: readonly UiModelInfo[];
   readonly modelsLoading: boolean;
   readonly modelsError: string | null;
   readonly selectedModelId: string;
   readonly selectModel: (modelId: string) => void;
   readonly generationSettings: GenerationSettingsState;
-  readonly modelGenerationSettings: ModelGenerationSettingsController;
+  readonly commands: CommandsPort;
 }
 
 /** Composer 在当前 execution target 可以消费 canonical Mask 时允许预设开关。 */
@@ -118,6 +114,8 @@ export function useGenerationWorkspace(options: GenerationWorkspaceOptions): Gen
   const [attachmentPreparing, setAttachmentPreparing] = useState(false);
   const [maskPreference, setMaskPreference] = useState<MaskPreference>({ enabled: false });
   const [maskState, setMaskState] = useState<MaskBindingState>({ kind: 'disabled' });
+  const [catalogParameterValues, setCatalogParameterValues] = useState<Readonly<Record<string, string>>>({});
+  const catalogPreferenceRevision = useRef(0);
   const maskCoordinatorRef = useRef<MaskCoordinator | undefined>(undefined);
   if (!maskCoordinatorRef.current) {
     maskCoordinatorRef.current = new MaskCoordinator({
@@ -130,9 +128,9 @@ export function useGenerationWorkspace(options: GenerationWorkspaceOptions): Gen
   const { input, attachments, operation } = composerDraft;
   const selectedModel = options.models.find((model) => model.id === options.selectedModelId);
   const photoshopPrimary = attachments[0]?.photoshopPlacement !== undefined;
-  const providerMaskPlan = options.selectedProfile && selectedModel
+  const providerMaskPlan = selectedModel
     ? resolveProviderMaskExecutionPlan({
-        apiFormat: options.selectedProfile.apiFormat,
+        providerId: options.providerId,
         capabilityModelId: selectedModel.id,
         hasReadyMask: true,
       })
@@ -163,14 +161,11 @@ export function useGenerationWorkspace(options: GenerationWorkspaceOptions): Gen
   const maskBlocksSubmit = photoshopPrimary
     && effectiveMaskPreference.enabled
     && (maskState.kind === 'loading' || maskState.kind === 'error');
-  const placementIntent = useMemo(
-    () => derivePlacementIntent(attachments, generationMode === 'comfyui' ? undefined : options.modelGenerationSettings.outputSelection ?? undefined),
-    [attachments, generationMode, options.modelGenerationSettings.outputSelection],
-  );
+  const placementIntent = useMemo(() => derivePlacementIntent(attachments, undefined), [attachments]);
   const providerReadiness = deriveComposerReadiness({
-    profilesLoading: options.profilesLoading,
-    profilesError: options.profilesError,
-    hasSelectedProfile: Boolean(options.selectedProfile),
+    profilesLoading: false,
+    profilesError: null,
+    hasSelectedProfile: true,
     modelsLoading: options.modelsLoading,
     modelsError: options.modelsError,
     selectedModelId: options.selectedModelId,
@@ -178,8 +173,9 @@ export function useGenerationWorkspace(options: GenerationWorkspaceOptions): Gen
     attachmentPreparing,
     attachmentFailed: false,
     operation,
-    outputSettingsLoading: options.modelGenerationSettings.loading,
-    hasOutputMatrix: options.modelGenerationSettings.ready,
+    outputSettingsLoading: false,
+    // Provider catalog 参数和返回图片实际尺寸取代旧 output matrix 作为生成准入条件。
+    hasOutputMatrix: true,
     placementIntent,
     prompt: input,
   });
@@ -188,15 +184,29 @@ export function useGenerationWorkspace(options: GenerationWorkspaceOptions): Gen
     state: maskBlocksSubmit ? (maskState.kind === 'loading' ? 'mask-loading' : 'mask-error') : providerReadiness.state,
     message: readinessMessage(t, maskBlocksSubmit ? (maskState.kind === 'loading' ? 'mask-loading' : 'mask-error') : providerReadiness.state),
   };
+  const fixedProviderId = options.providerId;
+  const catalogParameters = fixedProviderId && selectedModel
+    ? getProviderCatalog(fixedProviderId).models.find((model) => model.id === selectedModel.id)?.parameters
+    : undefined;
+  useEffect(() => {
+    if (!catalogParameters) { setCatalogParameterValues({}); return; }
+    const revision = ++catalogPreferenceRevision.current;
+    const defaults = Object.fromEntries(Object.entries(catalogParameters).map(([name, parameter]) => [name, parameter.default]));
+    setCatalogParameterValues(defaults);
+    if (!fixedProviderId || !selectedModel) return;
+    void options.commands.getCatalogParameterPreference(fixedProviderId, selectedModel.id).then((result) => {
+      if (revision !== catalogPreferenceRevision.current || !result.ok || !result.value) return;
+      setCatalogParameterValues(Object.fromEntries(Object.entries(catalogParameters).map(([name, parameter]) => {
+        const saved = result.value?.values[name];
+        return [name, saved !== undefined && parameter.options.some((option) => option.value === saved) ? saved : parameter.default];
+      })));
+    });
+  }, [catalogParameters, fixedProviderId, options.commands, selectedModel?.id]);
   const comfyReady = Boolean(options.comfyUi.runtime) && !attachmentPreparing && !maskBlocksSubmit;
   const comfyMapping = mappingForComposer(options.comfyUi.mappingProjection, attachments, input);
   const viewModel = generationMode === 'provider'
     ? buildProviderComposerViewModel({
-        profiles: options.profiles,
-        profilesLoading: options.profilesLoading,
-        profilesError: options.profilesError,
-        ...(options.selectedProfile ? { selectedProfile: options.selectedProfile } : {}),
-        selectedProfileId: options.selectedProfileId,
+        providerId: options.providerId,
         models: options.models,
         modelsLoading: options.modelsLoading,
         modelsError: options.modelsError,
@@ -206,8 +216,9 @@ export function useGenerationWorkspace(options: GenerationWorkspaceOptions): Gen
         readiness: providerReadinessProjection,
         imageInputDisabled: modelSupportsImageInput(selectedModel) === 'unsupported',
         imageInputDisabledReason: t.main.imageInputDisabledForModel,
-        ...(options.modelGenerationSettings.outputSelection ? { output: options.modelGenerationSettings.outputSelection } : {}),
         providerInputSizePreset: options.generationSettings.settings.providerInputSizePreset,
+        ...(fixedProviderId ? { providerId: fixedProviderId } : {}),
+        ...(catalogParameters ? { parameters: catalogParameters, parameterValues: catalogParameterValues } : {}),
       })
       : buildComfyUiComposerViewModel({
         ...(options.comfyUi.runtime ? { runtime: options.comfyUi.runtime } : {}),
@@ -222,9 +233,7 @@ export function useGenerationWorkspace(options: GenerationWorkspaceOptions): Gen
     setGenerationMode(mode);
     setSettingsRoute(mode);
   }, []);
-  const selectProfile = useCallback(async (profileId: string | null) => {
-    await options.selectProfile(profileId);
-  }, [options]);
+  const selectProvider = useCallback((providerId: 'grsai' | 'runninghub') => options.selectProvider(providerId), [options]);
   const selectModel = useCallback((modelId: string) => options.selectModel(modelId), [options]);
   const setMaskEnabled = useCallback((enabled: boolean) => setMaskPreference({ enabled }), []);
   const retryMask = useCallback(() => {
@@ -241,13 +250,14 @@ export function useGenerationWorkspace(options: GenerationWorkspaceOptions): Gen
         operation: intent.operation,
         prompt,
         providerName: intent.providerName,
-        profileId: intent.profileId,
-        apiFormat: intent.apiFormat,
+        providerId: intent.providerId,
+        apiFormat: intent.providerId === 'grsai' ? 'grsai' : 'openai-images',
         ...(intent.modelId ? { modelId: intent.modelId } : {}),
         attachments,
         ...(editRegion ? { editRegion } : {}),
         ...(intent.output ? { output: { count: 1, selection: intent.output } } : {}),
         ...(intent.providerInputSizePreset ? { providerInputSizePreset: intent.providerInputSizePreset } : {}),
+        ...(intent.parameters ? { parameters: intent.parameters } : {}),
         onPrepared: () => composerDraft.reset({ releaseAttachments: false }),
       });
     }
@@ -281,7 +291,6 @@ export function useGenerationWorkspace(options: GenerationWorkspaceOptions): Gen
     composerDraft,
     providerSettings: {
       generation: options.generationSettings.settings,
-      model: options.modelGenerationSettings,
     },
     viewModel,
     setGenerationMode: setMode,
@@ -293,7 +302,15 @@ export function useGenerationWorkspace(options: GenerationWorkspaceOptions): Gen
     setMaskEnabled,
     retryMask,
     send,
-    selectProfile,
+    selectProvider,
     selectModel,
+    catalogParameterValues,
+    setCatalogParameter: (name, value) => {
+      setCatalogParameterValues((current) => {
+        const next = { ...current, [name]: value };
+        if (fixedProviderId && selectedModel) void options.commands.saveCatalogParameterPreference({ providerId: fixedProviderId, modelId: selectedModel.id, values: next });
+        return next;
+      });
+    },
   };
 }

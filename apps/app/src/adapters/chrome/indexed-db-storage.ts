@@ -2,36 +2,27 @@ import { assertTaskRecord, decodeTaskRecord } from '@imagen-ps/application';
 import type {
   AssetStore,
   DurableJobRecord,
-  ImageOutputMatrix,
   JobHistoryStore,
-  ModelGenerationPreference,
-  ModelGenerationPreferenceRepository,
   ProviderAccount,
   ProviderAccountRepository,
-  ProviderProfile,
-  ProviderProfileRepository,
+  CatalogParameterPreference,
+  CatalogParameterPreferenceRepository,
   SecretStorageAdapter,
   StoredAssetRef,
   TaskRecord,
   TaskStore,
-  UserModelConfig,
-  UserModelConfigRepository,
 } from '@imagen-ps/application';
-import type { ActiveImageProfileStore } from '../../shared/ports/active-image-profile';
 import { DEFAULT_APP_GENERATION_SETTINGS, normalizeAppGenerationSettings, type AppGenerationSettings, type AppGenerationSettingsStore } from '../../shared/ports/app-generation-settings';
-import { modelGenerationPreferenceKey } from '../../shared/ports/model-generation-preferences';
 import { normalizePromptSettings, type PromptSettings, type PromptSettingsStore } from '../../shared/ports/prompt-settings';
 
 export type ChromeStoreName =
-  | 'profiles'
   | 'providerAccounts'
+  | 'catalogParameterPreferences'
   | 'secrets'
   | 'history'
   | 'tasks'
   | 'assets'
   | 'appSettings'
-  | 'userModelConfigs'
-  | 'modelGenerationPreferences'
   | 'comfyUiState';
 
 /** Chrome 原子 compare-and-put 的结果。 */
@@ -59,109 +50,20 @@ interface ChromeStoredRecord<T> {
 }
 
 const CHROME_DB_NAME = 'imagen-ps-chrome-runtime';
-const CHROME_DB_VERSION = 9;
+const CHROME_DB_VERSION = 10;
 const LEGACY_COMFYUI_STORES = ['comfyUiConnections', 'comfyUiWorkflows', 'generationTargetSelection'] as const;
 const CHROME_STORES: readonly ChromeStoreName[] = [
-  'profiles',
   'providerAccounts',
+  'catalogParameterPreferences',
   'secrets',
   'history',
   'tasks',
   'assets',
   'appSettings',
-  'userModelConfigs',
-  'modelGenerationPreferences',
   'comfyUiState',
 ];
 const GENERATION_SETTINGS_KEY = 'generation';
 const PROMPT_SETTINGS_KEY = 'prompt';
-const ACTIVE_IMAGE_PROFILE_KEY = 'activeImageProfile';
-
-function isPlainRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function isApiFormat(value: unknown): value is UserModelConfig['apiFormat'] {
-  return value === 'openai-images' || value === 'gemini-generate-content' || value === 'grsai';
-}
-
-function isImageOperation(value: unknown): value is ImageOutputMatrix['operation'] {
-  return value === 'text_to_image' || value === 'image_edit';
-}
-
-function isOutputSelection(value: unknown): boolean {
-  if (!isPlainRecord(value) || !isPlainRecord(value.geometry)) {
-    return false;
-  }
-  return typeof value.outputFormat === 'string' &&
-    (
-      value.geometry.kind === 'provider-default' ||
-      value.geometry.kind === 'input-derived' ||
-      value.geometry.kind === 'pixels' ||
-      value.geometry.kind === 'ratio-resolution'
-    );
-}
-
-function isOutputExposure(value: unknown): boolean {
-  if (!isPlainRecord(value)) {
-    return false;
-  }
-  if (value.kind === 'flexible-pixels') {
-    return Array.isArray(value.sizePresetIds) &&
-      Array.isArray(value.outputFormats) &&
-      typeof value.allowInputDerivedExactSize === 'boolean';
-  }
-  return value.kind === 'ratio-resolution' &&
-    Array.isArray(value.aspectRatios) &&
-    Array.isArray(value.resolutions) &&
-    Array.isArray(value.outputFormats);
-}
-
-function isImageOutputMatrix(value: unknown): value is ImageOutputMatrix {
-  if (!isPlainRecord(value) || !isImageOperation(value.operation)) {
-    return false;
-  }
-  return Array.isArray(value.imageSizes) &&
-    Array.isArray(value.ratios) &&
-    Array.isArray(value.outputFormats) &&
-    typeof value.defaultCellId === 'string' &&
-    Array.isArray(value.cells) &&
-    value.cells.length > 0 &&
-    value.cells.every((cell) =>
-      isPlainRecord(cell) &&
-      typeof cell.id === 'string' &&
-      typeof cell.imageSize === 'string' &&
-      typeof cell.ratio === 'string' &&
-      typeof cell.outputFormat === 'string' &&
-      isOutputSelection(cell.selection),
-    );
-}
-
-function isUserModelConfig(value: unknown): value is UserModelConfig {
-  if (!isPlainRecord(value)) {
-    return false;
-  }
-  return value.output === undefined &&
-    typeof value.profileId === 'string' &&
-    isApiFormat(value.apiFormat) &&
-    typeof value.modelId === 'string' &&
-    typeof value.baseModelId === 'string' &&
-    typeof value.wireModelId === 'string' &&
-    typeof value.requestStrategyId === 'string' &&
-    isOutputExposure(value.outputExposure) &&
-    Array.isArray(value.outputMatrix) &&
-    value.outputMatrix.length > 0 &&
-    value.outputMatrix.every(isImageOutputMatrix);
-}
-
-/** 读入兼容遗留 profile-level enabled，写回时只保留 lifecycle。 */
-function normalizeProviderProfile(value: ProviderProfile): ProviderProfile {
-  const { enabled: _enabled, lifecycle, ...profile } = value as ProviderProfile & {
-    readonly enabled?: unknown;
-    readonly lifecycle?: unknown;
-  };
-  return { ...profile, lifecycle: lifecycle === 'setup' ? 'setup' : 'ready' };
-}
 
 function requestResult<T>(request: IDBRequest<T>): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -301,15 +203,13 @@ export function createMemoryIndexedDbBackend(options?: {
   readonly initial?: Partial<Record<ChromeStoreName, readonly ChromeStoredRecord<unknown>[]>>;
 }): ChromeKeyValueBackend {
   const stores: Record<ChromeStoreName, Map<string, unknown>> = {
-    profiles: new Map(),
     providerAccounts: new Map(),
+    catalogParameterPreferences: new Map(),
     secrets: new Map(),
     history: new Map(),
     tasks: new Map(),
     assets: new Map(),
     appSettings: new Map(),
-    userModelConfigs: new Map(),
-    modelGenerationPreferences: new Map(),
     comfyUiState: new Map(),
   };
   for (const [store, records] of Object.entries(options?.initial ?? {}) as Array<[
@@ -383,17 +283,14 @@ function parseAssetCounter(ref: string): number | undefined {
 
 /** Chrome runtime 的持久化 adapter；默认后端由 IndexedDB 提供，测试可注入等价后端。 */
 export function createChromeIndexedDbStorage(options?: { readonly backend?: ChromeKeyValueBackend }): {
-  readonly profiles: ProviderProfileRepository;
   readonly providerAccounts: ProviderAccountRepository;
+  readonly catalogParameterPreferences: CatalogParameterPreferenceRepository;
   readonly secrets: SecretStorageAdapter;
   readonly history: JobHistoryStore;
   readonly tasks: TaskStore;
   readonly assets: AssetStore;
-  readonly userModelConfigs: UserModelConfigRepository;
-  readonly modelGenerationPreferences: ModelGenerationPreferenceRepository;
   readonly generationSettings: AppGenerationSettingsStore;
   readonly promptSettings: PromptSettingsStore;
-  readonly activeImageProfile: ActiveImageProfileStore;
 } {
   const backend = options?.backend ?? createBrowserIndexedDbBackend();
   let assetCounter = 0;
@@ -429,20 +326,15 @@ export function createChromeIndexedDbStorage(options?: { readonly backend?: Chro
         await backend.delete('providerAccounts', providerId);
       },
     },
-    profiles: {
-      async list(): Promise<readonly ProviderProfile[]> {
-        return (await backend.list<ProviderProfile>('profiles')).map(normalizeProviderProfile);
+    catalogParameterPreferences: {
+      async get(providerId, modelId): Promise<CatalogParameterPreference | undefined> {
+        return backend.get<CatalogParameterPreference>('catalogParameterPreferences', `${providerId}:${modelId}`);
       },
-      async get(profileId): Promise<ProviderProfile | undefined> {
-        const profile = await backend.get<ProviderProfile>('profiles', profileId);
-        return profile === undefined ? undefined : normalizeProviderProfile(profile);
+      async save(preference): Promise<void> {
+        await backend.put('catalogParameterPreferences', `${preference.providerId}:${preference.modelId}`, preference);
       },
-      async save(profile): Promise<void> {
-        const normalized = normalizeProviderProfile(profile);
-        await backend.put('profiles', normalized.profileId, normalized);
-      },
-      async delete(profileId): Promise<void> {
-        await backend.delete('profiles', profileId);
+      async delete(providerId, modelId): Promise<void> {
+        await backend.delete('catalogParameterPreferences', `${providerId}:${modelId}`);
       },
     },
     secrets: {
@@ -520,55 +412,6 @@ export function createChromeIndexedDbStorage(options?: { readonly backend?: Chro
         await backend.delete('assets', ref.ref);
       },
     },
-    userModelConfigs: {
-      async list(profileId): Promise<readonly UserModelConfig[]> {
-        const configs = (await backend.list<unknown>('userModelConfigs')).filter(isUserModelConfig);
-        return configs.filter((config) => config.profileId === profileId);
-      },
-      async get(profileId, modelId): Promise<UserModelConfig | undefined> {
-        const config = await backend.get<unknown>('userModelConfigs', `${profileId}:${modelId}`);
-        return isUserModelConfig(config) ? config : undefined;
-      },
-      async save(config): Promise<void> {
-        if (!isUserModelConfig(config)) {
-          throw new Error('Invalid user model config schema.');
-        }
-        await backend.put('userModelConfigs', `${config.profileId}:${config.modelId}`, config);
-      },
-      async initializeProfile(profileId, initial): Promise<void> {
-        const current = (await backend.list<unknown>('userModelConfigs')).filter(isUserModelConfig);
-        if (current.some((config) => config.profileId === profileId)) {
-          throw new Error(`Provider profile "${profileId}" already has model configs.`);
-        }
-        if (initial.some((config) => config.profileId !== profileId || !isUserModelConfig(config))) {
-          throw new Error('Invalid default user model config schema.');
-        }
-        await Promise.all(initial.map((config) => backend.put('userModelConfigs', `${config.profileId}:${config.modelId}`, config)));
-      },
-      async deleteUnlessLast(profileId, modelId): Promise<boolean> {
-        const configs = (await backend.list<unknown>('userModelConfigs')).filter(isUserModelConfig);
-        if (configs.filter((config) => config.profileId === profileId).length <= 1) return false;
-        await backend.delete('userModelConfigs', `${profileId}:${modelId}`);
-        return true;
-      },
-      async deleteProfile(profileId): Promise<void> {
-        const configs = (await backend.list<unknown>('userModelConfigs')).filter(isUserModelConfig);
-        await Promise.all(configs
-          .filter((config) => config.profileId === profileId)
-          .map((config) => backend.delete('userModelConfigs', `${config.profileId}:${config.modelId}`)));
-      },
-    },
-    modelGenerationPreferences: {
-      async get(key): Promise<ModelGenerationPreference | undefined> {
-        return backend.get<ModelGenerationPreference>('modelGenerationPreferences', modelGenerationPreferenceKey(key));
-      },
-      async save(preference): Promise<void> {
-        await backend.put('modelGenerationPreferences', modelGenerationPreferenceKey(preference), preference);
-      },
-      async delete(key): Promise<void> {
-        await backend.delete('modelGenerationPreferences', modelGenerationPreferenceKey(key));
-      },
-    },
     generationSettings: {
       async load(): Promise<AppGenerationSettings> {
         return normalizeAppGenerationSettings(
@@ -586,14 +429,6 @@ export function createChromeIndexedDbStorage(options?: { readonly backend?: Chro
       },
       async save(settings): Promise<void> {
         await backend.put('appSettings', PROMPT_SETTINGS_KEY, normalizePromptSettings(settings));
-      },
-    },
-    activeImageProfile: {
-      async load(): Promise<string | null> {
-        return await backend.get<string | null>('appSettings', ACTIVE_IMAGE_PROFILE_KEY) ?? null;
-      },
-      async save(profileId: string | null): Promise<void> {
-        await backend.put('appSettings', ACTIVE_IMAGE_PROFILE_KEY, profileId);
       },
     },
   };

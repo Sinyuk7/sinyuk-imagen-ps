@@ -13,8 +13,8 @@ as a repo-side functional harness; it is not a second shipped product surface.
 | Module | Role | Owns | Must Not Own |
 |---|---|---|---|
 | `apps/app` | Photoshop UXP product surface and Chrome functional harness | shared React UI, UI state/controllers, app ports, UXP shell/adapters, Chrome shell/adapters, Photoshop simulator, UI-local bindings | runtime internals, provider transport semantics |
-| `packages/application` | application/session layer | `GenerationBackend` policy, Task v2, session orchestration, command facade, runtime assembly, profile/model coordination, process-lifetime Provider async execution scheduling | React, DOM, Photoshop, UXP, Node fs/path/os, Provider wire protocol |
-| `packages/core-engine` | job execution kernel | job facts, lifecycle, store, events, workflow runner, backend-neutral execution dispatch | Task state, profile/model selection, host persistence, provider raw transport |
+| `packages/application` | application/session layer | `GenerationBackend` policy, Task v2, session orchestration, command facade, runtime assembly, provider account/catalog coordination, process-lifetime Provider async execution scheduling | React, DOM, Photoshop, UXP, Node fs/path/os, Provider wire protocol |
+| `packages/core-engine` | job execution kernel | job facts, lifecycle, store, events, workflow runner, backend-neutral execution dispatch | Task state, provider selection, host persistence, provider raw transport |
 | `packages/providers` | provider adapter layer | stable Provider `ExecutionAdapter`, config/request validation, transport, normalization, error mapping, Provider-local async submit/poll protocol | app/session state, Task projection, job lifecycle, host IO, polling scheduler |
 | `packages/execution-backends/comfyui` | ComfyUI execution adapter layer | bounded workflow documents and forms, transport-neutral upload/submission/observation, API Graph and Frontend Queue drivers, Bridge protocol validation | Application state, React, DOM, Photoshop, UXP, host persistence |
 | `packages/foundation` | lowest-level shared utilities | log record model, context/span helpers, redaction, sink interfaces | React, DOM, Node `fs/path/os`, UXP, Photoshop, provider transport, runtime assembly, workspace reverse dependencies |
@@ -49,17 +49,14 @@ surface apps -> application/session -> core-engine + providers + execution backe
 - `apps/app` is one shared UXP-safe React application consumed by the shipped
   Photoshop UXP shell and the Chrome functional-harness shell. See
   `apps/app/AGENTS.md`.
-- Product-visible Provider integrations are GRSAI, Gemini, and GPT Image 2.
-  `packages/providers/src/providers/{grsai,gemini,openai-images}` are independent
-  vertical slices. Each slice owns its `models.ts`, `profile-template.ts`, config
-  schema, descriptor, Provider implementation, and Provider-local transport.
-  Registry composition consumes slice `index.ts` files; slices never import one
-  another. Shared transport code requires at least two current consumers with
-  the same semantics.
+- Product-visible image integrations are the fixed GRSAI and RunningHub providers.
+  Provider model and parameter catalogs live in `packages/providers/catalog/` and
+  are loaded through the catalog resolver. Each provider has one editable account
+  record containing its API key and optional base URL.
 - Official model presets live in each Provider slice as `(apiFormat, modelId)`
   templates with `requestStrategyId` and output constraints. New Profiles consume
   the complete local inventory once and persist the resulting internal
-  `UserModelConfig` rows atomically. Models are selectable but read-only in the
+  catalog parameter preferences keyed by provider and model. Models are selectable but read-only in the
   product: there is no remote discovery, model CRUD, later sync, or user-editable
   wire/capability configuration.
 - For a configured model whose `wireModelId` is an official catalog model, the
@@ -235,12 +232,10 @@ surface apps -> application/session -> core-engine + providers + execution backe
   indicator, fill, radio, and ARIA. Do not introduce a third list-row visual
   system in `apps/app` unless the existing two patterns cannot express the
   product need.
-- Provider Settings keeps the Profile list and multiple Profiles. `+` opens the
-  fixed Provider Picker, then a GRSAI, Gemini, or GPT Image 2 create page; a
-  Profile row opens the matching dedicated edit page. These pages expose only
-  name, API Key, safe connection testing when declared by the Provider, Save,
-  Cancel, and Delete. Endpoint/path/auth/billing/protocol/model configuration
-  stays Provider-owned and does not enter the app command port.
+- Provider Settings exposes dedicated GRSAI and RunningHub account pages built on
+  a shared API-key/base-URL form. Saving updates that provider's single account
+  record. Endpoint/path/auth/protocol/model configuration stays inside the
+  provider adapter and catalog; there is no profile picker or model manager.
 - Anchored panel popups must use the shared `PopupLayerProvider` /
   `PopupLayerRoot` as the panel-level coordinate root. Placement converts
   viewport rects to popup-root-local coordinates (`anchorRect - popupRootRect`)
@@ -386,7 +381,7 @@ surface apps -> application/session -> core-engine + providers + execution backe
 - Application `GenerationBackend` implementations own admission, readiness,
   optional concurrency lanes, Retry reconstruction, terminal Task projection,
   and post-persistence follow-up. Provider uses backend id `provider`, a
-  per-profile lane cap of 2, and one stable Provider `ExecutionAdapter` that
+  per-provider lane cap of 2, and one stable Provider `ExecutionAdapter` that
   performs exact admitted implementation lookup.
 - ComfyUI uses backend id `comfyui`, execution adapter id `comfyui`, and a
   singleton-server lane cap of 1. Frontend Canvas lease ownership begins only
@@ -401,19 +396,19 @@ surface apps -> application/session -> core-engine + providers + execution backe
 - Provider profiles keep the canonical config structure internally. Dedicated
   Provider templates own the single endpoint, paths, auth mode, billing defaults,
   and `apiFormat`; the app submits only the Provider surface identity, Profile
-  name, and secret action to `saveProviderSurfaceProfile()`. Secrets remain in
+  name, and secret action to the fixed provider account command. Secrets remain in
   `SecretStorageAdapter`. Existing endpoint classification, measurement, and
   billing commands may remain internal seams when another runtime owner still
   uses them, but they are not product configuration surfaces or app-facing ports.
 - A user-visible Profile is always `ready`: it has valid Profile configuration
-  and its complete Provider-owned `UserModelConfig` inventory. Product Profile
+  and its complete catalog projection. Product account
   creation uses the internal setup path, validates every template, initializes
   models atomically, then promotes directly to `ready`. The three product
   Providers have no manual first-model continuation. Public list/active Profile
   reads exclude setup Profiles; failure and shell startup cleanup remove setup
   Profile, model-config, and secret state. Template changes never backfill or
   overwrite ready Profiles.
-- Ready Profiles cannot lose their final model through `deleteUserModelConfig`.
+- Fixed provider accounts do not own editable model membership; model availability comes from the catalog.
   The repository owns the delete-unless-last invariant; UI disabling is only
   preventive feedback. Profile-level `enabled` has no persistence, UI, or
   provider-admission meaning. Legacy reads discard it. This does not change the
@@ -493,7 +488,7 @@ surface apps -> application/session -> core-engine + providers + execution backe
 
 - `apps/app` `AppShell` owns the in-session Composer draft. The shared draft contract is: prompt text, draft attachments, and the derived Composer operation (`text-to-image` vs `image-edit`).
 - `MainPage` and `GlobalGenerationSettingsPage` must resolve output-size availability from the same selected model plus shared draft-derived operation. Settings must not fall back to a page-local or synthetic "no composer context" branch.
-- Output preferences remain operation-specific. When `image-edit` has no saved preference, project the same profile/model `text_to_image` selection into the edit matrix without persisting it; retain a saved edit preference when present, and use the closest supported edit cell when an exact projection is unavailable.
+- Output preferences are keyed by provider and model. When a model changes, only that model's preference is read; missing or invalid values use catalog defaults. Placement uses the actual returned image dimensions rather than an output matrix.
 - Draft reset after send, failed-round fill/restore, and attachment replacement must flow through the shared draft owner so attachment preview disposal has one owner. Menu open state, popup visibility, hover/highlight state, and copy affordances remain page-local UI state.
 
 ## Open Questions
@@ -501,6 +496,13 @@ surface apps -> application/session -> core-engine + providers + execution backe
 - Host storage paths: UXP data-folder and Chrome storage defaults are not yet unified across platforms, and Linux / Windows defaults are not explicitly specified (current defaults are macOS-only).
 
 ## Code Placement Rules
+
+## Fixed Image Providers
+
+- Image generation uses the fixed `grsai` and `runninghub` provider identities. Each provider has one account record containing its API key reference and optional base URL.
+- Model lists and provider parameter choices come from the provider catalog projection. The UI sends `providerId`, `modelId`, and a parameter value map; provider checkers normalize values and adapters perform wire mapping.
+- Provider adapters share the Application async job lifecycle and terminal asset projection. Provider-specific submit, poll, upload, and error handling stays inside `packages/providers`.
+- ComfyUI remains a separate workflow backend and does not consume the image provider catalog protocol.
 
 | Code | Place |
 |---|---|

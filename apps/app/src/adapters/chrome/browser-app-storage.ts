@@ -1,108 +1,69 @@
 import type {
   AssetStore,
+  CatalogParameterPreference,
+  CatalogParameterPreferenceRepository,
   DurableJobRecord,
   JobHistoryStore,
   ProviderAccount,
   ProviderAccountRepository,
-  ProviderProfile,
-  ProviderProfileRepository,
   SecretStorageAdapter,
-  StoredAssetRef,
 } from '@imagen-ps/application';
-import { createMemoryActiveImageProfileStore, type ActiveImageProfileStore } from '../../shared/ports/active-image-profile';
 import { createMemoryGenerationSettingsStore, type AppGenerationSettingsStore } from '../../shared/ports/app-generation-settings';
 import { createMemoryPromptSettingsStore, type PromptSettingsStore } from '../../shared/ports/prompt-settings';
 
-/**
- * Slice 0 的浏览器内存 adapter 只用于证明 application command facade 可在
- * Chrome bundle 中初始化；持久化 IndexedDB adapter 会在后续 slice 接管。
- */
+/** Chrome harness 的固定 provider 内存存储。 */
 export function createChromeFeasibilityStorage(): {
-  readonly profiles: ProviderProfileRepository;
   readonly providerAccounts: ProviderAccountRepository;
+  readonly catalogParameterPreferences: CatalogParameterPreferenceRepository;
   readonly secrets: SecretStorageAdapter;
   readonly history: JobHistoryStore;
   readonly assets: AssetStore;
   readonly generationSettings: AppGenerationSettingsStore;
   readonly promptSettings: PromptSettingsStore;
-  readonly activeImageProfile: ActiveImageProfileStore;
 } {
-  const profiles = new Map<string, ProviderProfile>();
   const accounts = new Map<string, ProviderAccount>();
+  const preferences = new Map<string, CatalogParameterPreference>();
   const secrets = new Map<string, string>();
   const history = new Map<string, DurableJobRecord>();
   const assets = new Map<string, ArrayBuffer>();
   let assetCounter = 0;
-
   return {
     providerAccounts: {
-      async list(): Promise<readonly ProviderAccount[]> { return Array.from(accounts.values()); },
+      async list() { return Array.from(accounts.values()); },
       async get(providerId) { return accounts.get(providerId); },
       async save(account) { accounts.set(account.providerId, account); },
       async delete(providerId) { accounts.delete(providerId); },
     },
-    profiles: {
-      async list(): Promise<readonly ProviderProfile[]> {
-        return Array.from(profiles.values());
-      },
-      async get(profileId: string): Promise<ProviderProfile | undefined> {
-        return profiles.get(profileId);
-      },
-      async save(profile: ProviderProfile): Promise<void> {
-        profiles.set(profile.profileId, profile);
-      },
-      async delete(profileId: string): Promise<void> {
-        profiles.delete(profileId);
-      },
+    catalogParameterPreferences: {
+      async get(providerId, modelId) { return preferences.get(`${providerId}:${modelId}`); },
+      async save(preference) { preferences.set(`${preference.providerId}:${preference.modelId}`, preference); },
+      async delete(providerId, modelId) { preferences.delete(`${providerId}:${modelId}`); },
     },
     secrets: {
-      async getSecret(key: string): Promise<string | undefined> {
-        return secrets.get(key);
-      },
-      async setSecret(key: string, value: string): Promise<void> {
-        secrets.set(key, value);
-      },
-      async deleteSecret(key: string): Promise<void> {
-        secrets.delete(key);
-      },
+      async getSecret(key) { return secrets.get(key); },
+      async setSecret(key, value) { secrets.set(key, value); },
+      async deleteSecret(key) { secrets.delete(key); },
     },
     history: {
-      async put(record: DurableJobRecord): Promise<void> {
-        history.set(record.jobId, record);
-      },
-      async get(jobId: string): Promise<DurableJobRecord | undefined> {
-        return history.get(jobId);
-      },
-      async list(query?: { readonly limit?: number; readonly status?: string }): Promise<readonly DurableJobRecord[]> {
+      async put(record) { history.set(record.jobId, record); },
+      async get(jobId) { return history.get(jobId); },
+      async list(query) {
         const records = Array.from(history.values()).filter((record) => query?.status === undefined || record.status === query.status);
         return typeof query?.limit === 'number' ? records.slice(0, query.limit) : records;
       },
-      async delete(jobId: string): Promise<void> {
-        history.delete(jobId);
-      },
+      async delete(jobId) { history.delete(jobId); },
     },
     assets: {
-      async put(bytes: ArrayBuffer, meta: { readonly mimeType?: string; readonly name?: string }): Promise<StoredAssetRef> {
+      async put(bytes, meta) {
         const ref = `chrome-memory-asset-${++assetCounter}`;
         const copy = bytes.slice(0);
         assets.set(ref, copy);
-        return {
-          kind: 'hostObject',
-          ref,
-          byteSize: copy.byteLength,
-          ...(meta.mimeType !== undefined ? { mimeType: meta.mimeType } : {}),
-          ...(meta.name !== undefined ? { name: meta.name } : {}),
-        };
+        return { kind: 'hostObject', ref, byteSize: copy.byteLength, ...(meta.mimeType ? { mimeType: meta.mimeType } : {}), ...(meta.name ? { name: meta.name } : {}) };
       },
-      async resolve(ref: StoredAssetRef): Promise<ArrayBuffer | undefined> {
-        return assets.get(ref.ref)?.slice(0);
-      },
-      async delete(ref: StoredAssetRef): Promise<void> {
-        assets.delete(ref.ref);
-      },
+      async resolve(ref) { return assets.get(ref.ref)?.slice(0); },
+      async delete(ref) { assets.delete(ref.ref); },
     },
     generationSettings: createMemoryGenerationSettingsStore(),
     promptSettings: createMemoryPromptSettingsStore(),
-    activeImageProfile: createMemoryActiveImageProfileStore(),
   };
 }

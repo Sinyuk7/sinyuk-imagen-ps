@@ -1,4 +1,4 @@
-import type { ImageOutputSelection } from '@imagen-ps/application';
+import type { ImageOutputSelection } from '@imagen-ps/providers';
 import type { CaptureUploadPlan, ImageSize, PlacementScalePlan, ProviderInputPlan } from '../image/resize';
 import type { CanonicalMaskAsset } from './mask-source';
 

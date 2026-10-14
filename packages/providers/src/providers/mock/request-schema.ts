@@ -133,6 +133,8 @@ const maskExecutionPlanSchema = z.discriminatedUnion('kind', [
 export const mockRequestSchema = z.object({
   operation: z.union([z.literal('text_to_image'), z.literal('image_edit')]),
   prompt: z.string().min(1),
+  providerId: z.union([z.literal('grsai'), z.literal('runninghub')]).optional(),
+  parameters: z.record(z.string(), z.string()).optional(),
   images: z.preprocess(coerceOptionalArray, z.array(assetRefSchema).optional()),
   primaryAttachmentId: z.string().min(1).optional(),
   maskImage: z.preprocess(coerceOptionalObject, canonicalMaskImageSchema.optional()),

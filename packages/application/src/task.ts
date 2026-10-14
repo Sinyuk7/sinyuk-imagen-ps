@@ -623,7 +623,9 @@ function assertUrlHasNoCredentials(value: string, path: string): void {
     if (url.username.length > 0 || url.password.length > 0) {
       throw createValidationError(`Task record contains URL credentials at "${path}".`, { path });
     }
-    for (const key of url.searchParams.keys()) {
+    const query = url.search.slice(1).split('&').filter(Boolean);
+    for (const part of query) {
+      const key = decodeURIComponent(part.split('=', 1)[0] ?? '');
       if (URL_CREDENTIAL_PARAM_PATTERN.test(key)) {
         throw createValidationError(`Task record contains URL credentials at "${path}".`, { path });
       }

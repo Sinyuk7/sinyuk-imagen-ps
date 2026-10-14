@@ -4,6 +4,13 @@ import type { ProviderOperation } from './capability.js';
 import type { ImageOutputSelection } from './image-output-contract.js';
 import type { MaskExecutionPlan } from './image-model-capability.js';
 
+/** 旧 provider transport 的内部执行锚点；固定 provider 请求不再填充。 */
+export interface ProviderModelExecution {
+  readonly modelId: string;
+  readonly apiFormat: ApiFormat;
+  readonly requestStrategyId: string;
+}
+
 /**
  * Provider request 契约。
  *
@@ -111,18 +118,6 @@ export interface ProviderOutputOptions {
   readonly inputFidelity?: 'high' | 'low';
 }
 
-/** Provider builder 已解析的模型执行配置。 */
-export interface ProviderModelExecution {
-  /** 实际发送给上游的 wire model ID。 */
-  readonly modelId: string;
-
-  /** 当前 API format；builder 用它校验策略归属。 */
-  readonly apiFormat: ApiFormat;
-
-  /** Provider-owned 请求构造策略 ID。 */
-  readonly requestStrategyId: string;
-}
-
 /** 当前阶段稳定公开的 canonical image request。 */
 export interface CanonicalImageJobRequest {
   /** 当前请求是 text_to_image 还是 image_edit。 */
@@ -130,6 +125,12 @@ export interface CanonicalImageJobRequest {
 
   /** 用户 prompt。 */
   readonly prompt: string;
+  /** 固定 provider catalog 模型标识；由 adapter 负责映射到 wire 请求。 */
+  readonly providerId?: 'grsai' | 'runninghub';
+  /** 当前 catalog 模型标识。 */
+  readonly modelId?: string;
+  /** 固定 provider catalog 参数值集合。 */
+  readonly parameters?: Readonly<Record<string, string>>;
 
   /** 可选的输入图片（唯一图片输入数组）。 */
   readonly images?: readonly AssetRef[];
@@ -149,10 +150,8 @@ export interface CanonicalImageJobRequest {
   /** 已归一化输入上下文，供 `Use Input Size` 等 output 选择复用。 */
   readonly inputContext?: NormalizedImageInputContext;
 
-  /** Application 已解析的模型执行配置。 */
+  /** 兼容仍注册的历史 transport；GRSAI/RunningHub 不使用。 */
   readonly model?: ProviderModelExecution;
-
-  /** capability resolver 使用的官方 preset anchor。 */
   readonly capabilityModelId?: string;
 
   /** 受控的 provider-specific 透传空间。 */

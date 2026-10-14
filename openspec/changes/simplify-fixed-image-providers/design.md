@@ -25,9 +25,9 @@
 
 ## Decisions
 
-### 1. 固定 provider 与单账号存储
+### 1. 固定 provider、独立设置页与单账号存储
 
-公共 provider identity 只允许 `grsai` 和 `runninghub`。Host storage 使用 provider keyed account record，例如 `{ providerId, apiKey, updatedAt }`；保存操作是按 provider 的 upsert。产品删除 Profile 列表、Profile lifecycle、profileId 关联和 Profile-specific model storage。
+公共 provider identity 只允许 `grsai` 和 `runninghub`。Host storage 使用 provider keyed account record，例如 `{ providerId, apiKey, updatedAt }`；保存操作是按 provider 的 upsert。设置导航提供两个独立的 provider 编辑页；页面共享 API key/base URL 的基类表单，但每个 provider 可以追加自己的字段和说明。产品删除 Profile 列表、Profile lifecycle、profileId 关联和 Profile-specific model storage。
 
 Alternative：保留一套通用 Profile schema。放弃，因为它继续要求 UI、Application、repository 和测试维护无产品需求的多实例生命周期。
 
@@ -36,6 +36,10 @@ Alternative：保留一套通用 Profile schema。放弃，因为它继续要求
 `packages/providers/catalog/grsai.json` 与 `packages/providers/catalog/runninghub.json` 是静态发布资源。每个模型至少声明稳定 `id`、展示名、支持 operation、输入限制和参数定义；参数定义支持有限的 choice/boolean/number 形式，但第一阶段主页面只渲染 choice 参数。catalog loader 负责 schema 校验、唯一性、默认值和跨字段约束。
 
 GRSAI 可把尺寸组合展开为单个 choice，例如 `1:1 (1024x1024)`，并在请求 builder 中映射成 `aspectRatio` 和 `imageSize`。RunningHub 可保留独立 `aspectRatio`、`resolution` 选择。公共 UI 只消费 catalog projection，不理解 provider wire JSON。
+
+Catalog 通过一个来源解析层加载：默认实现先尝试远程 catalog source，远程不可用、超时或校验失败时回退到随发布物提供的 `packages/providers/catalog/` 本地文件。上层只消费校验后的只读 catalog，不感知来源。当前先实现本地 source 和 resolver 接口，远程 source 作为后续替换项。
+
+Provider 参数检查器属于 provider adapter 边界。UI 只展示当前 `providerId + modelId` 对应的 projection 并提交参数值集合，不判断 provider-specific 组合是否合法；adapter 在请求构造前执行 catalog/provider 规则校验。
 
 Alternative：继续由 TypeScript capability matrix 手写模型。放弃，因为它重复了外部 catalog，并使增加模型必须修改多个包。
 

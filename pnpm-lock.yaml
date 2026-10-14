@@ -26,6 +26,9 @@ importers:
       '@imagen-ps/foundation':
         specifier: workspace:*
         version: link:../../packages/foundation
+      '@imagen-ps/providers':
+        specifier: workspace:*
+        version: link:../../packages/providers
       '@spectrum-web-components/action-button':
         specifier: 0.37.0
         version: 0.37.0

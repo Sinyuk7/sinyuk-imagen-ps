@@ -1,13 +1,10 @@
 import {
   setAssetStore,
   setProviderAccountRepository,
+  setCatalogParameterPreferenceRepository,
   setJobHistoryStore,
-  setModelGenerationPreferenceRepository,
-  setProviderProfileRepository,
-  recoverProviderProfileSetups,
   setSecretStorageAdapter,
   setTaskStore,
-  setUserModelConfigRepository,
 } from '@imagen-ps/application';
 import { createCommandsAdapter } from '../../shared/ports/commands-port';
 import type { AppShellHost } from '../../shared/ui/app-shell';
@@ -99,17 +96,12 @@ export function createChromeAppShell(options?: ChromeAppShellOptions): AppShellH
     generationFactory: comfyUiBridgeGenerationFactory,
     externalUrl,
   });
-  setProviderProfileRepository(storage.profiles);
   setProviderAccountRepository(storage.providerAccounts);
+  setCatalogParameterPreferenceRepository(storage.catalogParameterPreferences);
   setSecretStorageAdapter(storage.secrets);
   setJobHistoryStore(storage.history);
   setTaskStore(storage.tasks);
   setAssetStore(storage.assets);
-  setUserModelConfigRepository(storage.userModelConfigs);
-  setModelGenerationPreferenceRepository(storage.modelGenerationPreferences);
-  void recoverProviderProfileSetups().then((result) => {
-    if (!result.ok) console.error('[imagen-ps:chrome]', 'profile.setup.recovery.failed', result.error);
-  });
 
   const simulator = createPhotoshopSimulator(storage.assets, options?.scenario ?? testHarness?.scenario ?? 'seeded-document');
   const host = createChromeHostPort({
@@ -142,9 +134,7 @@ export function createChromeAppShell(options?: ChromeAppShellOptions): AppShellH
       generationBackends: comfyUiRuntime.generationBackends,
       host,
       generationSettings: storage.generationSettings,
-      modelGenerationPreferences: storage.modelGenerationPreferences,
       promptSettings: storage.promptSettings,
-      activeImageProfile: storage.activeImageProfile,
       pathInfo: CHROME_PATH_INFO,
       thumbnails: createMemoryThumbnailStore({
         resolveStoredRef: storage.assets.resolve,
@@ -157,7 +147,7 @@ export function createChromeAppShell(options?: ChromeAppShellOptions): AppShellH
     dispose() {
       comfyUiRuntime.dispose();
       globalThis.__IMAGEN_CHROME_DIAGNOSTICS__ = undefined;
-      globalThis.__IMAGEN_CHROME_TEST_HARNESS__ = undefined;
+      (globalThis as any).__IMAGEN_CHROME_TEST_HARNESS__ = undefined;
     },
   };
 }

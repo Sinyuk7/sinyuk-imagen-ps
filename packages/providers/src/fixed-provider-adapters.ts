@@ -1,6 +1,7 @@
 import type { Asset } from '@imagen-ps/core-engine';
-import { getProviderCatalog, type FixedProviderId } from './catalog.js';
+import { type FixedProviderId } from './catalog.js';
 import type { FixedGenerationRequest } from './contract/fixed-generation.js';
+import { checkProviderParameters, canonicalRunningHubRatio } from './provider-parameter-checkers.js';
 
 /** provider adapter 生成的待发送请求。 */
 export interface FixedPreparedRequest {
@@ -9,16 +10,10 @@ export interface FixedPreparedRequest {
   readonly body: Readonly<Record<string, unknown>>;
 }
 
-function modelFor(request: FixedGenerationRequest) {
-  const catalog = getProviderCatalog(request.providerId);
-  const model = catalog.models.find((candidate) => candidate.id === request.modelId);
-  if (!model) throw new Error(`Unknown ${request.providerId} model "${request.modelId}".`);
-  if (!model.operations.includes(request.operation)) throw new Error(`Model "${request.modelId}" does not support ${request.operation}.`);
-  for (const [name, parameter] of Object.entries(model.parameters)) {
-    const value = request.parameters[name] ?? parameter.default;
-    if (!parameter.options.some((option) => option.value === value)) throw new Error(`Invalid ${name} for model "${request.modelId}".`);
-  }
-  return { catalog, model };
+/** 固定 provider transport 的统一构造入口；上层只需要选择 providerId。 */
+export function prepareFixedProviderRequest(request: FixedGenerationRequest): FixedPreparedRequest {
+  if (request.providerId === 'grsai') return prepareGrsaiRequest(request);
+  return prepareRunningHubRequest(request);
 }
 
 function imageValues(images: readonly Asset[] | undefined): readonly string[] {
@@ -31,24 +26,28 @@ function imageValues(images: readonly Asset[] | undefined): readonly string[] {
 
 /** 构造 GRSAI 的固定 async 请求；replyType 不进入公共请求。 */
 export function prepareGrsaiRequest(request: FixedGenerationRequest): FixedPreparedRequest {
-  const { model } = modelFor(request);
+  const { model, parameters } = checkProviderParameters(request);
   return {
     providerId: 'grsai', urlPath: '/v1/api/generate',
     body: {
       model: request.modelId, prompt: request.prompt, images: imageValues(request.images), replyType: 'async',
-      ...request.parameters,
-      ...(request.maskImage ? { mask: imageValues([request.maskImage.asset])[0] } : {}),
-      ...(model.input?.mask === false && request.maskImage ? {} : {}),
+      ...parameters,
+      ...(request.maskImage && model.input?.mask !== false ? { mask: imageValues([request.maskImage.asset])[0] } : {}),
     },
   };
 }
 
 /** 构造 RunningHub 的固定请求；endpoint 与模型保持在 adapter/catalog 内。 */
 export function prepareRunningHubRequest(request: FixedGenerationRequest): FixedPreparedRequest {
-  const { model } = modelFor(request);
+  const { model, parameters: checked } = checkProviderParameters(request);
+  const parameters = { ...checked };
+  if (typeof parameters.aspectRatio === 'string') {
+    const rule = model.parameters.aspectRatio;
+    if (rule) parameters.aspectRatio = canonicalRunningHubRatio(parameters.aspectRatio, rule.options.map((option) => option.value));
+  }
   if (!model.endpoint) throw new Error(`RunningHub model "${request.modelId}" has no endpoint.`);
   return {
     providerId: 'runninghub', urlPath: model.endpoint,
-    body: { prompt: request.prompt, imageUrls: imageValues(request.images), ...(model.fixed ?? {}), ...request.parameters, ...(request.maskImage ? { maskUrl: imageValues([request.maskImage.asset])[0] } : {}) },
+    body: { prompt: request.prompt, imageUrls: imageValues(request.images), ...(model.fixed ?? {}), ...parameters, ...(request.maskImage ? { maskUrl: imageValues([request.maskImage.asset])[0] } : {}) },
   };
 }

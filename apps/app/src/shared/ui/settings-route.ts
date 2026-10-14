@@ -7,11 +7,7 @@ export type ProviderSurfaceRouteId = 'grsai' | 'gemini' | 'openai-images';
 /** 设置根页和详情页的层级关系。 */
 export type SettingsRoute =
   | { readonly kind: 'root'; readonly tab: SettingsTab }
-  | { readonly kind: 'provider-output' }
-  | { readonly kind: 'provider-accounts' }
-  | { readonly kind: 'provider-picker' }
-  | { readonly kind: 'provider-create'; readonly surfaceId: ProviderSurfaceRouteId }
-  | { readonly kind: 'provider-edit'; readonly surfaceId: ProviderSurfaceRouteId; readonly profileId: string }
+  | { readonly kind: 'provider-account'; readonly providerId: 'grsai' | 'runninghub' }
   | { readonly kind: 'global-settings' }
   | { readonly kind: 'prompt-settings' }
   | { readonly kind: 'prompt-preset-detail'; readonly presetId: string | null };
@@ -21,11 +17,7 @@ export function settingsBackRoute(route: SettingsRoute): SettingsRoute | 'main' 
   switch (route.kind) {
     case 'root':
       return 'main';
-    case 'provider-output':
-    case 'provider-accounts':
-    case 'provider-picker':
-    case 'provider-create':
-    case 'provider-edit':
+    case 'provider-account':
       return { kind: 'root', tab: 'provider' };
     case 'global-settings':
     case 'prompt-settings':

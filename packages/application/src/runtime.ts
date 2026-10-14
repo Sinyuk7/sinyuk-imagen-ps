@@ -22,33 +22,25 @@ import {
   type ApiFormat,
   type ProviderRequest,
   type ProviderRegistry,
+  getProviderCatalog,
 } from '@imagen-ps/providers';
 import type { LogSink, Logger } from '@imagen-ps/foundation';
 import { createLogger, createNullLogger } from '@imagen-ps/foundation';
 import type {
   AssetStore,
   JobHistoryStore,
-  ModelGenerationPreference,
-  ModelGenerationPreferenceKey,
-  ModelGenerationPreferenceRepository,
-  ProviderConfigResolver,
+  CatalogParameterPreference,
+  CatalogParameterPreferenceRepository,
   ProviderAccount,
   ProviderAccountRepository,
-  ProviderProfile,
-  ProviderProfileRepository,
-  ResolvedProviderConfig,
   SecretStorageAdapter,
   TaskStore,
-  UserModelConfig,
-  UserModelConfigRepository,
 } from './commands/types.js';
-import { resolveSecretValue } from './commands/secret-utils.js';
-import { providerImplementationIdForApiFormat } from './commands/api-format-profile.js';
-import { runTerminalJobBillingFollowUp } from './commands/terminal-job-billing.js';
 import {
   createProviderGenerationBackend,
   type GenerationBackend,
 } from './generation/index.js';
+import { createFixedProviderResolver, type FixedProviderResolutionDependencies } from './generation/fixed-provider-resolution.js';
 import {
   createProviderAsyncExecutionManager,
   type ProviderAsyncExecutionManager,
@@ -72,11 +64,9 @@ export interface ExtendedRuntime extends Runtime {
 let instance: ExtendedRuntime | null = null;
 let registryInstance: ProviderRegistry | null = null;
 let providerAccountRepositoryInstance: ProviderAccountRepository | null = null;
-let providerProfileRepositoryInstance: ProviderProfileRepository | null = null;
-let userModelConfigRepositoryInstance: UserModelConfigRepository | null = null;
-let modelGenerationPreferenceRepositoryInstance: ModelGenerationPreferenceRepository | null = null;
+let catalogParameterPreferenceRepositoryInstance: CatalogParameterPreferenceRepository | null = null;
 let secretStorageAdapterInstance: SecretStorageAdapter | null = null;
-let providerConfigResolverInstance: ProviderConfigResolver | null = null;
+let fixedProviderResolverInstance: ReturnType<typeof createFixedProviderResolver> | null = null;
 let jobHistoryStoreInstance: JobHistoryStore | null = null;
 let taskStoreInstance: TaskStore | null = null;
 let assetStoreInstance: AssetStore | null = null;
@@ -94,85 +84,13 @@ function createInMemoryProviderAccountRepository(): ProviderAccountRepository {
   };
 }
 
-function createInMemoryProviderProfileRepository(): ProviderProfileRepository {
-  const store = new Map<string, ProviderProfile>();
+function createInMemoryCatalogParameterPreferenceRepository(): CatalogParameterPreferenceRepository {
+  const store = new Map<string, CatalogParameterPreference>();
+  const key = (providerId: string, modelId: string) => `${providerId}:${modelId}`;
   return {
-    async list(): Promise<readonly ProviderProfile[]> {
-      return Array.from(store.values());
-    },
-    async get(profileId: string): Promise<ProviderProfile | undefined> {
-      return store.get(profileId);
-    },
-    async save(profile: ProviderProfile): Promise<void> {
-      store.set(profile.profileId, profile);
-    },
-    async delete(profileId: string): Promise<void> {
-      store.delete(profileId);
-    },
-  };
-}
-
-function userModelConfigKey(profileId: string, modelId: string): string {
-  return `${profileId}:${modelId}`;
-}
-
-function modelGenerationPreferenceKey(key: ModelGenerationPreferenceKey): string {
-  return `${key.profileId}:${key.apiFormat}:${key.modelId}:${key.operation}`;
-}
-
-function createInMemoryUserModelConfigRepository(): UserModelConfigRepository {
-  const store = new Map<string, UserModelConfig>();
-  return {
-    async list(profileId) {
-      const configs = Array.from(store.values()).filter((config): config is NonNullable<typeof config> => config !== undefined);
-      return configs.filter((config) => config.profileId === profileId);
-    },
-    async get(profileId, modelId) {
-      return store.get(userModelConfigKey(profileId, modelId));
-    },
-    async save(config) {
-      store.set(userModelConfigKey(config.profileId, config.modelId), config);
-    },
-    async initializeProfile(profileId, configs) {
-      if (configs.some((config) => config.profileId !== profileId)) {
-        throw new Error('Default model configs must belong to the setup profile.');
-      }
-      if (Array.from(store.values()).some((config) => config.profileId === profileId)) {
-        throw new Error(`Provider profile "${profileId}" already has model configs.`);
-      }
-      const next = new Map(store);
-      for (const config of configs) next.set(userModelConfigKey(config.profileId, config.modelId), config);
-      store.clear();
-      for (const [key, value] of next) store.set(key, value);
-    },
-    async deleteUnlessLast(profileId, modelId) {
-      const owned = Array.from(store.values()).filter((config) => config.profileId === profileId);
-      if (owned.length <= 1) return false;
-      store.delete(userModelConfigKey(profileId, modelId));
-      return true;
-    },
-    async deleteProfile(profileId) {
-      for (const key of Array.from(store.keys())) {
-        if (key.startsWith(`${profileId}:`)) {
-          store.delete(key);
-        }
-      }
-    },
-  };
-}
-
-function createInMemoryModelGenerationPreferenceRepository(): ModelGenerationPreferenceRepository {
-  const store = new Map<string, ModelGenerationPreference>();
-  return {
-    async get(key) {
-      return store.get(modelGenerationPreferenceKey(key));
-    },
-    async save(preference) {
-      store.set(modelGenerationPreferenceKey(preference), preference);
-    },
-    async delete(key) {
-      store.delete(modelGenerationPreferenceKey(key));
-    },
+    async get(providerId, modelId) { return store.get(key(providerId, modelId)); },
+    async save(preference) { store.set(key(preference.providerId, preference.modelId), preference); },
+    async delete(providerId, modelId) { store.delete(key(providerId, modelId)); },
   };
 }
 
@@ -257,84 +175,6 @@ function createInMemoryAssetStore(): AssetStore {
     },
     async delete(ref: StoredAssetRef): Promise<void> {
       store.delete(ref.ref);
-    },
-  };
-}
-
-function createDefaultProviderConfigResolver(): ProviderConfigResolver {
-  return {
-    async resolve(profileId: string): Promise<ResolvedProviderConfig> {
-      const profile = await getProviderProfileRepository().get(profileId);
-      if (!profile) {
-        throw new Error(`Provider profile not found: ${profileId}`);
-      }
-
-      const provider = getRuntime().providerRegistry.getByApiFormat(profile.apiFormat);
-      if (!provider) {
-        throw new Error(`Provider implementation not found for apiFormat: ${profile.apiFormat}`);
-      }
-      const implementationId = providerImplementationIdForApiFormat(profile.apiFormat);
-
-      const resolvedSecrets: Record<string, string> = {};
-      for (const [name, ref] of Object.entries(profile.secretRefs ?? {})) {
-        const value = await getSecretStorageAdapter().getSecret(ref);
-        if (value === undefined) {
-          throw new Error(`Provider profile secret is missing: ${name}`);
-        }
-        resolvedSecrets[name] = resolveSecretValue(value);
-      }
-
-      const resolvedBilling = await resolveBillingSecretConfig(profile.config, profile.secretRefs);
-
-      const providerConfig = provider.validateConfig({
-        providerId: implementationId,
-        displayName: profile.displayName,
-        apiFormat: profile.apiFormat,
-        family: provider.family,
-        ...profile.config,
-        ...resolvedBilling,
-        ...resolvedSecrets,
-      });
-
-      return {
-        profileId,
-        apiFormat: profile.apiFormat,
-        implementationId,
-        providerConfig,
-      };
-    },
-  };
-}
-
-async function resolveBillingSecretConfig(
-  config: Record<string, unknown>,
-  secretRefs: Readonly<Record<string, string>> | undefined,
-): Promise<Record<string, unknown>> {
-  const billing = config.billing;
-  if (typeof billing !== 'object' || billing === null || Array.isArray(billing)) {
-    return {};
-  }
-  const record = billing as Record<string, unknown>;
-  if (record.source !== 'billing-token') {
-    return {};
-  }
-  const tokenSecretRef =
-    typeof record.tokenSecretRef === 'string' && record.tokenSecretRef.length > 0
-      ? record.tokenSecretRef
-      : typeof secretRefs?.billingToken === 'string'
-        ? secretRefs.billingToken
-        : undefined;
-  if (!tokenSecretRef) {
-    throw new Error('Provider billing config requires tokenSecretRef.');
-  }
-  const raw = await getSecretStorageAdapter().getSecret(tokenSecretRef);
-  if (raw === undefined) {
-    throw new Error('Provider billing token is missing.');
-  }
-  return {
-    billing: {
-      ...record,
-      tokenSecretRef: resolveSecretValue(raw),
     },
   };
 }
@@ -652,16 +492,22 @@ export function getRuntime(): ExtendedRuntime {
     const providerAdapter = createProviderExecutionAdapter({
       providerRegistry,
       configResolver: {
-        async resolve({ implementationId, profileId }) {
-          const resolved = await getProviderConfigResolver().resolve(profileId);
-          if (resolved.implementationId !== implementationId) {
-            throw createValidationError('Resolved Provider implementation does not match admission.', {
-              profileId,
-              implementationId,
-              resolvedImplementationId: resolved.implementationId,
-            });
+        async resolve({ implementationId, providerId: _providerId }) {
+          if (implementationId === 'grsai-generate' || implementationId === 'runninghub-generate') {
+            const providerId = implementationId === 'grsai-generate' ? 'grsai' : 'runninghub';
+            const account = await getProviderAccountRepository().get(providerId);
+            if (!account?.secretRef) throw createValidationError('Fixed provider API Key is not configured.', { providerId });
+            const apiKey = await getSecretStorageAdapter().getSecret(account.secretRef);
+            if (!apiKey?.trim()) throw createValidationError('Fixed provider API Key is missing.', { providerId });
+            const catalog = getProviderCatalog(providerId);
+            const endpoint = account.baseUrl ?? catalog.baseUrl;
+            const connection = { selectionMode: 'manual' as const, selectedEndpointId: 'primary', endpoints: [{ id: 'primary', url: endpoint, enabled: true }] };
+            const provider = providerRegistry.get(implementationId);
+            if (!provider) throw createValidationError('Fixed provider implementation is not registered.', { implementationId });
+            const providerConfig = provider.validateConfig({ providerId: implementationId, displayName: account.displayName, family: provider.describe().family, apiFormat: provider.describe().apiFormat, connection, apiKey, ...(implementationId === 'grsai-generate' ? { paths: { submit: '/v1/api/generate', result: '/v1/api/result' } } : {}) });
+            return { providerId, apiFormat: provider.describe().apiFormat ?? 'openai-images', implementationId, providerConfig };
           }
-          return resolved.providerConfig;
+          throw createValidationError('Only fixed GRSAI and RunningHub providers are supported.', { implementationId });
         },
       },
       requestMaterializer: {
@@ -698,31 +544,12 @@ export function getRuntime(): ExtendedRuntime {
 export function getGenerationBackends(): readonly GenerationBackend[] {
   if (providerGenerationBackendInstance === null) {
     providerGenerationBackendInstance = createProviderGenerationBackend({
-      profileRepository: {
-        async get(profileId) {
-          return getProviderProfileRepository().get(profileId);
-        },
-      },
       providerRegistry: getProviderRegistry(),
-      userModelConfigRepository: {
-        async get(profileId, modelId) {
-          return getUserModelConfigRepository().get(profileId, modelId);
-        },
-        async list(profileId) {
-          return getUserModelConfigRepository().list(profileId);
-        },
-      },
-      modelGenerationPreferenceRepository: {
-        async get(key) {
-          return getModelGenerationPreferenceRepository().get(key);
-        },
-      },
+      fixedProviderResolver: getFixedProviderResolver(),
       async materializeOutput({ job }) {
         return materializeOutputRefs(job.output);
       },
-      async afterTerminal({ job, profileId, implementationId }) {
-        await runTerminalJobBillingFollowUp(job, profileId, implementationId);
-      },
+      async afterTerminal() {},
     });
   }
   return [providerGenerationBackendInstance];
@@ -737,39 +564,27 @@ export function getProviderAccountRepository(): ProviderAccountRepository {
 /** 注入固定 provider 单账号 repository。 */
 export function setProviderAccountRepository(repository: ProviderAccountRepository): void { providerAccountRepositoryInstance = repository; }
 
-/** 获取当前 provider profile repository */
-export function getProviderProfileRepository(): ProviderProfileRepository {
-  if (providerProfileRepositoryInstance === null) {
-    providerProfileRepositoryInstance = createInMemoryProviderProfileRepository();
+/** 获取固定 provider 的 catalog/account 解析器；Key 仅在显式 resolveCredentials 时读取。 */
+export function getFixedProviderResolver(): ReturnType<typeof createFixedProviderResolver> {
+  if (fixedProviderResolverInstance === null) {
+    const dependencies: FixedProviderResolutionDependencies = {
+      accounts: { get: (providerId) => getProviderAccountRepository().get(providerId) },
+      secrets: { getSecret: (key) => getSecretStorageAdapter().getSecret(key) },
+    };
+    fixedProviderResolverInstance = createFixedProviderResolver(dependencies);
   }
-  return providerProfileRepositoryInstance;
+  return fixedProviderResolverInstance;
 }
 
-/** 设置 provider profile repository，允许 CLI / UI 注入自定义实现 */
-export function setProviderProfileRepository(repository: ProviderProfileRepository): void {
-  providerProfileRepositoryInstance = repository;
+/** 返回 catalog 参数偏好仓库。 */
+export function getCatalogParameterPreferenceRepository(): CatalogParameterPreferenceRepository {
+  if (!catalogParameterPreferenceRepositoryInstance) catalogParameterPreferenceRepositoryInstance = createInMemoryCatalogParameterPreferenceRepository();
+  return catalogParameterPreferenceRepositoryInstance;
 }
 
-export function getUserModelConfigRepository(): UserModelConfigRepository {
-  if (userModelConfigRepositoryInstance === null) {
-    userModelConfigRepositoryInstance = createInMemoryUserModelConfigRepository();
-  }
-  return userModelConfigRepositoryInstance;
-}
-
-export function setUserModelConfigRepository(repository: UserModelConfigRepository): void {
-  userModelConfigRepositoryInstance = repository;
-}
-
-export function getModelGenerationPreferenceRepository(): ModelGenerationPreferenceRepository {
-  if (modelGenerationPreferenceRepositoryInstance === null) {
-    modelGenerationPreferenceRepositoryInstance = createInMemoryModelGenerationPreferenceRepository();
-  }
-  return modelGenerationPreferenceRepositoryInstance;
-}
-
-export function setModelGenerationPreferenceRepository(repository: ModelGenerationPreferenceRepository): void {
-  modelGenerationPreferenceRepositoryInstance = repository;
+/** 注入 host 持久化的 catalog 参数偏好仓库。 */
+export function setCatalogParameterPreferenceRepository(repository: CatalogParameterPreferenceRepository): void {
+  catalogParameterPreferenceRepositoryInstance = repository;
 }
 
 /** 获取当前 secret storage adapter */
@@ -824,19 +639,6 @@ export function setAssetStore(store: AssetStore): void {
   assetStoreInstance = store;
 }
 
-/** 获取当前 provider config resolver */
-export function getProviderConfigResolver(): ProviderConfigResolver {
-  if (providerConfigResolverInstance === null) {
-    providerConfigResolverInstance = createDefaultProviderConfigResolver();
-  }
-  return providerConfigResolverInstance;
-}
-
-/** 设置 provider config resolver，允许 CLI / UI 注入自定义实现 */
-export function setProviderConfigResolver(resolver: ProviderConfigResolver): void {
-  providerConfigResolverInstance = resolver;
-}
-
 /** 配置 application runtime 的日志 sink 与表面。 */
 export function configureRuntimeLogging(sink: LogSink, surface: 'uxp'): void {
   runtimeLogger = createLogger({
@@ -861,11 +663,8 @@ export function _resetForTesting(): void {
   instance = null;
   registryInstance = null;
   providerAccountRepositoryInstance = null;
-  providerProfileRepositoryInstance = null;
-  userModelConfigRepositoryInstance = null;
-  modelGenerationPreferenceRepositoryInstance = null;
+  fixedProviderResolverInstance = null;
   secretStorageAdapterInstance = null;
-  providerConfigResolverInstance = null;
   jobHistoryStoreInstance = null;
   taskStoreInstance = null;
   assetStoreInstance = null;

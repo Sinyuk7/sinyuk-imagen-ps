@@ -102,7 +102,6 @@ export type {
   ProviderInvokeMetadata,
   ProviderInvokeResult,
   ProviderInvokeUsage,
-  ProviderProfileTemplate,
   ProviderModelInfo,
   ProviderModelMatchKind,
   ProviderOperation,
@@ -185,6 +184,13 @@ export {
   grsaiGenerateDescriptor,
 } from './providers/grsai/index.js';
 
+// RunningHub fixed catalog provider
+export {
+  runningHubGenerateConfigSchema,
+  createRunningHubGenerateProvider,
+  runningHubGenerateDescriptor,
+} from './providers/runninghub/index.js';
+
 // Bridge adapter
 export type {
   CreateProviderExecutionAdapterOptions,
@@ -198,8 +204,10 @@ export {
   PROVIDER_EXECUTION_ADAPTER_ID,
 } from './bridge/index.js';
 
-export type { CatalogChoiceOption, CatalogModel, CatalogParameter, FixedProviderId, ProviderCatalog } from './catalog.js';
-export { getProviderCatalog, listFixedProviders } from './catalog.js';
+export type { CatalogChoiceOption, CatalogModel, CatalogParameter, CatalogResolverOptions, CatalogRemoteSource, CatalogResolution, FixedProviderId, ProviderCatalog } from './catalog.js';
+export { getProviderCatalog, listFixedProviders, resolveProviderCatalog } from './catalog.js';
 export type { FixedGenerationRequest, FixedProviderResult } from './contract/fixed-generation.js';
 export type { FixedPreparedRequest } from './fixed-provider-adapters.js';
-export { prepareGrsaiRequest, prepareRunningHubRequest } from './fixed-provider-adapters.js';
+export { prepareFixedProviderRequest, prepareGrsaiRequest, prepareRunningHubRequest } from './fixed-provider-adapters.js';
+export type { CheckedProviderParameters } from './provider-parameter-checkers.js';
+export { canonicalRunningHubRatio, checkProviderParameters } from './provider-parameter-checkers.js';

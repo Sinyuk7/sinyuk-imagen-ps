@@ -13,6 +13,9 @@
 - 统一 provider adapter 的异步执行、错误、结果资源、历史、预览、下载和 Photoshop 放置流程。
 - 完全以返回图片的实际尺寸作为输出事实；不再要求输出矩阵或模型目录预先生成 Photoshop 几何合同。保留现有 PS 输入、Mask、放置和 ComfyUI workflow 处理边界。
 - 主页面只显示最小公共参数；更多 catalog 参数为后续高级面板预留，不在本变更中扩展成通用表单编辑器。
+- Provider 设置使用两个独立编辑页，共享 API key/base URL 基类表单；provider-specific 字段和校验留在对应页面与 adapter。
+- catalog 通过 resolver 加载，优先远程来源，远程失败或校验失败时回退到随发布物提供的本地 catalog；当前只实现本地来源和可替换接口。
+- UI 只传递 `providerId + modelId + 参数值集合`，provider-specific 参数检查和 wire 映射由对应 adapter 负责。
 
 ## Capabilities
 

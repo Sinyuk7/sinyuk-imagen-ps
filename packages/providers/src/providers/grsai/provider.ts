@@ -3,7 +3,7 @@ import type { Provider, ProviderAsyncLifecycle, ProviderInvokeArgs } from '../..
 import type { ProviderInvokeResult } from '../../contract/result.js';
 import { getPrimaryProviderEndpoint } from '../../contract/config.js';
 import { assembleApiUrl } from '../../contract/api-format.js';
-import { assertProviderModelExecution, resolveProviderResolvedOutput } from '../../contract/image-model-capability.js';
+import { resolveProviderResolvedOutput } from '../../contract/image-model-capability.js';
 import type { CanonicalImageJobRequest } from '../../contract/request.js';
 import { httpRequest } from '../../shared/transport/http.js';
 import { executeBillingProtocolChain } from '../../transport/billing/protocol-registry.js';
@@ -63,16 +63,17 @@ function safeResultAssets(data: unknown): readonly Asset[] {
 }
 
 function requestBody(request: CanonicalImageJobRequest) {
-  const model = assertProviderModelExecution({ execution: request.model, apiFormat: 'grsai' });
+  const modelId = request.modelId?.trim();
+  if (!modelId) throw new Error('GRSAI modelId is required.');
   const prompt = request.prompt.trim();
   if (!prompt) throw new Error('GRSAI prompt must not be empty.');
   const output = resolveProviderResolvedOutput({
-    providerId: 'grsai-generate', capabilityModelId: request.capabilityModelId ?? model.modelId,
+    providerId: 'grsai-generate', capabilityModelId: modelId,
     operation: request.operation, output: request.output, inputContext: request.inputContext,
   });
   if (output.kind !== 'grsai-generate') throw new Error('GRSAI output strategy mismatch.');
   return {
-    model: model.modelId,
+    model: modelId,
     prompt,
     ...(request.images?.length ? { images: request.images.map(imageReference) } : {}),
     ...(output.aspectRatio ? { aspectRatio: output.aspectRatio } : {}),

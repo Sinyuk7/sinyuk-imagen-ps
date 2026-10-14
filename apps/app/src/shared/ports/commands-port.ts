@@ -12,19 +12,9 @@ export interface CommandsPort {
   readonly listProviders: typeof commands.listProviders;
   readonly listProviderAccounts: typeof commands.listProviderAccounts;
   readonly saveProviderAccount: typeof commands.saveProviderAccount;
+  readonly getCatalogParameterPreference: typeof commands.getCatalogParameterPreference;
+  readonly saveCatalogParameterPreference: typeof commands.saveCatalogParameterPreference;
   readonly describeProvider: typeof commands.describeProvider;
-  readonly saveProviderSurfaceProfile: typeof commands.saveProviderSurfaceProfile;
-  readonly listProviderProfiles: typeof commands.listProviderProfiles;
-  readonly getProviderProfile: typeof commands.getProviderProfile;
-  readonly deleteProviderProfile: typeof commands.deleteProviderProfile;
-  readonly getProfileBillingState: typeof commands.getProfileBillingState;
-  readonly refreshProfileBalance: typeof commands.refreshProfileBalance;
-  readonly testProviderProfile: typeof commands.testProviderProfile;
-  readonly testProviderProfileConnection: typeof commands.testProviderProfileConnection;
-  readonly getModelGenerationSettings: typeof commands.getModelGenerationSettings;
-  readonly saveModelGenerationPreference: typeof commands.saveModelGenerationPreference;
-  readonly deleteModelGenerationPreference: typeof commands.deleteModelGenerationPreference;
-  readonly listProfileModels: typeof commands.listProfileModels;
 }
 
 export function createCommandsAdapter(): CommandsPort {
@@ -40,18 +30,8 @@ export function createCommandsAdapter(): CommandsPort {
     listProviders: commands.listProviders,
     listProviderAccounts: commands.listProviderAccounts,
     saveProviderAccount: commands.saveProviderAccount,
+    getCatalogParameterPreference: commands.getCatalogParameterPreference,
+    saveCatalogParameterPreference: commands.saveCatalogParameterPreference,
     describeProvider: commands.describeProvider,
-    saveProviderSurfaceProfile: commands.saveProviderSurfaceProfile,
-    listProviderProfiles: commands.listProviderProfiles,
-    getProviderProfile: commands.getProviderProfile,
-    deleteProviderProfile: commands.deleteProviderProfile,
-    getProfileBillingState: commands.getProfileBillingState,
-    refreshProfileBalance: commands.refreshProfileBalance,
-    testProviderProfile: commands.testProviderProfile,
-    testProviderProfileConnection: commands.testProviderProfileConnection,
-    getModelGenerationSettings: commands.getModelGenerationSettings,
-    saveModelGenerationPreference: commands.saveModelGenerationPreference,
-    deleteModelGenerationPreference: commands.deleteModelGenerationPreference,
-    listProfileModels: commands.listProfileModels,
   };
 }

@@ -1,10 +1,10 @@
+import type { ImageOutputSelection } from '@imagen-ps/providers';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   ApiFormat,
   ComfyUiExecutionMaskInput,
   ComfyUiGenerationPayload,
   ComfyUiMaskBinding,
-  ImageOutputSelection,
   JobError,
   JobSessionSnapshot,
   TaskRecord,
@@ -67,7 +67,7 @@ export interface ConversationRound {
   readonly backendId?: 'provider' | 'comfyui';
   readonly workflowId?: string;
   readonly apiFormat?: ApiFormat;
-  readonly providerId?: string;
+  readonly providerId?: 'grsai' | 'runninghub' | 'mock';
   readonly elapsedSeconds: number;
   readonly elapsedLabel?: string;
   readonly errorMessage?: string;
@@ -76,7 +76,7 @@ export interface ConversationRound {
   readonly queuePosition?: number;
   readonly queueState?: 'queued' | 'starting';
   readonly removable?: boolean;
-  readonly profileId?: string;
+
   readonly modelId?: string;
   readonly previews: readonly AssetPreview[];
   readonly attachments: readonly ConversationAttachment[];
@@ -99,12 +99,13 @@ interface SubmitConversationInputBase {
 
 export interface SubmitProviderConversationInput extends SubmitConversationInputBase {
   readonly backendId?: 'provider';
-  readonly profileId: string;
-  readonly providerId?: string;
+  readonly providerId: 'grsai' | 'runninghub';
   readonly apiFormat?: ApiFormat;
   readonly modelId?: string;
   readonly output?: AppGenerationSettingsOutput;
   readonly providerInputSizePreset?: AppProviderInputSizePreset;
+  /** 当前固定 provider/model 的 catalog 参数集合。 */
+  readonly parameters?: Readonly<Record<string, string>>;
 }
 
 export interface SubmitComfyUiConversationInput extends SubmitConversationInputBase {
@@ -665,7 +666,7 @@ export function useConversation(
           backendId: input.backendId ?? 'provider',
           ...(providerInput?.apiFormat ? { apiFormat: providerInput.apiFormat } : {}),
           ...(providerInput?.providerId ? { providerId: providerInput.providerId } : {}),
-          ...(providerInput ? { profileId: providerInput.profileId } : {}),
+          ...(providerInput ? { providerId: providerInput.providerId } : {}),
           ...(providerInput?.modelId ? { modelId: providerInput.modelId } : {}),
           ...(input.backendId === 'comfyui' ? {
             workflowId: input.selectedWorkflowId,
@@ -737,7 +738,7 @@ export function useConversation(
             placementIntent,
             execution: {
               backend: { id: 'provider', label: 'Provider' },
-              connection: { id: providerInput.profileId, label: input.providerName },
+              connection: { id: providerInput.providerId, label: input.providerName },
               ...(providerInput.modelId ? { target: { id: providerInput.modelId, label: providerInput.modelId } } : {}),
             },
             createdAt,
@@ -766,6 +767,9 @@ export function useConversation(
             : undefined;
           const request = {
             prompt,
+            ...(providerInput.providerId ? { providerId: providerInput.providerId } : {}),
+            ...(providerInput.modelId ? { modelId: providerInput.modelId } : {}),
+            ...(providerInput.parameters ? { parameters: providerInput.parameters } : {}),
             ...(output ? { output } : {}),
             ...(inputContext ? { inputContext } : {}),
             ...(providerOptions ? { providerOptions } : {}),
@@ -778,7 +782,7 @@ export function useConversation(
             taskId: roundId,
             backendId: 'provider',
             payload: {
-              profileId: providerInput.profileId,
+              providerId: providerInput.providerId,
               operation: input.operation === 'image-edit' ? 'image_edit' : 'text_to_image',
               request,
               runningTask: taskRecord,
@@ -833,13 +837,12 @@ export function useConversation(
           });
           return;
         }
-        if (round?.status === 'ok' && round.profileId) {
+        if (round?.status === 'ok' && round.providerId) {
           await submit({
             operation: round.attachments.length > 0 ? 'image-edit' : 'text-to-image',
             prompt: round.prompt,
-            profileId: round.profileId,
+            providerId: round.providerId === 'runninghub' ? 'runninghub' : 'grsai',
             ...(round.apiFormat ? { apiFormat: round.apiFormat } : {}),
-            ...(round.providerId ? { providerId: round.providerId } : {}),
             providerName: round.providerName,
             ...(round.modelId ? { modelId: round.modelId } : {}),
             attachments: round.attachments,

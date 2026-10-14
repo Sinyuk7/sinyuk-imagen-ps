@@ -1,5 +1,4 @@
-import type { ApiFormat, Asset, Job, JobError, ProviderProfile } from '@imagen-ps/application';
-import type { ProfileBillingState } from '@imagen-ps/application';
+import type { Asset, Job, JobError } from '@imagen-ps/application';
 import { transparencyStateFromAsset, type ImageTransparencyState } from '../image/image-transparency';
 import {
   createImagePreviewFallback,
@@ -15,18 +14,7 @@ export interface AssetPreview {
   readonly fallback?: ImagePreviewFallback;
 }
 
-export interface ProviderRowVM {
-  readonly profileId: string;
-  readonly apiFormat: ApiFormat;
-  readonly displayName: string;
-  readonly apiFormatLabel: string;
-}
 
-export interface BillingPrimaryParts {
-  readonly primary: string;
-  readonly unit?: string;
-  readonly secondary?: string;
-}
 
 interface ProviderInvokeResultLike {
   readonly assets?: readonly Asset[];
@@ -224,29 +212,6 @@ export function outputText(output: unknown): string | undefined {
   return text.length > 0 ? text : undefined;
 }
 
-export function profileToProviderRow(profile: ProviderProfile): ProviderRowVM {
-  return {
-    profileId: profile.profileId,
-    apiFormat: profile.apiFormat,
-    displayName: profile.displayName,
-    apiFormatLabel: formatApiFormat(profile.apiFormat),
-  };
-}
-
-function formatApiFormat(apiFormat: ApiFormat): string {
-  switch (apiFormat) {
-    case 'openai-images':
-      return 'OpenAI Images';
-    case 'gemini-generate-content':
-      return 'Gemini GenerateContent';
-    case 'grsai':
-      return 'GRSAI Generate';
-  }
-
-  const exhaustive: never = apiFormat;
-  return exhaustive;
-}
-
 function trimTrailingZeros(value: string): string {
   return value.includes('.') ? value.replace(/\.?0+$/, '') : value;
 }
@@ -276,60 +241,4 @@ export function formatCompactMetric(value: string | undefined): string | undefin
     return `${trimTrailingZeros(scaled.toFixed(decimals))}${unit.suffix}`;
   }
   return normalized;
-}
-
-export function formatBillingPrimary(billing: ProfileBillingState | null | undefined): string | undefined {
-  const parts = formatBillingPrimaryParts(billing);
-  if (!parts) {
-    return undefined;
-  }
-  const head = parts.unit ? `${parts.primary} ${parts.unit}` : parts.primary;
-  return parts.secondary ? `${head} · ${parts.secondary}` : head;
-}
-
-export function formatBillingPrimaryParts(billing: ProfileBillingState | null | undefined): BillingPrimaryParts | undefined {
-  const primary = billing?.balance?.snapshot.primary;
-  if (!primary) {
-    return undefined;
-  }
-  if (primary.kind === 'money') {
-    return {
-      primary: primary.remaining,
-      unit: primary.currency,
-    };
-  }
-  const remaining = formatCompactMetric(primary.remaining);
-  const percent = typeof primary.usedPercent === 'number' ? `${Math.round(primary.usedPercent)}% used` : undefined;
-  const unit = primary.unit ?? 'quota';
-  if (remaining) {
-    return {
-      primary: remaining,
-      unit,
-      ...(percent ? { secondary: percent } : {}),
-    };
-  }
-  if (percent) {
-    return {
-      primary: percent,
-    };
-  }
-  return {
-    primary: unit,
-  };
-}
-
-export function formatExactTaskCost(cost: ProfileBillingState['lastExactTaskCost']): string | undefined {
-  if (!cost) {
-    return undefined;
-  }
-  const label = `${trimTrailingZeros(cost.amount)} ${cost.currency}`;
-  return cost.completeness === 'partial' ? `${label} (partial)` : label;
-}
-
-export function formatBalanceChange(change: ProfileBillingState['lastBalanceChange']): string | undefined {
-  if (!change) {
-    return undefined;
-  }
-  const prefix = change.direction === 'decreased' ? '-' : '+';
-  return `${prefix}${trimTrailingZeros(change.amount)} ${change.unit}`;
 }

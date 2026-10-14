@@ -5,50 +5,10 @@
  */
 
 import type { DurableJobRecord, JobError, JobEvent, JobStatus, StoredAssetRef } from '@imagen-ps/core-engine';
-import type {
-  ApiFormat,
-  FixedProviderId,
-  BillingProtocolId,
-  BalanceChange,
-  ExactTaskCost,
-  ImageAspectRatio,
-  ImageOutputSelection,
-  ImageOperation,
-  ImageOutputFormat,
-  ImageOutputImageSize,
-  ImageOutputMatrix,
-  ImageOutputMatrixCell,
-  UserModelOutputExposure,
-  ProviderBalanceSnapshot,
-  ProviderDescriptor as _ProviderDescriptor,
-  ProviderConfig as _ProviderConfig,
-} from '@imagen-ps/providers';
+import type { FixedProviderId } from '@imagen-ps/providers';
 
 // Re-export provider types for commands layer consumers
-export type {
-  ApiFormat,
-  FixedProviderId,
-  EndpointClassification,
-  ProviderDescriptor,
-  ProviderConfig,
-  ProviderModelInfo,
-  ModelBrand,
-  ImageAspectRatio,
-  ImageOperation,
-  ImageOutputFormat,
-  ImageOutputSelection,
-  ImageOutputSizeOptionId,
-  ImageOutputImageSize,
-  ImageOutputMatrix,
-  ImageOutputMatrixCell,
-  OfficialModelPreset,
-  ProviderModelExecution,
-  ProviderResolvedOutput,
-  UserModelOutputExposure,
-  RequestStrategy,
-  RequestStrategyId,
-} from '@imagen-ps/providers';
-export type { BalanceChange, ExactTaskCost, ProviderBalanceSnapshot } from '@imagen-ps/providers';
+export type { FixedProviderId, ProviderDescriptor, ProviderConfig, ProviderModelInfo, ModelBrand, ProviderModelExecution, EndpointClassification } from '@imagen-ps/providers';
 export type {
   Asset,
   DurableJobRecord,
@@ -80,7 +40,6 @@ export type {
 } from '../task.js';
 
 // 为本模块内部使用引入类型别名
-type ProviderConfig = _ProviderConfig;
 
 /**
  * 命令执行结果的统一 Result 包装。
@@ -95,77 +54,13 @@ export type CommandResult<T> =
 /** Job lifecycle 事件处理器，接收所有事件类型 */
 export type JobEventHandler = (event: JobEvent) => void;
 
-/** JSON primitive supported by profile non-secret config. */
-export type ProviderProfileConfigValue =
-  | string
-  | number
-  | boolean
-  | null
-  | readonly ProviderProfileConfigValue[]
-  | { readonly [key: string]: ProviderProfileConfigValue };
-
-/**
- * Non-secret API-format-specific provider profile config.
- *
- * This object MAY include values such as connection, defaultModel, timeoutMs,
- * and extraHeaders. It MUST NOT include secret values such as
- * apiKey, accessToken, refreshToken, or vendor credentials. ProviderConfig.apiKey
- * should be stored via secretRefs.apiKey with the secret
- * value stored via SecretStorageAdapter.
- */
-export type ProviderProfileConfig = Readonly<Record<string, ProviderProfileConfigValue>>;
-
-/** Profile 创建流程内部状态；产品表面只公开 `ready`。 */
-export type ProviderProfileLifecycle = 'setup' | 'ready';
-
-/**
- * Sanitized persisted provider profile. Returned commands MUST NOT include secret values.
- *
- * Profile 只保存 provider 连接与凭据引用；模型 ownership 由
- * profile-owned `UserModelConfig` 决定，当前选择由 UI/runtime 持有。
- */
-export interface ProviderProfile {
-  readonly profileId: string;
-  readonly apiFormat: ApiFormat;
-  readonly displayName: string;
-  readonly systemInstruction?: string;
-  /** `setup` 仅允许创建流程按 id 读取，不能进入公开 Profile 投影。 */
-  readonly lifecycle: ProviderProfileLifecycle;
-  readonly config: ProviderProfileConfig;
-  readonly secretRefs?: Readonly<Record<string, string>>;
-  readonly createdAt: string;
-  readonly updatedAt: string;
-}
-
-/**
- * Input for saving a provider profile.
- *
- * This is an upsert-style input: create may provide full fields, update may
- * provide partial fields and rely on existing profile state.
- *
- * secretValues are write-only command input. They are persisted through
- * SecretStorageAdapter and must never be returned by profile-facing commands.
- *
- * NOTE: 本类型 MUST NOT 声明 discovery cache 或独立模型 membership 字段。
- */
-export interface ProviderProfileInput {
-  readonly profileId: string;
-  readonly apiFormat?: ApiFormat;
-  readonly displayName?: string;
-  readonly systemInstruction?: string;
-  readonly config?: ProviderProfileConfig;
-  readonly secretRefs?: Readonly<Record<string, string>>;
-  readonly secretValues?: Readonly<Record<string, string>>;
-  /** 显式移除已保存 secret；未列出的空输入继续表示保留原 secret。 */
-  readonly removedSecretNames?: readonly string[];
-}
-
-/** Host-injected repository for persisted, sanitized provider profiles. */
 /** 固定 provider 的单账号凭据引用。 */
 export interface ProviderAccount {
   readonly providerId: FixedProviderId;
   readonly displayName: string;
   readonly secretRef?: string;
+  /** 可选账号地址；未设置时使用 catalog 地址。 */
+  readonly baseUrl?: string;
   readonly updatedAt: string;
 }
 
@@ -177,103 +72,19 @@ export interface ProviderAccountRepository {
   delete(providerId: FixedProviderId): Promise<void>;
 }
 
-export interface ProviderProfileRepository {
-  list(): Promise<readonly ProviderProfile[]>;
-  get(profileId: string): Promise<ProviderProfile | undefined>;
-  save(profile: ProviderProfile): Promise<void>;
-  delete(profileId: string): Promise<void>;
-}
-
-export interface ModelGenerationPreferenceKey {
-  readonly profileId: string;
-  readonly apiFormat: ApiFormat;
+/** 固定 provider/model 的 catalog 参数偏好。 */
+export interface CatalogParameterPreference {
+  readonly providerId: FixedProviderId;
   readonly modelId: string;
-  readonly operation: ImageOperation;
+  readonly values: Readonly<Record<string, string>>;
+  readonly updatedAt: string;
 }
 
-export interface ModelGenerationPreference extends ModelGenerationPreferenceKey {
-  readonly selection: ImageOutputSelection;
-}
-
-export type SaveModelGenerationPreferenceInput = ModelGenerationPreference;
-
-export interface ModelGenerationPreferenceSelection {
-  readonly selection: ImageOutputSelection;
-  readonly effectiveSelection: ImageOutputSelection;
-  readonly imageSize: ImageOutputImageSize;
-  readonly ratio: ImageAspectRatio;
-  readonly outputFormat: ImageOutputFormat;
-  readonly normalized: boolean;
-}
-
-export interface ModelGenerationSettings {
-  readonly key: ModelGenerationPreferenceKey;
-  readonly matrix: ImageOutputMatrix;
-  readonly preference: ModelGenerationPreference | null;
-  readonly selection: ModelGenerationPreferenceSelection;
-  readonly cell: ImageOutputMatrixCell;
-  /** 当前 operation 无保存偏好时，从 text-to-image 投影出的临时选择。 */
-  readonly source: 'preference' | 'inherited' | 'default';
-}
-
-/** Host-injected repository for model-scoped generation output preferences. */
-export interface ModelGenerationPreferenceRepository {
-  get(key: ModelGenerationPreferenceKey): Promise<ModelGenerationPreference | undefined>;
-  save(preference: ModelGenerationPreference): Promise<void>;
-  delete(key: ModelGenerationPreferenceKey): Promise<void>;
-}
-
-export interface UserModelConfig {
-  readonly profileId: string;
-  readonly apiFormat: ApiFormat;
-  readonly modelId: string;
-  readonly baseModelId: string;
-  readonly wireModelId: string;
-  readonly requestStrategyId: string;
-  readonly outputExposure: UserModelOutputExposure;
-  /** 由 `outputExposure` 派生的运行时投影；不是用户编辑的能力真相。 */
-  readonly outputMatrix: readonly ImageOutputMatrix[];
-}
-
-export interface SaveUserModelConfigInput {
-  readonly profileId: string;
-  readonly apiFormat: ApiFormat;
-  readonly modelId: string;
-  readonly baseModelId: string;
-  readonly wireModelId: string;
-  readonly requestStrategyId: string;
-  readonly outputExposure: UserModelOutputExposure;
-}
-
-/** Host-injected repository for user-owned model configs. */
-export interface UserModelConfigRepository {
-  list(profileId: string): Promise<readonly UserModelConfig[]>;
-  get(profileId: string, modelId: string): Promise<UserModelConfig | undefined>;
-  save(config: UserModelConfig): Promise<void>;
-  /** 原子初始化一个 setup Profile 的全部默认模型；失败时不得留下部分数据。 */
-  initializeProfile(profileId: string, configs: readonly UserModelConfig[]): Promise<void>;
-  /** 仅在删除后仍保留至少一个 model config 时删除。 */
-  deleteUnlessLast(profileId: string, modelId: string): Promise<boolean>;
-  deleteProfile(profileId: string): Promise<void>;
-}
-
-/** 固定 Provider 模型原子初始化完成后的唯一结果。 */
-export interface ProviderProfileSetupOutcome {
-  readonly kind: 'ready';
-  readonly profile: ProviderProfile;
-}
-
-export interface ContinueProviderProfileSetupInput {
-  readonly profile: ProviderProfileInput;
-}
-
-export interface ProfileModelItem {
-  readonly modelId: string;
-  readonly displayName?: string;
-  readonly wireModelId?: string;
-  readonly discovered: false;
-  readonly configured: true;
-  readonly configSource?: 'user' | 'catalog';
+/** Host 注入的 catalog 参数偏好仓库。 */
+export interface CatalogParameterPreferenceRepository {
+  get(providerId: FixedProviderId, modelId: string): Promise<CatalogParameterPreference | undefined>;
+  save(preference: CatalogParameterPreference): Promise<void>;
+  delete(providerId: FixedProviderId, modelId: string): Promise<void>;
 }
 
 /** Host-injected storage for secret values. Implementations must not log values. */
@@ -301,147 +112,4 @@ export interface AssetStore {
 /** Minimal abstraction for resolving a single secret reference. */
 export interface SecretResolver {
   resolveSecret(ref: string): Promise<string | undefined>;
-}
-
-/** Runtime config resolved for a single dispatch/validation scope. */
-export interface ResolvedProviderConfig {
-  readonly profileId: string;
-  readonly apiFormat: ApiFormat;
-  readonly implementationId: string;
-  readonly providerConfig: ProviderConfig;
-}
-
-/** Resolves a persisted profile plus secrets into provider-validated runtime config. */
-export interface ProviderConfigResolver {
-  resolve(profileId: string): Promise<ResolvedProviderConfig>;
-}
-
-export interface DeleteProviderProfileOptions {
-  readonly retainSecrets?: boolean;
-}
-
-/** `testProviderProfile` 的分层开关。 */
-export interface TestProviderProfileOptions {
-  /** Profile-owned configured model required by connect/generate checks. */
-  readonly modelId?: string;
-  /** 跑无生成连接验证（不花钱）。 */
-  readonly connect?: boolean;
-  /** 跑最小 text_to_image 烟雾测试（花钱，需 connect 成功）。 */
-  readonly generate?: boolean;
-}
-
-export type ConnectionTestStatus = 'verified' | 'partial' | 'failed';
-
-export interface ProviderProfileTestResult {
-  readonly profileId: string;
-  readonly apiFormat: ApiFormat;
-  readonly valid: true;
-  /** Layer 2：connect 测试结果，仅在 options.connect 时存在。 */
-  readonly connectivity?: {
-    readonly status: ConnectionTestStatus;
-    /** 无生成连接验证的安全摘要。 */
-    readonly message?: string;
-  };
-  /** Layer 3：generate 烟雾测试结果，仅在 options.generate 且 connect 成功时存在。 */
-  readonly smokeTest?: {
-    readonly passed: boolean;
-    readonly assetCount?: number;
-    readonly modelUsed?: string;
-  };
-}
-
-export type EndpointMeasurementFailureKind =
-  | 'dns'
-  | 'connect'
-  | 'timeout'
-  | 'auth'
-  | 'rate-limit'
-  | 'invalid-response'
-  | 'unsupported'
-  | 'unknown';
-
-export interface EndpointMeasurementResult {
-  readonly endpointId: string;
-  readonly status: 'success' | 'failed';
-  readonly latencyMs?: number;
-  readonly checkedAt: number;
-  readonly failureKind?: EndpointMeasurementFailureKind;
-  readonly httpStatus?: number;
-  readonly errorMessage?: string;
-}
-
-export interface MeasureProfileEndpointsInput {
-  readonly profileId?: string;
-  readonly apiFormat?: ApiFormat;
-  readonly displayName?: string;
-  readonly config: ProviderProfileConfig;
-  readonly secretRefs?: Readonly<Record<string, string>>;
-  readonly secretValues?: Readonly<Record<string, string>>;
-  /** 测试草稿时排除这些已保存 secret。 */
-  readonly removedSecretNames?: readonly string[];
-  /** Auto 模式下稳定 tie-breaker 的当前 resolved endpoint。 */
-  readonly currentResolvedEndpointId?: string;
-  readonly signal?: AbortSignal;
-  readonly timeoutMs?: number;
-  readonly maxConcurrency?: number;
-}
-
-export interface ProviderProfileConnectionTestResult {
-  readonly status: ConnectionTestStatus;
-  readonly message?: string;
-}
-
-export interface TestProviderProfileConnectionInput {
-  readonly profileId?: string;
-  readonly apiFormat?: ApiFormat;
-  readonly displayName?: string;
-  readonly config: ProviderProfileConfig;
-  /** UI/runtime 当前选择；不是 persisted profile state。 */
-  readonly modelId?: string;
-  readonly secretRefs?: Readonly<Record<string, string>>;
-  readonly secretValues?: Readonly<Record<string, string>>;
-  readonly removedSecretNames?: readonly string[];
-}
-
-export interface ProfileBalanceResult {
-  readonly apiFormat: ApiFormat;
-  readonly profileId: string;
-  readonly checkedAt: number;
-  readonly snapshot: ProviderBalanceSnapshot;
-  readonly protocolId?: BillingProtocolId;
-}
-
-export interface ProfileBillingState {
-  readonly balance?: ProfileBalanceResult;
-  readonly lastExactTaskCost?: ExactTaskCost;
-  readonly lastExactTaskCostObservedAt?: number;
-  readonly lastBalanceChange?: BalanceChange;
-  readonly lastBalanceChangeObservedAt?: number;
-  readonly refreshState: 'idle' | 'refreshing' | 'error';
-}
-
-export interface RefreshProfileBalanceInput {
-  readonly profileId: string;
-  readonly signal?: AbortSignal;
-}
-
-export interface RefreshProfileBalanceResult extends ProfileBalanceResult {
-  readonly state: ProfileBillingState;
-}
-
-export interface MeasureProfileEndpointsResult {
-  readonly supported: boolean;
-  readonly results: readonly EndpointMeasurementResult[];
-  readonly resolvedEndpointId?: string;
-  readonly message?: string;
-}
-
-export interface RefreshDraftProfileModelsInput {
-  readonly profileId?: string;
-  readonly apiFormat?: ApiFormat;
-  readonly displayName?: string;
-  readonly config: ProviderProfileConfig;
-  readonly secretRefs?: Readonly<Record<string, string>>;
-  readonly secretValues?: Readonly<Record<string, string>>;
-  readonly removedSecretNames?: readonly string[];
 }

@@ -35,6 +35,23 @@ export interface ProviderCatalog {
   readonly models: readonly CatalogModel[];
 }
 
+/** catalog 来源及回退诊断。 */
+export interface CatalogResolution {
+  readonly catalog: ProviderCatalog;
+  readonly source: 'remote' | 'local';
+  readonly fallbackReason?: string;
+}
+
+/** 可替换的远程 catalog 来源。 */
+export interface CatalogRemoteSource {
+  readonly load: (providerId: FixedProviderId) => Promise<unknown>;
+}
+
+/** catalog resolver 依赖。 */
+export interface CatalogResolverOptions {
+  readonly remote?: CatalogRemoteSource;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -84,3 +101,17 @@ const CATALOGS: Readonly<Record<FixedProviderId, ProviderCatalog>> = Object.free
 export function getProviderCatalog(providerId: FixedProviderId): ProviderCatalog { return CATALOGS[providerId]; }
 /** 列出固定 provider。 */
 export function listFixedProviders(): readonly FixedProviderId[] { return ['grsai', 'runninghub']; }
+
+/** 优先远程读取并校验，失败时回退到发布物内置 catalog。 */
+export async function resolveProviderCatalog(providerId: FixedProviderId, options: CatalogResolverOptions = {}): Promise<CatalogResolution> {
+  if (options.remote) {
+    try {
+      const remote = parseCatalog(await options.remote.load(providerId));
+      if (remote.providerId !== providerId) throw new Error(`Remote catalog providerId mismatch: ${remote.providerId}.`);
+      return { catalog: remote, source: 'remote' };
+    } catch (error) {
+      return { catalog: getProviderCatalog(providerId), source: 'local', fallbackReason: error instanceof Error ? error.message : String(error) };
+    }
+  }
+  return { catalog: getProviderCatalog(providerId), source: 'local' };
+}

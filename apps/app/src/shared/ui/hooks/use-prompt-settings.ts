@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { ProviderProfile } from '@imagen-ps/application';
+type PromptProvider = { readonly providerId: string; readonly displayName: string };
 import type { AppServices } from '../../ports/app-services';
 import {
   createDefaultPromptSettings,
@@ -10,7 +10,7 @@ import {
 } from '../../ports/prompt-settings';
 
 export type PromptSettingsSaveState = 'idle' | 'saving' | 'saved' | 'error';
-export type PromptOptimizationActivationState = 'active' | 'no-profile' | 'invalid-template' | 'missing-profile';
+export type PromptOptimizationActivationState = 'active' | 'no-provider' | 'invalid-template' | 'missing-provider';
 export type PromptPresetEffectState = 'none' | 'active' | 'invalid-content';
 
 export interface PromptPresetView {
@@ -22,7 +22,7 @@ export interface PromptPresetView {
 
 export interface PromptSettingsState {
   readonly settings: PromptSettings;
-  readonly profiles: readonly ProviderProfile[];
+  readonly providers: readonly PromptProvider[];
   readonly loading: boolean;
   readonly error: string | null;
   readonly saveState: PromptSettingsSaveState;
@@ -36,10 +36,6 @@ export interface PromptSettingsState {
   readonly upsertPreset: (preset: PromptPreset) => Promise<void>;
   readonly deletePreset: (presetId: string) => Promise<void>;
   readonly reload: () => Promise<void>;
-}
-
-function commandMessage(error: { readonly category: string; readonly message: string }): string {
-  return `${error.category}: ${error.message}`;
 }
 
 export function countPromptPlaceholders(template: string): number {
@@ -56,17 +52,17 @@ export function promptPresetContentValid(mode: PromptPresetMode, content: string
 
 export function derivePromptOptimizationActivationState(
   settings: PromptSettings,
-  profiles: readonly ProviderProfile[],
+  providers: readonly PromptProvider[],
 ): PromptOptimizationActivationState {
   if (!hasExactlyOnePromptPlaceholder(settings.optimization.template)) {
     return 'invalid-template';
   }
-  if (settings.optimization.profileId === null) {
-    return 'no-profile';
+  if (settings.optimization.providerId === null) {
+    return 'no-provider';
   }
-  return profiles.some((profile) => profile.profileId === settings.optimization.profileId)
+  return providers.some((provider) => provider.providerId === settings.optimization.providerId)
     ? 'active'
-    : 'missing-profile';
+    : 'missing-provider';
 }
 
 function createPresetId(): string {
@@ -87,7 +83,7 @@ export function createPromptPresetDraft(): PromptPreset {
 
 export function usePromptSettings(services: AppServices): PromptSettingsState {
   const [settings, setSettings] = useState<PromptSettings>(createDefaultPromptSettings);
-  const [profiles, setProfiles] = useState<readonly ProviderProfile[]>([]);
+  const [providers, setProviders] = useState<readonly PromptProvider[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<PromptSettingsSaveState>('idle');
@@ -123,22 +119,18 @@ export function usePromptSettings(services: AppServices): PromptSettingsState {
         await services.promptSettings.save(root);
       }
 
-      const profileResult = await services.commands.listProviderProfiles();
-      if (!profileResult.ok) {
-        throw new Error(commandMessage(profileResult.error));
-      }
-      const nextProfiles = profileResult.value;
-      setProfiles(nextProfiles);
+      const nextProviders = ([{ providerId: 'grsai', displayName: 'GRSAI' }, { providerId: 'runninghub', displayName: 'RunningHub' }] );
+      setProviders(nextProviders);
       settingsRef.current = root;
       setSettings(root);
       setError(null);
       setSaveState('idle');
 
-      const profileId = root.optimization.profileId;
-      if (profileId !== null && !nextProfiles.some((profile) => profile.profileId === profileId)) {
+      const providerId = root.optimization.providerId;
+      if (providerId !== null && !nextProviders.some((provider: any) => provider.providerId === providerId)) {
         const repaired = {
           ...root,
-          optimization: { ...root.optimization, profileId: null },
+          optimization: { ...root.optimization, providerId: null },
         };
         window.setTimeout(() => {
           void services.promptSettings.save(repaired)
@@ -165,7 +157,7 @@ export function usePromptSettings(services: AppServices): PromptSettingsState {
   }, [reload]);
 
   const templateValid = hasExactlyOnePromptPlaceholder(settings.optimization.template);
-  const activationState = derivePromptOptimizationActivationState(settings, profiles);
+  const activationState = derivePromptOptimizationActivationState(settings, providers);
   const selectedPreset = settings.presets.items.find((preset) => preset.id === settings.presets.selectedId) ?? null;
   const presetViews = useMemo(() => settings.presets.items.map((preset) => {
     const selected = preset.id === settings.presets.selectedId;
@@ -221,8 +213,8 @@ export function usePromptSettings(services: AppServices): PromptSettingsState {
   }, [persist]);
 
   return {
+    providers,
     settings,
-    profiles,
     loading,
     error,
     saveState,

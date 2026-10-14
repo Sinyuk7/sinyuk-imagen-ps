@@ -27,6 +27,8 @@ export interface HttpRequest {
 
   /** 单次请求超时毫秒。 */
   readonly timeoutMs?: number;
+  /** 返回二进制响应，供 provider 结果 materialization 使用。 */
+  readonly responseType?: 'json' | 'bytes';
 }
 
 export interface HttpResponse {
@@ -249,7 +251,7 @@ async function fetchOnce(
     readonly kind: DispatchAttemptKind;
   },
 ): Promise<HttpResponse> {
-  const { url, method, headers, body, timeoutMs } = args;
+  const { url, method, headers, body, timeoutMs, responseType } = args;
 
   const timeoutSignal = createTimeoutSignal(timeoutMs);
   const mergedSignal = mergeAbortSignals(signal, timeoutSignal?.signal);
@@ -296,7 +298,10 @@ async function fetchOnce(
     let parsedResponseKind: ParsedResponseKind;
     const contentType = response.headers.get('content-type') ?? '';
 
-    if (contentType.includes('application/json')) {
+    if (responseType === 'bytes') {
+      data = new Uint8Array(await response.arrayBuffer());
+      parsedResponseKind = 'text';
+    } else if (contentType.includes('application/json')) {
       try {
         data = await response.json();
         parsedResponseKind = 'json';

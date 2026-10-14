@@ -1,6 +1,6 @@
 import type { Logger } from '@imagen-ps/foundation';
 import type { ProviderFamily, ProviderOperation } from './capability.js';
-import type { ApiFormat, ApiFormatPaths, AuthMode } from './api-format.js';
+import type { ApiFormat } from './api-format.js';
 import type {
   ExactTaskCost,
   ProviderBalanceQueryInput,
@@ -49,9 +49,6 @@ export interface ProviderDescriptor {
   /** 创建 Profile 时一次性写入的完整默认模型模板；空数组保留手动配置路径。 */
   readonly defaultModelTemplates: readonly ProviderDefaultModelTemplate[];
 
-  /** 创建 Profile 时使用的固定、无 secret 配置模板。 */
-  readonly profileTemplate?: ProviderProfileTemplate;
-
   /**
    * 传输层能力与付费重试策略（OPTIONAL）。
    *
@@ -66,18 +63,6 @@ export interface ProviderDescriptor {
 
   /** 设置页连通性能力声明（OPTIONAL）。 */
   readonly connectivity?: ProviderSettingsConnectivityCapability;
-}
-
-/** Provider 为专用 Profile surface 声明的固定、无 secret 配置。 */
-export interface ProviderProfileTemplate {
-  /** 固定 endpoint base URL。 */
-  readonly endpointUrl: string;
-  /** 固定 API paths。 */
-  readonly paths: ApiFormatPaths;
-  /** 固定鉴权模式。 */
-  readonly authMode: AuthMode;
-  /** 新 Profile 的显式默认模型。 */
-  readonly defaultModelId: string;
 }
 
 /** Provider 为新 Profile 声明的完整本地默认模型数据。 */

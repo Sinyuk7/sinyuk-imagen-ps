@@ -1,272 +1,60 @@
 import type {
-  ImageOutputMatrix,
-  ModelGenerationPreference,
-  ModelGenerationPreferenceRepository,
-  UserModelConfig,
-  UserModelConfigRepository,
+  CatalogParameterPreference,
+  CatalogParameterPreferenceRepository,
+  ProviderAccount,
+  ProviderAccountRepository,
 } from '@imagen-ps/application';
-import {
-  createInMemoryModelGenerationPreferenceRepository,
-  createInMemoryUserModelConfigRepository,
-} from './in-memory-host-storage';
 import type { UxpModules } from './uxp-api';
 
 interface UxpFile {
   read(options?: { readonly format?: unknown }): Promise<string | ArrayBuffer>;
   write(data: string | ArrayBuffer, options?: { readonly format?: unknown }): Promise<void>;
 }
-
-interface UxpFolder {
-  getEntry(name: string): Promise<UxpFile>;
-  createFile(name: string, options?: { readonly overwrite?: boolean }): Promise<UxpFile>;
-}
-
-interface UxpLocalFileSystem {
-  readonly formats?: {
-    readonly utf8?: unknown;
-  };
-  getDataFolder(): Promise<UxpFolder>;
-}
+interface UxpFolder { getEntry(name: string): Promise<UxpFile>; createFile(name: string, options?: { readonly overwrite?: boolean }): Promise<UxpFile>; }
+interface UxpLocalFileSystem { readonly formats?: { readonly utf8?: unknown }; getDataFolder(): Promise<UxpFolder>; }
 
 function localFileSystemFrom(modules: UxpModules): UxpLocalFileSystem | undefined {
-  const storage = modules.uxp?.storage as { readonly localFileSystem?: UxpLocalFileSystem } | undefined;
-  return storage?.localFileSystem;
+  return (modules.uxp?.storage as { readonly localFileSystem?: UxpLocalFileSystem } | undefined)?.localFileSystem;
 }
-
 async function getOrCreateJsonFile(fs: UxpLocalFileSystem, name: string): Promise<UxpFile> {
   const folder = await fs.getDataFolder();
-  try {
-    return await folder.getEntry(name);
-  } catch {
-    return folder.createFile(name, { overwrite: true });
-  }
+  try { return await folder.getEntry(name); } catch { return folder.createFile(name, { overwrite: true }); }
 }
-
-function isApiFormat(value: unknown): value is UserModelConfig['apiFormat'] {
-  return value === 'openai-images' || value === 'gemini-generate-content' || value === 'grsai';
-}
-
-function isPlainRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function isUserModelConfig(value: unknown): value is UserModelConfig {
-  if (!isPlainRecord(value)) {
-    return false;
-  }
-  return value.output === undefined &&
-    typeof value.profileId === 'string' &&
-    isApiFormat(value.apiFormat) &&
-    typeof value.modelId === 'string' &&
-    typeof value.baseModelId === 'string' &&
-    typeof value.wireModelId === 'string' &&
-    typeof value.requestStrategyId === 'string' &&
-    isOutputExposure(value.outputExposure) &&
-    Array.isArray(value.outputMatrix) &&
-    value.outputMatrix.length > 0 &&
-    value.outputMatrix.every(isImageOutputMatrix);
-}
-
-function isOutputExposure(value: unknown): boolean {
-  if (!isPlainRecord(value)) {
-    return false;
-  }
-  if (value.kind === 'flexible-pixels') {
-    return Array.isArray(value.sizePresetIds) &&
-      Array.isArray(value.outputFormats) &&
-      typeof value.allowInputDerivedExactSize === 'boolean';
-  }
-  return value.kind === 'ratio-resolution' &&
-    Array.isArray(value.aspectRatios) &&
-    Array.isArray(value.resolutions) &&
-    Array.isArray(value.outputFormats);
-}
-
-function isMatrixOperation(value: unknown): value is ImageOutputMatrix['operation'] {
-  return value === 'text_to_image' || value === 'image_edit';
-}
-
-function isImageOutputMatrix(value: unknown): value is ImageOutputMatrix {
-  if (!isPlainRecord(value) || !isMatrixOperation(value.operation)) {
-    return false;
-  }
-  return Array.isArray(value.imageSizes) &&
-    Array.isArray(value.ratios) &&
-    Array.isArray(value.outputFormats) &&
-    typeof value.defaultCellId === 'string' &&
-    Array.isArray(value.cells) &&
-    value.cells.length > 0 &&
-    value.cells.every((cell) =>
-      isPlainRecord(cell) &&
-      typeof cell.id === 'string' &&
-      typeof cell.imageSize === 'string' &&
-      typeof cell.ratio === 'string' &&
-      typeof cell.outputFormat === 'string' &&
-      isOutputSelection(cell.selection),
-    );
-}
-
-function isImageOperation(value: unknown): value is ModelGenerationPreference['operation'] {
-  return value === 'text_to_image' || value === 'image_edit';
-}
-
-function isOutputSelection(value: unknown): boolean {
-  if (!isPlainRecord(value) || !isPlainRecord(value.geometry)) {
-    return false;
-  }
-  return typeof value.outputFormat === 'string' &&
-    (
-      value.geometry.kind === 'provider-default' ||
-      value.geometry.kind === 'input-derived' ||
-      value.geometry.kind === 'pixels' ||
-      value.geometry.kind === 'ratio-resolution'
-    );
-}
-
-function isModelGenerationPreference(value: unknown): value is ModelGenerationPreference {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    return false;
-  }
-  const record = value as Partial<ModelGenerationPreference> & { readonly requestOutput?: unknown };
-  return record.requestOutput === undefined &&
-    typeof record.profileId === 'string' &&
-    isApiFormat(record.apiFormat) &&
-    typeof record.modelId === 'string' &&
-    isImageOperation(record.operation) &&
-    isOutputSelection(record.selection);
-}
-
-async function readJsonArray<T>(
-  fs: UxpLocalFileSystem,
-  fileName: string,
-  key: string,
-  guard: (value: unknown) => value is T,
-): Promise<readonly T[]> {
+function isPlainRecord(value: unknown): value is Record<string, unknown> { return typeof value === 'object' && value !== null && !Array.isArray(value); }
+async function readJsonArray<T>(fs: UxpLocalFileSystem, fileName: string, key: string, guard: (value: unknown) => value is T): Promise<readonly T[]> {
   const file = await getOrCreateJsonFile(fs, fileName);
   try {
     const raw = String(await file.read({ format: fs.formats?.utf8 }));
-    if (raw.trim().length === 0) {
-      return [];
-    }
+    if (!raw.trim()) return [];
     const parsed = JSON.parse(raw) as Record<string, unknown>;
-    const values = Array.isArray(parsed[key]) ? parsed[key] : [];
-    return values.filter(guard);
-  } catch {
-    return [];
-  }
+    return (Array.isArray(parsed[key]) ? parsed[key] : []).filter(guard);
+  } catch { return []; }
 }
-
-async function writeJsonArray<T>(
-  fs: UxpLocalFileSystem,
-  fileName: string,
-  key: string,
-  values: readonly T[],
-): Promise<void> {
+async function writeJsonArray<T>(fs: UxpLocalFileSystem, fileName: string, key: string, values: readonly T[]): Promise<void> {
   const file = await getOrCreateJsonFile(fs, fileName);
   await file.write(JSON.stringify({ [key]: values }, null, 2), { format: fs.formats?.utf8 });
 }
 
-function userModelConfigKey(config: Pick<UserModelConfig, 'profileId' | 'modelId'>): string {
-  return `${config.profileId}:${config.modelId}`;
-}
-
-function modelGenerationPreferenceKey(config: Pick<ModelGenerationPreference, 'profileId' | 'apiFormat' | 'modelId' | 'operation'>): string {
-  return `${config.profileId}:${config.apiFormat}:${config.modelId}:${config.operation}`;
-}
-
-export function createUxpUserModelConfigRepository(modules: UxpModules): UserModelConfigRepository {
+/** UXP 文件中的固定 provider 单账号仓库。 */
+export function createUxpProviderAccountRepository(modules: UxpModules): ProviderAccountRepository {
   const fs = localFileSystemFrom(modules);
-  if (!fs) {
-    return createInMemoryUserModelConfigRepository();
-  }
-  const localFileSystem = fs;
-  const fileName = 'user-model-configs.json';
-  const key = 'configs';
-
-  async function readAll(): Promise<Map<string, UserModelConfig>> {
-    return new Map((await readJsonArray(localFileSystem, fileName, key, isUserModelConfig)).map((config) => [userModelConfigKey(config), config]));
-  }
-
-  async function writeAll(configs: Map<string, UserModelConfig>): Promise<void> {
-    await writeJsonArray(localFileSystem, fileName, key, Array.from(configs.values()));
-  }
-
-  return {
-    async list(profileId) {
-      const configs = Array.from((await readAll()).values());
-      return configs.filter((config) => config.profileId === profileId);
-    },
-    async get(profileId, modelId) {
-      return (await readAll()).get(`${profileId}:${modelId}`);
-    },
-    async save(config) {
-      const configs = await readAll();
-      configs.set(userModelConfigKey(config), config);
-      await writeAll(configs);
-    },
-    async initializeProfile(profileId, initial) {
-      const configs = await readAll();
-      if (Array.from(configs.values()).some((config) => config.profileId === profileId)) {
-        throw new Error(`Provider profile "${profileId}" already has model configs.`);
-      }
-      for (const config of initial) {
-        if (config.profileId !== profileId || !isUserModelConfig(config)) {
-          throw new Error('Invalid default user model config schema.');
-        }
-        configs.set(userModelConfigKey(config), config);
-      }
-      await writeAll(configs);
-    },
-    async deleteUnlessLast(profileId, modelId) {
-      const configs = await readAll();
-      const owned = Array.from(configs.values()).filter((config) => config.profileId === profileId);
-      if (owned.length <= 1) return false;
-      configs.delete(`${profileId}:${modelId}`);
-      await writeAll(configs);
-      return true;
-    },
-    async deleteProfile(profileId) {
-      const configs = await readAll();
-      for (const key of Array.from(configs.keys())) {
-        if (key.startsWith(`${profileId}:`)) {
-          configs.delete(key);
-        }
-      }
-      await writeAll(configs);
-    },
-  };
+  const memory = new Map<string, ProviderAccount>();
+  if (!fs) return { async list() { return Array.from(memory.values()); }, async get(id) { return memory.get(id); }, async save(value) { memory.set(value.providerId, value); }, async delete(id) { memory.delete(id); } };
+  const fileName = 'provider-accounts.json';
+  const valid = (value: unknown): value is ProviderAccount => isPlainRecord(value) && (value.providerId === 'grsai' || value.providerId === 'runninghub') && typeof value.displayName === 'string' && (value.secretRef === undefined || typeof value.secretRef === 'string') && (value.baseUrl === undefined || typeof value.baseUrl === 'string') && typeof value.updatedAt === 'string';
+  const read = async () => new Map((await readJsonArray(fs, fileName, 'accounts', valid)).map((value) => [value.providerId, value]));
+  const write = async (values: Map<string, ProviderAccount>) => writeJsonArray(fs, fileName, 'accounts', Array.from(values.values()));
+  return { async list() { return Array.from((await read()).values()); }, async get(id) { return (await read()).get(id); }, async save(value) { const values = await read(); values.set(value.providerId, value); await write(values); }, async delete(id) { const values = await read(); values.delete(id); await write(values); } };
 }
 
-export function createUxpModelGenerationPreferenceRepository(modules: UxpModules): ModelGenerationPreferenceRepository {
+/** UXP 文件中的固定 provider/model 参数偏好仓库。 */
+export function createUxpCatalogParameterPreferenceRepository(modules: UxpModules): CatalogParameterPreferenceRepository {
   const fs = localFileSystemFrom(modules);
-  if (!fs) {
-    return createInMemoryModelGenerationPreferenceRepository();
-  }
-  const localFileSystem = fs;
-  const fileName = 'model-generation-preferences.json';
-  const key = 'preferences';
-
-  async function readAll(): Promise<Map<string, ModelGenerationPreference>> {
-    return new Map((await readJsonArray(localFileSystem, fileName, key, isModelGenerationPreference)).map((preference) => [modelGenerationPreferenceKey(preference), preference]));
-  }
-
-  async function writeAll(preferences: Map<string, ModelGenerationPreference>): Promise<void> {
-    await writeJsonArray(localFileSystem, fileName, key, Array.from(preferences.values()));
-  }
-
-  return {
-    async get(preferenceKey) {
-      return (await readAll()).get(modelGenerationPreferenceKey(preferenceKey));
-    },
-    async save(preference) {
-      const preferences = await readAll();
-      preferences.set(modelGenerationPreferenceKey(preference), preference);
-      await writeAll(preferences);
-    },
-    async delete(preferenceKey) {
-      const preferences = await readAll();
-      preferences.delete(modelGenerationPreferenceKey(preferenceKey));
-      await writeAll(preferences);
-    },
-  };
+  const memory = new Map<string, CatalogParameterPreference>();
+  if (!fs) return { async get(providerId, modelId) { return memory.get(`${providerId}:${modelId}`); }, async save(value) { memory.set(`${value.providerId}:${value.modelId}`, value); }, async delete(providerId, modelId) { memory.delete(`${providerId}:${modelId}`); } };
+  const fileName = 'catalog-parameter-preferences.json';
+  const valid = (value: unknown): value is CatalogParameterPreference => isPlainRecord(value) && (value.providerId === 'grsai' || value.providerId === 'runninghub') && typeof value.modelId === 'string' && value.modelId.trim().length > 0 && isPlainRecord(value.values) && Object.values(value.values).every((item) => typeof item === 'string') && typeof value.updatedAt === 'string';
+  const read = async () => new Map((await readJsonArray(fs, fileName, 'preferences', valid)).map((value) => [`${value.providerId}:${value.modelId}`, value]));
+  const write = async (values: Map<string, CatalogParameterPreference>) => writeJsonArray(fs, fileName, 'preferences', Array.from(values.values()));
+  return { async get(providerId, modelId) { return (await read()).get(`${providerId}:${modelId}`); }, async save(value) { const values = await read(); values.set(`${value.providerId}:${value.modelId}`, value); await write(values); }, async delete(providerId, modelId) { const values = await read(); values.delete(`${providerId}:${modelId}`); await write(values); } };
 }

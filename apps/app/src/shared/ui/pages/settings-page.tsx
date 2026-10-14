@@ -1,9 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
-import type { ApiFormat, ComfyUiConnectionErrorCode, ComfyUiMaskBinding, ProviderProfile, WorkflowInputCandidate, WorkflowMapping } from '@imagen-ps/application';
+import { useState } from 'react';
+import type { ComfyUiConnectionErrorCode, ComfyUiMaskBinding, WorkflowInputCandidate, WorkflowMapping } from '@imagen-ps/application';
 import type { AppGenerationSettings } from '../../ports/app-generation-settings';
-import type { ModelGenerationSettingsController } from '../hooks/use-model-generation-settings';
-import { profileToProviderRow } from '../../domain/mappers';
-import { useAppServices } from '../../ports/app-services-context';
 import { useI18n } from '../i18n/i18n-context';
 import type { ComfyUiManagementController } from '../hooks/use-comfyui-management';
 import type { SettingsTab } from '../settings-route';
@@ -13,101 +10,29 @@ interface SettingsPageProps {
   readonly activeTab: SettingsTab;
   readonly onSelectTab: (tab: SettingsTab) => void;
   readonly onBack: () => void;
-  readonly profiles: readonly ProviderProfile[];
-  readonly highlightedProfileId?: string | null;
+  readonly accounts: readonly import('@imagen-ps/application').ProviderAccount[];
   readonly loading: boolean;
   readonly error: string | null;
-  readonly onOpenProfile: (profileId: string) => void;
-  readonly onOpenProviderOutput: () => void;
-  readonly onOpenProviderNew: () => void;
+  readonly onOpenProviderAccounts: (providerId: 'grsai' | 'runninghub') => void;
   readonly onOpenGlobalSettings: () => void;
   readonly onOpenPromptSettings: () => void;
   readonly generationSettings: AppGenerationSettings;
-  readonly modelGenerationSettings: ModelGenerationSettingsController;
   readonly comfyUi: ComfyUiManagementController;
 }
 
-function apiFormatMetaLabel(apiFormat: ApiFormat): string {
-  if (apiFormat === 'openai-images') return 'GPT Image 2';
-  if (apiFormat === 'grsai') return 'GRSAI';
-  return 'Gemini';
-}
-
-function ProviderListItem({
-  profile,
-  modelCount,
-  highlighted,
-  onOpen,
-}: {
-  readonly profile: ProviderProfile;
-  readonly modelCount: number;
-  readonly highlighted: boolean;
-  readonly onOpen: () => void;
-}) {
-  const { messages: t } = useI18n();
-  const row = profileToProviderRow(profile);
-  const configured = modelCount > 0;
-  return (
-    <SettingsListRow
-      testId={`provider-row-${profile.profileId}`}
-      watch={`${profile.profileId}:${profile.updatedAt}:${modelCount}`}
-      title={row.displayName}
-      leading={<div className="prov-ico">{row.displayName.slice(0, 2).toUpperCase()}</div>}
-      meta={<span className="prov-family provider-row-meta">{apiFormatMetaLabel(row.apiFormat)} · {t.settings.configuredModelCount(modelCount)}</span>}
-      end={(
-        <div
-          className={`prov-readiness prov-readiness-compact ${highlighted ? 'ready' : configured ? 'untested' : 'warning'}`}
-          role="status"
-          aria-label={highlighted ? t.settings.profileCreated(row.displayName) : configured ? t.settings.notTested : t.common.needsSetup}
-          data-profile-created={highlighted || undefined}
-        >
-          <span className="prov-readiness-dot" aria-hidden="true" />
-        </div>
-      )}
-      onOpen={onOpen}
-    />
-  );
-}
-
 function ProviderRoot({
-  profiles,
-  loading,
-  error,
-  modelCounts,
-  highlightedProfileId,
-  onOpenOutput,
-  onOpenProfile,
+  onOpenAccounts,
 }: {
-  readonly profiles: readonly ProviderProfile[];
-  readonly loading: boolean;
-  readonly error: string | null;
-  readonly modelCounts: ReadonlyMap<string, number>;
-  readonly highlightedProfileId?: string | null;
-  readonly onOpenOutput: () => void;
-  readonly onOpenProfile: (profileId: string) => void;
+  readonly onOpenAccounts: (providerId: 'grsai' | 'runninghub') => void;
 }) {
   const { messages: t } = useI18n();
   return (
     <div>
       <div className="settings-detail-layout">
-        <SettingsListSection>
-          <List aria-label={t.settings.providerOutput}>
-            <SettingsListRow
-              testId="provider-output-settings-row"
-              title={t.settings.providerOutput}
-              special
-              leading={<div className="prov-ico"><Icon name="settings" size={14} /></div>}
-              meta={<span className="prov-summary">{t.settings.providerOutputSummary}</span>}
-              onOpen={onOpenOutput}
-            />
-          </List>
-        </SettingsListSection>
-        <SettingsListSection title={t.settings.configuredProviders}>
+        <SettingsListSection title="Providers">
           <List aria-label={t.settings.configuredProviders}>
-            {profiles.length === 0 && loading ? <ListStateItem data-testid="provider-list-loading" kind="loading" title={t.settings.loading} /> : null}
-            {profiles.length === 0 && !loading && error ? <ListStateItem data-testid="provider-list-error" kind="error" title={error} /> : null}
-            {profiles.length === 0 && !loading && !error ? <ListStateItem data-testid="provider-empty-state" kind="empty" title={t.settings.noProviderProfile} /> : null}
-            {profiles.map((profile) => <ProviderListItem key={profile.profileId} profile={profile} modelCount={modelCounts.get(profile.profileId) ?? 0} highlighted={profile.profileId === highlightedProfileId} onOpen={() => onOpenProfile(profile.profileId)} />)}
+            <SettingsListRow testId="provider-grsai-row" title="GRSAI" leading={<div className="prov-ico">GR</div>} meta={<span className="prov-summary">GPT image relay</span>} onOpen={() => onOpenAccounts('grsai')} />
+            <SettingsListRow testId="provider-runninghub-row" title="RunningHub" leading={<div className="prov-ico">RH</div>} meta={<span className="prov-summary">Workflow image provider</span>} onOpen={() => onOpenAccounts('runninghub')} />
           </List>
         </SettingsListSection>
       </div>
@@ -326,19 +251,9 @@ function ComfyUiRoot({ controller }: { readonly controller: ComfyUiManagementCon
 
 export function SettingsPage(props: SettingsPageProps) {
   const { messages: t } = useI18n();
-  const services = useAppServices();
-  const [modelCounts, setModelCounts] = useState<ReadonlyMap<string, number>>(new Map());
-  const sequenceRef = useRef(0);
-  useEffect(() => {
-    const sequence = ++sequenceRef.current;
-    void Promise.all(props.profiles.map(async (profile) => {
-      const result = await services.commands.listProfileModels(profile.profileId);
-      return [profile.profileId, result.ok ? result.value.length : 0] as const;
-    })).then((entries) => { if (sequence === sequenceRef.current) setModelCounts(new Map(entries)); }).catch(() => { if (sequence === sequenceRef.current) setModelCounts(new Map()); });
-  }, [props.profiles, services]);
   const title = props.activeTab === 'provider' ? t.common.provider : props.activeTab === 'comfyui' ? t.settings.comfyUi : t.settings.configuration;
   const right = props.activeTab === 'provider'
-    ? <IconButton data-testid="providers-add-button" className="hdr-btn" quiet icon={<Icon name="add" />} tooltip={t.common.addProvider} onClick={props.onOpenProviderNew} />
+    ? <IconButton data-testid="providers-add-button" className="hdr-btn" quiet icon={<Icon name="settings" />} tooltip="Provider accounts" onClick={() => props.onOpenProviderAccounts('grsai')} />
     : props.activeTab === 'comfyui' && props.comfyUi.runtime
       ? <><IconButton data-testid="comfyui-refresh-workflow" className="hdr-btn" quiet icon={<Icon name="refresh" />} tooltip={t.common.refresh} onClick={() => { void props.comfyUi.refresh().catch(() => undefined); }} /><IconButton data-testid="comfyui-open-workflow" className="hdr-btn" quiet icon={<Icon name="arrow-right" />} tooltip="Open in ComfyUI" onClick={() => { void props.comfyUi.openInComfyUi().catch(() => undefined); }} /></>
       : undefined;
@@ -348,7 +263,7 @@ export function SettingsPage(props: SettingsPageProps) {
       <PageHeader title={title} backLabel={t.common.back} backTestId="settings-back-button" onBack={props.onBack} right={right} />
       <SegmentedTabs className="settings-backend-segments" tabs={[{ id: 'provider', label: t.common.provider, testId: 'settings-backend-provider' }, { id: 'comfyui', label: t.settings.comfyUi, testId: 'settings-backend-comfyui' }, { id: 'general', label: t.settings.configuration, testId: 'settings-backend-general' }]} selectedId={props.activeTab} onSelect={(tab) => props.onSelectTab(tab as SettingsTab)} />
       <PageScroll>
-        {props.activeTab === 'provider' ? <ProviderRoot profiles={props.profiles} loading={props.loading} error={props.error} modelCounts={modelCounts} highlightedProfileId={props.highlightedProfileId} onOpenOutput={props.onOpenProviderOutput} onOpenProfile={props.onOpenProfile} /> : null}
+        {props.activeTab === 'provider' ? <ProviderRoot onOpenAccounts={props.onOpenProviderAccounts} /> : null}
         {props.activeTab === 'general' ? <GeneralRoot onOpenGlobalSettings={props.onOpenGlobalSettings} onOpenPromptSettings={props.onOpenPromptSettings} /> : null}
         {props.activeTab === 'comfyui' ? <ComfyUiRoot controller={props.comfyUi} /> : null}
       </PageScroll>

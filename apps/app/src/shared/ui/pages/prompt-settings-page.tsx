@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
-import type { ProviderProfile } from '@imagen-ps/application';
+type PromptProvider = { readonly providerId: string; readonly displayName: string };
 import type { PromptPreset, PromptPresetMode, PromptSettings } from '../../ports/prompt-settings';
 import type {
   PromptOptimizationActivationState,
@@ -27,7 +27,7 @@ import { useI18n } from '../i18n/i18n-context';
 
 interface PromptSettingsPageProps {
   readonly settings: PromptSettings;
-  readonly profiles: readonly ProviderProfile[];
+  readonly providers: readonly PromptProvider[];
   readonly loading: boolean;
   readonly error: string | null;
   readonly saveState: PromptSettingsSaveState;
@@ -53,10 +53,10 @@ function activationMessage(state: PromptOptimizationActivationState, t: ReturnTy
   if (state === 'invalid-template') {
     return t.settings.optimizationInvalidTemplate;
   }
-  if (state === 'missing-profile') {
-    return t.settings.optimizationMissingProfile;
+  if (state === 'missing-provider') {
+    return t.settings.optimizationMissingProvider;
   }
-  return t.settings.optimizationNoProfile;
+  return t.settings.optimizationNoProvider;
 }
 
 function presetModeLabel(mode: PromptPresetMode, t: ReturnType<typeof useI18n>['messages']): string {
@@ -101,7 +101,7 @@ function PromptPresetListState({ kind, title, description, testId }: PromptPrese
 
 export function PromptSettingsPage({
   settings,
-  profiles,
+  providers,
   loading,
   error,
   saveState,
@@ -116,7 +116,7 @@ export function PromptSettingsPage({
 }: PromptSettingsPageProps) {
   const { messages: t } = useI18n();
   const { show } = useToast();
-  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [providerMenuOpen, setProviderMenuOpen] = useState(false);
   const [presetListInitialState, setPresetListInitialState] = useState<'pending' | 'ready' | 'error'>(
     loading ? 'pending' : error ? 'error' : 'ready',
   );
@@ -136,18 +136,18 @@ export function PromptSettingsPage({
     }
     previousSaveStateRef.current = saveState;
   }, [saveState, show, t.settings.saved]);
-  const profileOptions = useMemo(() => [
+  const providerOptions = useMemo(() => [
     { id: 'none', label: t.settings.none },
-    ...profiles.map((profile) => ({ id: profile.profileId, label: profile.displayName })),
-  ], [profiles, t.settings.none]);
-  const selectedProfileLabel = settings.optimization.profileId
-    ? profileOptions.find((option) => option.id === settings.optimization.profileId)?.label ?? t.settings.optimizationMissingProfile
+    ...providers.map((provider) => ({ id: provider.providerId, label: provider.displayName })),
+  ], [providers, t.settings.none]);
+  const selectedProviderLabel = settings.optimization.providerId
+    ? providerOptions.find((option) => option.id === settings.optimization.providerId)?.label ?? t.settings.optimizationMissingProvider
     : t.settings.none;
   const activationHint = activationState === 'active' ? null : activationMessage(activationState, t);
 
   return (
     <PageFrame watch="prompt-settings"><div className="page page-enter settings-page" onClick={() => {
-      setProfileMenuOpen(false);
+      setProviderMenuOpen(false);
     }}>
       <PageHeader
         title={t.settings.promptSettings}
@@ -166,27 +166,27 @@ export function PromptSettingsPage({
         <div className="settings-detail-layout scroll-footer-pad generation-settings-layout">
           <SettingsFormSection title={t.settings.promptOptimization}>
             <FieldGroup
-              label={t.settings.optimizerProfile}
-              htmlFor="prompt-optimizer-profile-trigger"
+              label={t.settings.optimizerProvider}
+              htmlFor="prompt-optimizer-provider-trigger"
               help={activationHint ? <HelpText className="field-hint">{activationHint}</HelpText> : undefined}
             >
               <TextSelect
-                testId="prompt-optimizer-profile-selector"
-                triggerId="prompt-optimizer-profile-trigger"
+                testId="prompt-optimizer-provider-selector"
+                triggerId="prompt-optimizer-provider-trigger"
                 containerClassName="cmp-select settings-select"
                 menuClassName="cmp-select-menu cmp-select-menu-compact"
-                label={t.settings.optimizerProfile}
-                value={selectedProfileLabel}
+                label={t.settings.optimizerProvider}
+                value={selectedProviderLabel}
                 disabled={loading}
-                open={profileMenuOpen}
-                onOpenChange={setProfileMenuOpen}
-                options={profileOptions}
-                selectedId={settings.optimization.profileId ?? 'none'}
+                open={providerMenuOpen}
+                onOpenChange={setProviderMenuOpen}
+                options={providerOptions}
+                selectedId={settings.optimization.providerId ?? 'none'}
                 onSelect={(value) => void onSave({
                   ...settings,
                   optimization: {
                     ...settings.optimization,
-                    profileId: value === 'none' ? null : value,
+                    providerId: value === 'none' ? null : value,
                   },
                 })}
               />
@@ -199,7 +199,7 @@ export function PromptSettingsPage({
                 value={settings.optimization.template}
                 placeholder={t.settings.templatePlaceholder}
                 disabled={loading}
-                nativeEditorSuspended={profileMenuOpen}
+                nativeEditorSuspended={providerMenuOpen}
                 onValue={(value) => void onSave({
                   ...settings,
                   optimization: {

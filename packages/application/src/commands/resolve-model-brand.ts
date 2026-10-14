@@ -7,15 +7,14 @@
  */
 
 import {
-  type ApiFormat,
+  type FixedProviderId,
   type ModelBrand,
   providerUsesImageModelCatalog,
   tryResolveImageModelRule,
 } from '@imagen-ps/providers';
-import { catalogProviderIdForApiFormat } from './api-format-profile.js';
 
 export interface ResolveModelBrandInput {
-  readonly apiFormat: ApiFormat;
+  readonly providerId: FixedProviderId;
   readonly modelId: string;
 }
 
@@ -26,8 +25,7 @@ export interface ResolveModelBrandInput {
  * 命中 curated 规则返回 `capability.brand`；未命中时返回 `undefined`。
  */
 export function resolveModelBrand(input: ResolveModelBrandInput): ModelBrand | undefined {
-  const { apiFormat, modelId } = input;
-  const providerId = catalogProviderIdForApiFormat(apiFormat);
+  const { providerId, modelId } = input;
   if (!providerUsesImageModelCatalog(providerId)) {
     return undefined;
   }

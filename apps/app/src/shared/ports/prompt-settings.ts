@@ -9,7 +9,7 @@ export interface PromptPreset {
 
 export interface PromptSettings {
   readonly optimization: {
-    readonly profileId: string | null;
+    readonly providerId: string | null;
     readonly template: string;
   };
   readonly presets: {
@@ -34,7 +34,7 @@ export const DEFAULT_CINEMATIC_PROMPT_PRESET: PromptPreset = {
 
 export const DEFAULT_PROMPT_SETTINGS = {
   optimization: {
-    profileId: null,
+    providerId: null,
     template: DEFAULT_PROMPT_OPTIMIZATION_TEMPLATE,
   },
   presets: {
@@ -82,7 +82,7 @@ export function normalizePromptSettings(input: unknown): PromptSettings {
   const selectedId = nullableString(presets.selectedId);
   return {
     optimization: {
-      profileId: nullableString(optimization.profileId),
+      providerId: nullableString(optimization.providerId),
       template: stringOrDefault(optimization.template, DEFAULT_PROMPT_SETTINGS.optimization.template),
     },
     presets: {

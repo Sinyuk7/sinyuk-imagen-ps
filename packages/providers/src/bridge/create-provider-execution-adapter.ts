@@ -23,7 +23,8 @@ export interface ProviderExecutionConfigRef {
   readonly implementationId: string;
 
   /** 当前 credential/config owner 的 non-secret profile ref。 */
-  readonly profileId: string;
+  readonly providerId: string;
+  readonly profileId?: string;
 }
 
 /** 每次 dispatch 解析当前 Provider config/credential 的 narrow port。 */
@@ -69,7 +70,7 @@ export interface CreateProviderExecutionAdapterOptions {
 
 interface ProviderExecutionParams {
   readonly implementationId: string;
-  readonly profileId: string;
+  readonly providerId: string;
   readonly request: ProviderRequest;
 }
 
@@ -108,7 +109,7 @@ function safeErrorMessage(error: Error, fallback: string): string {
 
 function mappedError(
   error: unknown,
-  params: Pick<ProviderExecutionParams, 'implementationId' | 'profileId'>,
+  params: Pick<ProviderExecutionParams, 'implementationId' | 'providerId'>,
   defaultCategory: 'validation' | 'provider',
 ): JobError {
   if (isJobError(error)) {
@@ -139,7 +140,7 @@ function mappedError(
 }
 
 function executionParams(params: Record<string, unknown>): ProviderExecutionParams {
-  const allowed = new Set(['implementationId', 'profileId', 'request']);
+  const allowed = new Set(['implementationId', 'providerId', 'request']);
   for (const key of Object.keys(params)) {
     if (!allowed.has(key)) {
       throw createValidationError(`Provider execution params contain unsupported field "${key}".`, {
@@ -150,15 +151,15 @@ function executionParams(params: Record<string, unknown>): ProviderExecutionPara
   if (typeof params.implementationId !== 'string' || params.implementationId.trim().length === 0) {
     throw createValidationError('Provider execution requires implementationId.');
   }
-  if (typeof params.profileId !== 'string' || params.profileId.trim().length === 0) {
-    throw createValidationError('Provider execution requires profileId.', {
+  if (typeof params.providerId !== 'string' || params.providerId.trim().length === 0) {
+    throw createValidationError('Provider execution requires providerId.', {
       implementationId: params.implementationId,
     });
   }
   if (!isRecord(params.request)) {
     throw createValidationError('Provider execution requires a request record.', {
       implementationId: params.implementationId,
-      profileId: params.profileId,
+      providerId: params.providerId,
     });
   }
   return params as unknown as ProviderExecutionParams;
@@ -182,7 +183,7 @@ export function createProviderExecutionAdapter(
       const params = executionParams(rawParams);
       const identity = {
         implementationId: params.implementationId,
-        profileId: params.profileId,
+        providerId: params.providerId,
       };
       const provider = providerRegistry.get(params.implementationId);
       if (!provider || provider.id !== params.implementationId) {

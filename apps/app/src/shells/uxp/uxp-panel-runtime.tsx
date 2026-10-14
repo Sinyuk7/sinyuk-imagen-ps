@@ -8,7 +8,6 @@ import { UxpCssContractHarnessPage } from '../../harness/components/uxp-css-cont
 import { UiCatalogHarnessPage } from '../../harness/components/ui-catalog';
 import type { PluginHostShell } from './create-plugin-host-shell';
 import { createPluginHostShell } from './create-plugin-host-shell';
-import { readRecentLogRecords } from '../../adapters/uxp/uxp-diagnostics';
 import { resolveUxpModules, type UxpModules } from '../../adapters/uxp/uxp-api';
 
 interface UxpPanelController {
@@ -151,7 +150,7 @@ function isHostSmokeEnabled(): boolean {
   }
 }
 
-function exposeHostSmokeHandle(host: PluginHostShell | undefined, resolveModules: () => UxpModules): void {
+function exposeHostSmokeHandle(host: PluginHostShell | undefined, _resolveModules: () => UxpModules): void {
   if (typeof window === 'undefined') {
     return;
   }
@@ -161,21 +160,7 @@ function exposeHostSmokeHandle(host: PluginHostShell | undefined, resolveModules
   }
 
   // 仅用于真实 UXP smoke。返回值必须保持脱敏，避免 DevTools 输出 secret。
-  globalThis.__IMAGEN_PS_HOST_SMOKE__ = {
-    listProfiles: host.services.commands.listProviderProfiles,
-    getProfile: host.services.commands.getProviderProfile,
-    saveProfile: host.services.commands.saveProviderSurfaceProfile,
-    deleteProfile: host.services.commands.deleteProviderProfile,
-    testProfile: host.services.commands.testProviderProfile,
-    listModels: host.services.commands.listProfileModels,
-    listHistory: host.services.commands.listJobHistoryRecords,
-    listLayers: host.services.host.listLayers,
-    readLayerAsAsset: host.services.host.readLayerAsAsset,
-    readLayerMaskAsAsset: host.services.host.readLayerMaskAsAsset,
-    placeAssetOnCanvas: host.services.host.placeAssetOnCanvas,
-    pickImageFile: host.services.host.pickImageFile,
-    readRecentLogRecords: readRecentLogRecords.bind(undefined, resolveModules()),
-  };
+
 }
 
 type UxpPanelHarness = 'composer-select' | 'popup-layer-overlap' | 'uxp-css-contract' | 'ui-catalog';
