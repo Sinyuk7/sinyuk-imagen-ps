@@ -197,3 +197,9 @@ export {
   createProviderExecutionAdapter,
   PROVIDER_EXECUTION_ADAPTER_ID,
 } from './bridge/index.js';
+
+export type { CatalogChoiceOption, CatalogModel, CatalogParameter, FixedProviderId, ProviderCatalog } from './catalog.js';
+export { getProviderCatalog, listFixedProviders } from './catalog.js';
+export type { FixedGenerationRequest, FixedProviderResult } from './contract/fixed-generation.js';
+export type { FixedPreparedRequest } from './fixed-provider-adapters.js';
+export { prepareGrsaiRequest, prepareRunningHubRequest } from './fixed-provider-adapters.js';

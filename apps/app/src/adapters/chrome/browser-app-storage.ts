@@ -2,6 +2,8 @@ import type {
   AssetStore,
   DurableJobRecord,
   JobHistoryStore,
+  ProviderAccount,
+  ProviderAccountRepository,
   ProviderProfile,
   ProviderProfileRepository,
   SecretStorageAdapter,
@@ -17,6 +19,7 @@ import { createMemoryPromptSettingsStore, type PromptSettingsStore } from '../..
  */
 export function createChromeFeasibilityStorage(): {
   readonly profiles: ProviderProfileRepository;
+  readonly providerAccounts: ProviderAccountRepository;
   readonly secrets: SecretStorageAdapter;
   readonly history: JobHistoryStore;
   readonly assets: AssetStore;
@@ -25,12 +28,19 @@ export function createChromeFeasibilityStorage(): {
   readonly activeImageProfile: ActiveImageProfileStore;
 } {
   const profiles = new Map<string, ProviderProfile>();
+  const accounts = new Map<string, ProviderAccount>();
   const secrets = new Map<string, string>();
   const history = new Map<string, DurableJobRecord>();
   const assets = new Map<string, ArrayBuffer>();
   let assetCounter = 0;
 
   return {
+    providerAccounts: {
+      async list(): Promise<readonly ProviderAccount[]> { return Array.from(accounts.values()); },
+      async get(providerId) { return accounts.get(providerId); },
+      async save(account) { accounts.set(account.providerId, account); },
+      async delete(providerId) { accounts.delete(providerId); },
+    },
     profiles: {
       async list(): Promise<readonly ProviderProfile[]> {
         return Array.from(profiles.values());

@@ -1,0 +1,381 @@
+{
+  "schemaVersion": 1,
+  "providerId": "grsai",
+  "displayName": "GRSAI",
+  "baseUrl": "https://grsai.dakka.com.cn",
+  "defaultModel": "nano-banana-2",
+  "models": [
+    {
+      "id": "nano-banana-2",
+      "label": "nano-banana-2",
+      "operations": [
+        "text_to_image",
+        "image_edit"
+      ],
+      "parameters": {
+        "aspectRatio": {
+          "type": "choice",
+          "default": "auto",
+          "options": [
+            {
+              "value": "auto",
+              "label": "auto"
+            },
+            {
+              "value": "1:1",
+              "label": "1:1"
+            },
+            {
+              "value": "16:9",
+              "label": "16:9"
+            },
+            {
+              "value": "9:16",
+              "label": "9:16"
+            },
+            {
+              "value": "4:3",
+              "label": "4:3"
+            },
+            {
+              "value": "3:4",
+              "label": "3:4"
+            },
+            {
+              "value": "3:2",
+              "label": "3:2"
+            },
+            {
+              "value": "2:3",
+              "label": "2:3"
+            },
+            {
+              "value": "5:4",
+              "label": "5:4"
+            },
+            {
+              "value": "4:5",
+              "label": "4:5"
+            },
+            {
+              "value": "21:9",
+              "label": "21:9"
+            },
+            {
+              "value": "1:4",
+              "label": "1:4"
+            },
+            {
+              "value": "4:1",
+              "label": "4:1"
+            },
+            {
+              "value": "1:8",
+              "label": "1:8"
+            },
+            {
+              "value": "8:1",
+              "label": "8:1"
+            }
+          ]
+        },
+        "imageSize": {
+          "type": "choice",
+          "default": "1K",
+          "options": [
+            {
+              "value": "1K",
+              "label": "1K"
+            },
+            {
+              "value": "2K",
+              "label": "2K"
+            },
+            {
+              "value": "4K",
+              "label": "4K"
+            }
+          ]
+        }
+      },
+      "input": {
+        "maxImages": 10,
+        "mask": false
+      }
+    },
+    {
+      "id": "nano-banana-pro",
+      "label": "nano-banana-pro",
+      "operations": [
+        "text_to_image",
+        "image_edit"
+      ],
+      "parameters": {
+        "aspectRatio": {
+          "type": "choice",
+          "default": "auto",
+          "options": [
+            {
+              "value": "auto",
+              "label": "auto"
+            },
+            {
+              "value": "1:1",
+              "label": "1:1"
+            },
+            {
+              "value": "16:9",
+              "label": "16:9"
+            },
+            {
+              "value": "9:16",
+              "label": "9:16"
+            },
+            {
+              "value": "4:3",
+              "label": "4:3"
+            },
+            {
+              "value": "3:4",
+              "label": "3:4"
+            },
+            {
+              "value": "3:2",
+              "label": "3:2"
+            },
+            {
+              "value": "2:3",
+              "label": "2:3"
+            },
+            {
+              "value": "5:4",
+              "label": "5:4"
+            },
+            {
+              "value": "4:5",
+              "label": "4:5"
+            },
+            {
+              "value": "21:9",
+              "label": "21:9"
+            }
+          ]
+        },
+        "imageSize": {
+          "type": "choice",
+          "default": "1K",
+          "options": [
+            {
+              "value": "1K",
+              "label": "1K"
+            },
+            {
+              "value": "2K",
+              "label": "2K"
+            },
+            {
+              "value": "4K",
+              "label": "4K"
+            }
+          ]
+        }
+      },
+      "input": {
+        "maxImages": 10,
+        "mask": false
+      }
+    },
+    {
+      "id": "gpt-image-2.5-flare",
+      "label": "gpt-image-2.5-flare",
+      "operations": [
+        "text_to_image",
+        "image_edit"
+      ],
+      "parameters": {
+        "aspectRatio": {
+          "type": "choice",
+          "default": "1024x1024",
+          "options": [
+            {
+              "value": "1024x1024",
+              "label": "1024x1024 (1:1, 1K)"
+            },
+            {
+              "value": "2048x2048",
+              "label": "2048x2048 (1:1, 2K)"
+            },
+            {
+              "value": "2880x2880",
+              "label": "2880x2880 (1:1, 4K)"
+            },
+            {
+              "value": "1280x720",
+              "label": "1280x720 (16:9, 1K)"
+            },
+            {
+              "value": "2048x1152",
+              "label": "2048x1152 (16:9, 2K)"
+            },
+            {
+              "value": "3840x2160",
+              "label": "3840x2160 (16:9, 4K)"
+            },
+            {
+              "value": "720x1280",
+              "label": "720x1280 (9:16, 1K)"
+            },
+            {
+              "value": "1152x2048",
+              "label": "1152x2048 (9:16, 2K)"
+            },
+            {
+              "value": "2160x3840",
+              "label": "2160x3840 (9:16, 4K)"
+            }
+          ]
+        },
+        "quality": {
+          "type": "choice",
+          "default": "medium",
+          "options": [
+            {
+              "value": "low",
+              "label": "low"
+            },
+            {
+              "value": "medium",
+              "label": "medium"
+            },
+            {
+              "value": "high",
+              "label": "high"
+            }
+          ]
+        },
+        "input_fidelity": {
+          "type": "choice",
+          "default": "default",
+          "options": [
+            {
+              "value": "default",
+              "label": "Provider default"
+            },
+            {
+              "value": "low",
+              "label": "low"
+            },
+            {
+              "value": "high",
+              "label": "high"
+            }
+          ]
+        }
+      },
+      "input": {
+        "maxImages": 10,
+        "mask": true
+      }
+    },
+    {
+      "id": "gpt-image-2.5-sunburst",
+      "label": "gpt-image-2.5-sunburst",
+      "operations": [
+        "text_to_image",
+        "image_edit"
+      ],
+      "parameters": {
+        "aspectRatio": {
+          "type": "choice",
+          "default": "1024x1024",
+          "options": [
+            {
+              "value": "1024x1024",
+              "label": "1024x1024 (1:1, 1K)"
+            },
+            {
+              "value": "2048x2048",
+              "label": "2048x2048 (1:1, 2K)"
+            },
+            {
+              "value": "2880x2880",
+              "label": "2880x2880 (1:1, 4K)"
+            },
+            {
+              "value": "1280x720",
+              "label": "1280x720 (16:9, 1K)"
+            },
+            {
+              "value": "2048x1152",
+              "label": "2048x1152 (16:9, 2K)"
+            },
+            {
+              "value": "3840x2160",
+              "label": "3840x2160 (16:9, 4K)"
+            },
+            {
+              "value": "720x1280",
+              "label": "720x1280 (9:16, 1K)"
+            },
+            {
+              "value": "1152x2048",
+              "label": "1152x2048 (9:16, 2K)"
+            },
+            {
+              "value": "2160x3840",
+              "label": "2160x3840 (9:16, 4K)"
+            }
+          ]
+        },
+        "quality": {
+          "type": "choice",
+          "default": "medium",
+          "options": [
+            {
+              "value": "low",
+              "label": "low"
+            },
+            {
+              "value": "medium",
+              "label": "medium"
+            },
+            {
+              "value": "high",
+              "label": "high"
+            },
+            {
+              "value": "xhigh",
+              "label": "xhigh"
+            },
+            {
+              "value": "max",
+              "label": "max"
+            }
+          ]
+        },
+        "input_fidelity": {
+          "type": "choice",
+          "default": "default",
+          "options": [
+            {
+              "value": "default",
+              "label": "Provider default"
+            },
+            {
+              "value": "low",
+              "label": "low"
+            },
+            {
+              "value": "high",
+              "label": "high"
+            }
+          ]
+        }
+      },
+      "input": {
+        "maxImages": 10,
+        "mask": true
+      }
+    }
+  ]
+}

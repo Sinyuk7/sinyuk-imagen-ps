@@ -1,5 +1,6 @@
 import {
   setAssetStore,
+  setProviderAccountRepository,
   setJobHistoryStore,
   setModelGenerationPreferenceRepository,
   setProviderProfileRepository,
@@ -99,6 +100,7 @@ export function createChromeAppShell(options?: ChromeAppShellOptions): AppShellH
     externalUrl,
   });
   setProviderProfileRepository(storage.profiles);
+  setProviderAccountRepository(storage.providerAccounts);
   setSecretStorageAdapter(storage.secrets);
   setJobHistoryStore(storage.history);
   setTaskStore(storage.tasks);

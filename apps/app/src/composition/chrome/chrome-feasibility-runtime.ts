@@ -4,6 +4,7 @@ import {
   listProviders,
   saveProviderSurfaceProfile,
   setAssetStore,
+  setProviderAccountRepository,
   setJobHistoryStore,
   setProviderProfileRepository,
   setSecretStorageAdapter,
@@ -121,6 +122,7 @@ export async function runChromeFeasibilityRuntime(options?: {
     filePicker: options?.filePicker ?? { pick: async () => undefined },
   });
   setProviderProfileRepository(storage.profiles);
+  setProviderAccountRepository(storage.providerAccounts);
   setSecretStorageAdapter(storage.secrets);
   setJobHistoryStore(storage.history);
   setTaskStore(storage.tasks);

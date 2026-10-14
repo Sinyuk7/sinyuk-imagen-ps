@@ -7,6 +7,7 @@
 import type { DurableJobRecord, JobError, JobEvent, JobStatus, StoredAssetRef } from '@imagen-ps/core-engine';
 import type {
   ApiFormat,
+  FixedProviderId,
   BillingProtocolId,
   BalanceChange,
   ExactTaskCost,
@@ -26,6 +27,7 @@ import type {
 // Re-export provider types for commands layer consumers
 export type {
   ApiFormat,
+  FixedProviderId,
   EndpointClassification,
   ProviderDescriptor,
   ProviderConfig,
@@ -159,6 +161,22 @@ export interface ProviderProfileInput {
 }
 
 /** Host-injected repository for persisted, sanitized provider profiles. */
+/** 固定 provider 的单账号凭据引用。 */
+export interface ProviderAccount {
+  readonly providerId: FixedProviderId;
+  readonly displayName: string;
+  readonly secretRef?: string;
+  readonly updatedAt: string;
+}
+
+/** Host-injected fixed provider account repository. */
+export interface ProviderAccountRepository {
+  list(): Promise<readonly ProviderAccount[]>;
+  get(providerId: FixedProviderId): Promise<ProviderAccount | undefined>;
+  save(account: ProviderAccount): Promise<void>;
+  delete(providerId: FixedProviderId): Promise<void>;
+}
+
 export interface ProviderProfileRepository {
   list(): Promise<readonly ProviderProfile[]>;
   get(profileId: string): Promise<ProviderProfile | undefined>;

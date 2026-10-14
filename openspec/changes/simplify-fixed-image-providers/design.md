@@ -73,15 +73,15 @@ Photoshop 输入采集、canonical Mask、源文档匹配、placement evidence �
 - [删除矩阵后 UI 选项组合错误] → provider catalog loader 与 request builder 做组合校验；主页面只渲染当前模型声明的选项。
 - [返回图片缺少可解码尺寸] → provider result materialization 将此归为 bounded provider error，不伪造尺寸或 geometry。
 - [RunningHub endpoint 变更] → endpoint 仅存在 RunningHub catalog/adapter，contract tests 固定请求体和上传流程。
-- [现有 Profile 数据结构仍被 host adapter 使用] → 先切换 composition 和 harness，再删除 repository/ports；无生产数据迁移要求。
+- [[旧 Profile 数据] → 直接删除旧 storage、repository、commands 和 UI；当前项目无生产数据兼容要求。
 
 ## Migration Plan
 
 1. 增加 catalog 文件、loader、provider keyed account repository fake 和 contract tests。
-2. 增加最小公共生成请求与 GRSAI/RunningHub adapter façade，先用现有 transport 实现请求和结果归一化。
-3. 切换 Application backend、Chrome harness 和 UI 到固定 provider/account/catalog projection。
-4. 切换 Photoshop provider lane 的输入/Mask materialization，验证实际返回尺寸驱动 placement。
-5. 删除 Profile、UserModelConfig、matrix/capability projection、endpoint editor 和旧 exports。
+2. 增加最小公共生成请求与 GRSAI/RunningHub adapter，实现请求和结果归一化。
+3. 直接切换 Application backend、Chrome/UXP storage 和 UI 到固定 provider/account/catalog projection。
+4. 删除 Profile、UserModelConfig、matrix/capability projection、endpoint editor、旧 storage schema 和旧 exports；不读取、不迁移旧数据。
+5. 切换 Photoshop provider lane 的输入/Mask materialization，验证实际返回尺寸驱动 placement。
 6. 清理文档、fixtures、storage schema 与 policy allowlist，运行 affected tests、build、`pnpm check:policy`、`pnpm validate` 和 `pnpm release:verify`。
 
 ## Open Questions

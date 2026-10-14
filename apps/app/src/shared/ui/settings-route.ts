@@ -8,6 +8,7 @@ export type ProviderSurfaceRouteId = 'grsai' | 'gemini' | 'openai-images';
 export type SettingsRoute =
   | { readonly kind: 'root'; readonly tab: SettingsTab }
   | { readonly kind: 'provider-output' }
+  | { readonly kind: 'provider-accounts' }
   | { readonly kind: 'provider-picker' }
   | { readonly kind: 'provider-create'; readonly surfaceId: ProviderSurfaceRouteId }
   | { readonly kind: 'provider-edit'; readonly surfaceId: ProviderSurfaceRouteId; readonly profileId: string }
@@ -21,6 +22,7 @@ export function settingsBackRoute(route: SettingsRoute): SettingsRoute | 'main' 
     case 'root':
       return 'main';
     case 'provider-output':
+    case 'provider-accounts':
     case 'provider-picker':
     case 'provider-create':
     case 'provider-edit':

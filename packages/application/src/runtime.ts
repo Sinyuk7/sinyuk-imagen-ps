@@ -32,6 +32,8 @@ import type {
   ModelGenerationPreferenceKey,
   ModelGenerationPreferenceRepository,
   ProviderConfigResolver,
+  ProviderAccount,
+  ProviderAccountRepository,
   ProviderProfile,
   ProviderProfileRepository,
   ResolvedProviderConfig,
@@ -69,6 +71,7 @@ export interface ExtendedRuntime extends Runtime {
 
 let instance: ExtendedRuntime | null = null;
 let registryInstance: ProviderRegistry | null = null;
+let providerAccountRepositoryInstance: ProviderAccountRepository | null = null;
 let providerProfileRepositoryInstance: ProviderProfileRepository | null = null;
 let userModelConfigRepositoryInstance: UserModelConfigRepository | null = null;
 let modelGenerationPreferenceRepositoryInstance: ModelGenerationPreferenceRepository | null = null;
@@ -80,6 +83,16 @@ let assetStoreInstance: AssetStore | null = null;
 let providerGenerationBackendInstance: GenerationBackend | null = null;
 let providerAsyncExecutionManagerInstance: ProviderAsyncExecutionManager | null = null;
 let runtimeLogger: Logger | undefined = undefined;
+
+function createInMemoryProviderAccountRepository(): ProviderAccountRepository {
+  const store = new Map<string, ProviderAccount>();
+  return {
+    async list() { return Array.from(store.values()); },
+    async get(providerId) { return store.get(providerId); },
+    async save(account) { store.set(account.providerId, account); },
+    async delete(providerId) { store.delete(providerId); },
+  };
+}
 
 function createInMemoryProviderProfileRepository(): ProviderProfileRepository {
   const store = new Map<string, ProviderProfile>();
@@ -715,6 +728,15 @@ export function getGenerationBackends(): readonly GenerationBackend[] {
   return [providerGenerationBackendInstance];
 }
 
+/** 获取固定 provider 单账号 repository。 */
+export function getProviderAccountRepository(): ProviderAccountRepository {
+  if (providerAccountRepositoryInstance === null) providerAccountRepositoryInstance = createInMemoryProviderAccountRepository();
+  return providerAccountRepositoryInstance;
+}
+
+/** 注入固定 provider 单账号 repository。 */
+export function setProviderAccountRepository(repository: ProviderAccountRepository): void { providerAccountRepositoryInstance = repository; }
+
 /** 获取当前 provider profile repository */
 export function getProviderProfileRepository(): ProviderProfileRepository {
   if (providerProfileRepositoryInstance === null) {
@@ -838,6 +860,7 @@ export function _resetForTesting(): void {
   providerAsyncExecutionManagerInstance = null;
   instance = null;
   registryInstance = null;
+  providerAccountRepositoryInstance = null;
   providerProfileRepositoryInstance = null;
   userModelConfigRepositoryInstance = null;
   modelGenerationPreferenceRepositoryInstance = null;

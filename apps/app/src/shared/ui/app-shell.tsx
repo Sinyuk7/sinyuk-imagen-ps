@@ -12,7 +12,7 @@ import { useGenerationSettings } from './hooks/use-generation-settings';
 import { useModelGenerationSettings } from './hooks/use-model-generation-settings';
 import { usePromptSettings } from './hooks/use-prompt-settings';
 import { useJobHistory } from './hooks/use-job-history';
-import { useProfileModels, useProviderProfiles } from './hooks/use-provider-settings';
+import { useProfileModels, useProviderAccounts, useProviderProfiles } from './hooks/use-provider-settings';
 import { MainPage } from './pages/main-page';
 import { HistoryPage } from './pages/history-page';
 import { SettingsPage } from './pages/settings-page';
@@ -20,6 +20,7 @@ import { GlobalGenerationSettingsPage } from './pages/global-generation-settings
 import { ProviderOutputSettingsPage } from './pages/provider-output-settings-page';
 import { PromptSettingsPage } from './pages/prompt-settings-page';
 import { PromptPresetDetailPage } from './pages/prompt-preset-detail-page';
+import { ProviderAccountSettingsPage } from './pages/provider-account-settings-page';
 import { ToastHost, ToastProvider, useToast } from './components/toast-host';
 import { PopupLayerProvider, PopupLayerRoot } from './components/popup-layer';
 import { I18nProvider, useI18n } from './i18n/i18n-context';
@@ -58,6 +59,7 @@ type View =
   | 'settings'
   | 'provider-picker'
   | 'provider-profile'
+  | 'provider-accounts'
   | 'global-generation-settings'
   | 'prompt-settings'
   | 'prompt-preset-detail';
@@ -81,6 +83,7 @@ function viewForSettingsRoute(route: SettingsRoute): View {
     case 'provider-output':
     case 'global-settings': return 'global-generation-settings';
     case 'provider-picker': return 'provider-picker';
+    case 'provider-accounts': return 'provider-accounts';
     case 'provider-create':
     case 'provider-edit': return 'provider-profile';
     case 'prompt-settings': return 'prompt-settings';
@@ -89,7 +92,7 @@ function viewForSettingsRoute(route: SettingsRoute): View {
 }
 
 function rootTabForSettingsRoute(route: SettingsRoute): SettingsTab {
-  if (route.kind === 'provider-output' || route.kind === 'provider-picker' || route.kind === 'provider-create' || route.kind === 'provider-edit') return 'provider';
+  if (route.kind === 'provider-output' || route.kind === 'provider-accounts' || route.kind === 'provider-picker' || route.kind === 'provider-create' || route.kind === 'provider-edit') return 'provider';
   if (route.kind === 'global-settings' || route.kind === 'prompt-settings' || route.kind === 'prompt-preset-detail') return 'general';
   return route.tab;
 }

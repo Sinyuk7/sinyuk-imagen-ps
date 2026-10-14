@@ -8,6 +8,7 @@
  * - 不暴露 runtime / getRuntime / store / dispatcher / registry
  */
 
+export { listProviderAccounts, saveProviderAccount } from './provider-accounts.js';
 export { executeJob } from './execute-job.js';
 export type { ExecuteJobInput } from './execute-job.js';
 export { getJob } from './get-job.js';
@@ -127,6 +128,8 @@ export type {
   ProfileModelItem,
   ProviderModelInfo,
   ProviderProfile,
+  ProviderAccount,
+  ProviderAccountRepository,
   ProviderProfileConfig,
   ProviderProfileConfigValue,
   ProviderProfileLifecycle,
@@ -147,9 +150,11 @@ export type {
 // Adapter injection（暴露给 UI / host adapters 注入自定义实现）
 export {
   getAssetStore,
+  getProviderAccountRepository,
   getModelGenerationPreferenceRepository,
   getUserModelConfigRepository,
   setAssetStore,
+  setProviderAccountRepository,
   setJobHistoryStore,
   setModelGenerationPreferenceRepository,
   setProviderConfigResolver,

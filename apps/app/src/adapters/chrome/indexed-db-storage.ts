@@ -6,6 +6,8 @@ import type {
   JobHistoryStore,
   ModelGenerationPreference,
   ModelGenerationPreferenceRepository,
+  ProviderAccount,
+  ProviderAccountRepository,
   ProviderProfile,
   ProviderProfileRepository,
   SecretStorageAdapter,
@@ -22,6 +24,7 @@ import { normalizePromptSettings, type PromptSettings, type PromptSettingsStore 
 
 export type ChromeStoreName =
   | 'profiles'
+  | 'providerAccounts'
   | 'secrets'
   | 'history'
   | 'tasks'
@@ -56,10 +59,11 @@ interface ChromeStoredRecord<T> {
 }
 
 const CHROME_DB_NAME = 'imagen-ps-chrome-runtime';
-const CHROME_DB_VERSION = 8;
+const CHROME_DB_VERSION = 9;
 const LEGACY_COMFYUI_STORES = ['comfyUiConnections', 'comfyUiWorkflows', 'generationTargetSelection'] as const;
 const CHROME_STORES: readonly ChromeStoreName[] = [
   'profiles',
+  'providerAccounts',
   'secrets',
   'history',
   'tasks',
@@ -298,6 +302,7 @@ export function createMemoryIndexedDbBackend(options?: {
 }): ChromeKeyValueBackend {
   const stores: Record<ChromeStoreName, Map<string, unknown>> = {
     profiles: new Map(),
+    providerAccounts: new Map(),
     secrets: new Map(),
     history: new Map(),
     tasks: new Map(),
@@ -379,6 +384,7 @@ function parseAssetCounter(ref: string): number | undefined {
 /** Chrome runtime 的持久化 adapter；默认后端由 IndexedDB 提供，测试可注入等价后端。 */
 export function createChromeIndexedDbStorage(options?: { readonly backend?: ChromeKeyValueBackend }): {
   readonly profiles: ProviderProfileRepository;
+  readonly providerAccounts: ProviderAccountRepository;
   readonly secrets: SecretStorageAdapter;
   readonly history: JobHistoryStore;
   readonly tasks: TaskStore;
@@ -408,6 +414,21 @@ export function createChromeIndexedDbStorage(options?: { readonly backend?: Chro
   }
 
   return {
+    providerAccounts: {
+      async list(): Promise<readonly ProviderAccount[]> {
+        return (await backend.list<ProviderAccount>('providerAccounts')).filter((account) => account.providerId === 'grsai' || account.providerId === 'runninghub');
+      },
+      async get(providerId) {
+        const account = await backend.get<ProviderAccount>('providerAccounts', providerId);
+        return account?.providerId === providerId ? account : undefined;
+      },
+      async save(account) {
+        await backend.put('providerAccounts', account.providerId, account);
+      },
+      async delete(providerId) {
+        await backend.delete('providerAccounts', providerId);
+      },
+    },
     profiles: {
       async list(): Promise<readonly ProviderProfile[]> {
         return (await backend.list<ProviderProfile>('profiles')).map(normalizeProviderProfile);

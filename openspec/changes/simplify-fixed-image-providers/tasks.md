@@ -22,7 +22,7 @@
 
 ## 4. App UI 与偏好
 
-- [ ] 4.1 将 Provider Settings 改为固定 GRSAI/RunningHub 账号编辑入口，保存操作只更新对应 API Key
+- [ ] 4.1 将 Provider Settings 改为固定 GRSAI/RunningHub 账号编辑入口，保存操作只更新对应 API Key，并删除 Profile Settings route
 - [ ] 4.2 将主页面模型列表和基础参数控件改为 catalog projection，支持 GRSAI 组合尺寸选项与 RunningHub ratio/resolution 联动选项
 - [ ] 4.3 将生成参数偏好按 `providerId + modelId` 保存，切换模型时回退非法值到 catalog 默认值
 - [ ] 4.4 移除 Profile picker、model management、output matrix UI、矩阵 cell 选择和通用 endpoint/path/auth 编辑 surface；保留高级参数扩展点
@@ -37,7 +37,7 @@
 
 ## 6. 清理、文档与验证
 
-- [ ] 6.1 清理旧 ApiFormat/implementation/profile/model/matrix exports、host repositories、storage schema、fixtures 和无引用 transport
+- [ ] 6.1 直接删除旧 ApiFormat/implementation/profile/model/matrix exports、host repositories、storage schema、fixtures 和无引用 transport，不保留旧数据兼容
 - [ ] 6.2 更新 `docs/ENGINEERING_CONTEXT.md`、`docs/TESTING.md`、`packages/providers/AGENTS.md` 和 README 中的固定 provider、catalog、单账号与统一结果边界
 - [ ] 6.3 运行 providers/application affected tests、catalog harness、app Chrome tests、TypeScript build、`pnpm check:policy` 和 `pnpm validate`
 - [ ] 6.4 运行 `pnpm release:verify`，记录真实 Photoshop/UXP 验收为 user-owned gate，不由 agent 自动执行
