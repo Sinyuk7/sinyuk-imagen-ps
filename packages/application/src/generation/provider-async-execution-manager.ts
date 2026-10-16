@@ -3,8 +3,10 @@ import type {
   ProviderAsyncPollResult,
   ProviderInvokeResult,
 } from '@imagen-ps/providers';
+import { defaultRuntimePolicy, type RuntimePolicy } from '@imagen-ps/foundation';
 
 export interface ProviderAsyncExecutionManagerOptions {
+  readonly policy?: RuntimePolicy;
   readonly now?: () => number;
   readonly sleep?: (delayMs: number, signal?: AbortSignal) => Promise<void>;
   readonly maxPolls?: number;
@@ -76,9 +78,10 @@ export function createProviderAsyncExecutionManager(
 ): ProviderAsyncExecutionManager {
   const now = options.now ?? Date.now;
   const sleep = options.sleep ?? defaultSleep;
-  const maxPolls = options.maxPolls ?? 60;
-  const maxElapsedMs = options.maxElapsedMs ?? 10 * 60 * 1000;
-  const minPollDelayMs = options.minPollDelayMs ?? 250;
+  const policy = options.policy ?? defaultRuntimePolicy;
+  const maxPolls = options.maxPolls ?? policy.asyncTask.maxPolls ?? Number.POSITIVE_INFINITY;
+  const maxElapsedMs = options.maxElapsedMs ?? policy.asyncTask.timeoutMs ?? Number.POSITIVE_INFINITY;
+  const minPollDelayMs = options.minPollDelayMs ?? policy.asyncTask.pollIntervalMs;
   const maxPollDelayMs = options.maxPollDelayMs ?? 10_000;
   const inFlight = new Map<string, { readonly promise: Promise<ProviderInvokeResult>; readonly controller: AbortController }>();
   const startedJobIds = new Set<string>();

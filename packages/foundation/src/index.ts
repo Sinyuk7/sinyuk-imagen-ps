@@ -48,6 +48,10 @@ export { encodeLogRecord, encodeLogRecords, decodeLogRecords } from './jsonl.js'
 // Logger
 export { createLogger, createNullLogger, toLogError } from './logger.js';
 export type { CreateLoggerOptions } from './logger.js';
+export { defaultRuntimePolicy, parseRuntimePolicy, resolveRuntimePolicy } from './runtime-policy.js';
+export type { RuntimePolicy, RuntimePolicyRemoteSource, RuntimePolicyResolution } from './runtime-policy.js';
+export { createStaleConfigStore } from './stale-config.js';
+export type { ConfigCache, ConfigSnapshot, StaleConfigStore } from './stale-config.js';
 
 // Sinks
 export {
