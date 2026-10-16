@@ -211,3 +211,5 @@ export type { FixedPreparedRequest } from './fixed-provider-adapters.js';
 export { prepareFixedProviderRequest, prepareGrsaiRequest, prepareRunningHubRequest } from './fixed-provider-adapters.js';
 export type { CheckedProviderParameters } from './provider-parameter-checkers.js';
 export { canonicalRunningHubRatio, checkProviderParameters } from './provider-parameter-checkers.js';
+export type { ProviderOutputMaterializer, ProviderRemoteOutput } from './traceable-lifecycle.js';
+export { assertNoResubmitAfterUnknown, normalizeProviderRemoteOutputs, redactSignedUrl } from './traceable-lifecycle.js';

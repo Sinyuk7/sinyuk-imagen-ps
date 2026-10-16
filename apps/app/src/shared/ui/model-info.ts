@@ -1,4 +1,4 @@
-import { getProviderCatalog, type FixedProviderId, type ProviderModelInfo } from '@imagen-ps/providers';
+import { getProviderCatalog, type FixedProviderId, type ProviderModelInfo } from '@imagen-ps/application';
 
 export interface UiModelInfo {
   readonly id: string;

@@ -22,7 +22,7 @@ import {
 } from '../composer-readiness';
 import { classifyRoundError, type ErrorPrimaryAction } from '../error-action';
 import { comfyUiExecutionNodeLabel } from '../comfyui-execution-error';
-import type { ImageOutputSelection } from '@imagen-ps/providers';
+import type { ImageOutputSelection } from '@imagen-ps/application';
 import { configurationInstanceLabel, type UiModelInfo } from '../model-info';
 import type { GenerationWorkspaceController } from '../generation-workspace';
 import { Button, Divider, HelpText, Icon, IconButton, IconSelect, ImageFallbackContent, imageFallbackTitle, List, ListStateItem, MotionActivityDot, MotionActivityIcon, MotionButtonSurface, MotionContent, MotionDimSurface, MotionHighlight, MotionImage, MotionPresenceView, PageFrame, PageHeader, PageScroll, PageState, ProviderIdentity, ProviderMediaHeader, UxpTextArea, type UxpTextAreaElement, useToast } from '../ui-system';

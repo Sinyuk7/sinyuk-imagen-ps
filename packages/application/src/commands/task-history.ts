@@ -1,5 +1,6 @@
 import { getTaskStore } from '../runtime.js';
 import { assertTaskRecord, type TaskRecord, type TaskStatus } from '../task.js';
+import { ActiveSlotAdmission, selectRecoveryCandidates } from '../traceable-generation.js';
 
 /** Durable Task history 查询条件。 */
 export interface ListTaskRecordsQuery {
@@ -19,17 +20,15 @@ function interruptedRecord(record: TaskRecord): TaskRecord {
   const interruptedAt = new Date().toISOString();
   return {
     ...record,
-    status: 'interrupted',
-    error: {
-      category: 'interrupted',
+    status: record.remote?.remoteTaskId ? 'running' : 'interrupted',
+    ...(record.remote?.remoteTaskId ? {} : { error: {
+      category: 'interrupted' as const,
       message: 'App restarted before completion.',
-      ...(record.execution?.backend.id === 'comfyui'
-        ? { details: { remoteMayContinue: true } }
-        : {}),
-    },
-    outputs: [],
+      ...(record.execution?.backend.id === 'comfyui' ? { details: { remoteMayContinue: true } } : {}),
+    } }),
+    outputs: record.outputs,
     updatedAt: interruptedAt,
-    finishedAt: interruptedAt,
+    ...(record.remote?.remoteTaskId ? {} : { finishedAt: interruptedAt }),
   };
 }
 
@@ -64,4 +63,33 @@ export async function listTaskRecords(query?: ListTaskRecordsQuery): Promise<rea
   const records = await getTaskStore().list();
   const filtered = query?.status === undefined ? records : records.filter((record) => record.status === query.status);
   return typeof query?.limit === 'number' ? filtered.slice(0, query.limit) : filtered;
+}
+
+/** Recovery executor；只接收已有 remote task id 的历史任务，不会重新 submit。 */
+export interface TaskRecoveryExecutor {
+  recover(task: TaskRecord, remoteTaskId: string): Promise<TaskRecord>;
+}
+
+/** 启动时最多恢复一次既有 remote task，容量不足时保留 running 历史。 */
+export async function recoverTraceableTasks(
+  executor: TaskRecoveryExecutor,
+  options: { readonly admission?: ActiveSlotAdmission } = {},
+): Promise<readonly TaskRecord[]> {
+  const records = await getTaskStore().list({ status: 'running' });
+  const candidates = selectRecoveryCandidates(records.map((task) => ({ task, remoteTaskId: task.remote?.remoteTaskId })));
+  const admission = options.admission ?? new ActiveSlotAdmission();
+  const recovered: TaskRecord[] = [];
+  for (const candidate of candidates) {
+    const remoteTaskId = candidate.remoteTaskId;
+    if (!remoteTaskId) continue;
+    let reservation;
+    try { reservation = admission.reserve(1); } catch { continue; }
+    try {
+      const next = await executor.recover(candidate.task, remoteTaskId);
+      assertTaskRecord(next);
+      await getTaskStore().put(next);
+      recovered.push(next);
+    } finally { reservation.release(); }
+  }
+  return recovered;
 }

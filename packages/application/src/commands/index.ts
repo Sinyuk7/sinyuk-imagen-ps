@@ -16,6 +16,7 @@ export { getJob } from './get-job.js';
 export { subscribeJobEvents } from './subscribe-job-events.js';
 
 export { listProviders } from './list-providers.js';
+export { getProviderCatalog } from './provider-catalog.js';
 export { describeProvider } from './describe-provider.js';
 export { resolveModelBrand } from './resolve-model-brand.js';
 export type { ResolveModelBrandInput } from './resolve-model-brand.js';
@@ -63,6 +64,7 @@ export type {
 } from './types.js';
 
 export type { ApiFormat } from '@imagen-ps/providers';
+export type { ImageOutputSelection, FixedProviderId } from '@imagen-ps/providers';
 
 export type {
   ProviderConfig,

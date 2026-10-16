@@ -1,4 +1,6 @@
 export * from './task.js';
+export * from './traceable-generation.js';
+export * from './commands/task-history.js';
 export * from './generation/index.js';
 export * from './comfyui/index.js';
 export * from './commands/index.js';

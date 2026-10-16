@@ -1,4 +1,4 @@
-import type { ImageOutputSelection } from '@imagen-ps/providers';
+import type { ImageOutputSelection } from '@imagen-ps/application';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   ApiFormat,

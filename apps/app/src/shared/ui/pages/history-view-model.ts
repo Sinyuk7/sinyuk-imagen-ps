@@ -66,7 +66,7 @@ function statusFromRecord(record: TaskRecord): RoundStatus {
   if (record.status === 'completed') {
     return 'ok';
   }
-  if (record.status === 'failed' || record.status === 'interrupted') {
+  if (record.status === 'failed' || record.status === 'interrupted' || record.status === 'discarded') {
     return 'err';
   }
   return 'running';

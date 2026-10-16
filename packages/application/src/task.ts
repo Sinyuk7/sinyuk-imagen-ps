@@ -8,7 +8,7 @@ import {
 export const TASK_RECORD_SCHEMA_VERSION = 3;
 
 /** 用户可见 Task lifecycle 状态。 */
-export type TaskStatus = 'running' | 'completed' | 'failed' | 'interrupted';
+export type TaskStatus = 'running' | 'completed' | 'failed' | 'discarded' | 'interrupted';
 
 /** 用户可见 Task 操作类型。 */
 export type TaskOperation = 'text-to-image' | 'image-edit';
@@ -107,6 +107,27 @@ export interface TaskOutput {
   readonly evidence?: TaskEvidence;
 }
 
+/** Provider 远程执行事实；URL 与诊断必须保持脱敏。 */
+export interface TaskRemoteExecution {
+  readonly providerId: string;
+  readonly modelId: string;
+  readonly remoteTaskId?: string;
+  readonly remoteStatus?: string;
+  readonly observedAt: string;
+  readonly diagnostics?: Record<string, string | number | boolean | null>;
+}
+
+/** 单个 provider 结果 URL 与本地物化状态。 */
+export interface TaskRemoteOutput {
+  readonly outputId: string;
+  readonly index: number;
+  readonly url: string;
+  readonly observedAt: string;
+  readonly providerMetadata?: Record<string, string | number | boolean | null>;
+  readonly assetRef?: StoredAssetRef;
+  readonly lastMaterialization?: { readonly status: 'succeeded' | 'failed'; readonly observedAt: string; readonly error?: string };
+}
+
 /** Task replay placement 只引用 durable evidence。 */
 export type TaskPlacement =
   | { readonly kind: 'exact-frame'; readonly sourceSnapshotId: string }
@@ -139,6 +160,13 @@ export interface TaskRecord {
   readonly placement: TaskPlacement;
   readonly error?: TaskError;
   readonly execution?: TaskExecutionSummary;
+  /** Batch 只用于轻量关联与汇总，不是用户可编辑实体。 */
+  readonly batchId?: string;
+  readonly requestSummary?: Record<string, string | number | boolean | null>;
+  readonly remote?: TaskRemoteExecution;
+  readonly remoteOutputs?: readonly TaskRemoteOutput[];
+  readonly submissionUnknown?: boolean;
+  readonly discarded?: boolean;
   readonly latestJobId?: string;
   readonly createdAt: string;
   readonly updatedAt: string;
@@ -187,6 +215,12 @@ const TASK_RECORD_KEYS = [
   'placement',
   'error',
   'execution',
+  'batchId',
+  'requestSummary',
+  'remote',
+  'remoteOutputs',
+  'submissionUnknown',
+  'discarded',
   'latestJobId',
   'createdAt',
   'updatedAt',
@@ -259,7 +293,7 @@ export function assertTaskRecord(record: unknown): asserts record is TaskRecord 
   assertAllowedKeys(record, TASK_RECORD_KEYS, 'root');
   expectLiteral(record.schemaVersion, TASK_RECORD_SCHEMA_VERSION, 'schemaVersion');
   expectNonEmptyString(record.taskId, 'taskId');
-  expectOneOf(record.status, ['running', 'completed', 'failed', 'interrupted'], 'status');
+  expectOneOf(record.status, ['running', 'completed', 'failed', 'discarded', 'interrupted'], 'status');
   expectOneOf(record.operation, ['text-to-image', 'image-edit'], 'operation');
   expectString(record.prompt, 'prompt');
   expectArray(record.attachments, 'attachments');
@@ -284,7 +318,7 @@ export function assertTaskRecord(record: unknown): asserts record is TaskRecord 
     forbid(record.error, 'error', 'completed');
     expectRequired(record.finishedAt, 'finishedAt', 'completed');
   }
-  if (status === 'failed' || status === 'interrupted') {
+  if (status === 'failed' || status === 'discarded' || status === 'interrupted') {
     expectRequired(record.error, 'error', status);
     expectRequired(record.finishedAt, 'finishedAt', status);
   }
@@ -317,6 +351,12 @@ export function assertTaskRecord(record: unknown): asserts record is TaskRecord 
   if (record.execution !== undefined) {
     assertExecutionSummary(record.execution, 'execution');
   }
+  if (record.batchId !== undefined) expectNonEmptyString(record.batchId, 'batchId');
+  if (record.requestSummary !== undefined) assertBoundedSummary(record.requestSummary, 'requestSummary');
+  if (record.remote !== undefined) assertRemoteExecution(record.remote, 'remote');
+  if (record.remoteOutputs !== undefined) (record.remoteOutputs as readonly unknown[]).forEach((output, index) => assertRemoteOutput(output, `remoteOutputs[${index}]`));
+  if (record.submissionUnknown !== undefined && typeof record.submissionUnknown !== 'boolean') throw createValidationError('submissionUnknown must be boolean.');
+  if (record.discarded !== undefined && typeof record.discarded !== 'boolean') throw createValidationError('discarded must be boolean.');
   assertNoTaskSecrets(record);
 }
 
@@ -458,6 +498,51 @@ function assertExecutionIdentity(value: unknown, path: string): void {
   assertAllowedKeys(value, ['id', 'label'], path);
   expectNonEmptyString(value.id, `${path}.id`);
   expectNonEmptyString(value.label, `${path}.label`);
+}
+
+function assertBoundedSummary(value: unknown, path: string): void {
+  if (!isRecord(value)) throw createValidationError(`Task ${path} must be an object.`, { path });
+  for (const [key, item] of Object.entries(value)) {
+    if (!/^[A-Za-z][A-Za-z0-9_.-]{0,63}$/u.test(key) || (item !== null && typeof item !== 'string' && typeof item !== 'number' && typeof item !== 'boolean')) {
+      throw createValidationError(`Task ${path} contains an invalid bounded value.`, { path: `${path}.${key}` });
+    }
+  }
+}
+
+function assertRemoteExecution(value: unknown, path: string): asserts value is TaskRemoteExecution {
+  if (!isRecord(value)) throw createValidationError(`Task ${path} must be an object.`, { path });
+  assertAllowedKeys(value, ['providerId', 'modelId', 'remoteTaskId', 'remoteStatus', 'observedAt', 'diagnostics'], path);
+  expectNonEmptyString(value.providerId, `${path}.providerId`);
+  expectNonEmptyString(value.modelId, `${path}.modelId`);
+  if (value.remoteTaskId !== undefined) expectNonEmptyString(value.remoteTaskId, `${path}.remoteTaskId`);
+  if (value.remoteStatus !== undefined) expectNonEmptyString(value.remoteStatus, `${path}.remoteStatus`);
+  expectIsoString(value.observedAt, `${path}.observedAt`);
+  if (value.diagnostics !== undefined) assertBoundedSummary(value.diagnostics, `${path}.diagnostics`);
+}
+
+function assertRemoteOutput(value: unknown, path: string): asserts value is TaskRemoteOutput {
+  if (!isRecord(value)) throw createValidationError(`Task ${path} must be an object.`, { path });
+  assertAllowedKeys(value, ['outputId', 'index', 'url', 'observedAt', 'providerMetadata', 'assetRef', 'lastMaterialization'], path);
+  expectNonEmptyString(value.outputId, `${path}.outputId`);
+  expectNonNegativeInteger(value.index, `${path}.index`);
+  expectNonEmptyString(value.url, `${path}.url`);
+  expectIsoString(value.observedAt, `${path}.observedAt`);
+  if (value.providerMetadata !== undefined) assertBoundedSummary(value.providerMetadata, `${path}.providerMetadata`);
+  if (value.assetRef !== undefined) assertStoredAssetRef(value.assetRef, `${path}.assetRef`);
+  if (value.lastMaterialization !== undefined) {
+    if (!isRecord(value.lastMaterialization)) throw createValidationError(`Task ${path}.lastMaterialization must be an object.`);
+    assertAllowedKeys(value.lastMaterialization, ['status', 'observedAt', 'error'], `${path}.lastMaterialization`);
+    expectOneOf(value.lastMaterialization.status, ['succeeded', 'failed'], `${path}.lastMaterialization.status`);
+    expectIsoString(value.lastMaterialization.observedAt, `${path}.lastMaterialization.observedAt`);
+    if (value.lastMaterialization.error !== undefined) expectString(value.lastMaterialization.error, `${path}.lastMaterialization.error`);
+  }
+}
+
+function assertStoredAssetRef(value: unknown, path: string): asserts value is StoredAssetRef {
+  if (!isRecord(value)) throw createValidationError(`Task ${path} must be an object.`, { path });
+  assertAllowedKeys(value, ['kind', 'ref', 'mimeType', 'name', 'byteSize', 'sha256'], path);
+  expectOneOf(value.kind, ['inline', 'url', 'hostObject', 'externalToken'], `${path}.kind`);
+  expectNonEmptyString(value.ref, `${path}.ref`);
 }
 
 function assertTaskError(value: unknown, path: string): void {

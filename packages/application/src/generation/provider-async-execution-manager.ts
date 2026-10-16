@@ -11,6 +11,8 @@ export interface ProviderAsyncExecutionManagerOptions {
   readonly maxElapsedMs?: number;
   readonly minPollDelayMs?: number;
   readonly maxPollDelayMs?: number;
+  /** poll 成功后对独立 remote output 的自动物化钩子。 */
+  readonly onRemoteOutputs?: (outputs: readonly { readonly index: number; readonly url: string }[]) => Promise<void>;
 }
 
 /** Application runtime 持有的异步 Provider 执行 manager。 */
@@ -123,7 +125,12 @@ export function createProviderAsyncExecutionManager(
               signal: controller.signal,
               ...(args.invokeArgs.logger !== undefined ? { logger: args.invokeArgs.logger } : {}),
             });
-            if (outcome.status === 'completed') return outcome.result;
+            if (outcome.status === 'completed') {
+              if (options.onRemoteOutputs && outcome.remoteOutputs) {
+                await options.onRemoteOutputs(outcome.remoteOutputs.map((output) => ({ index: output.index, url: output.url })));
+              }
+              return outcome.result;
+            }
             if (outcome.status === 'failed') throw outcome.error;
             nextDelayMs = delayFor(outcome.nextPollAfterMs);
           }

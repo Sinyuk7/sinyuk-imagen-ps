@@ -111,7 +111,7 @@ export function createGrsaiGenerateProvider(): Provider<GrsaiGenerateProviderCon
       if (record.status === 'succeeded') {
         const assets = safeResultAssets(response.response.data);
         configsByRemoteRef.delete(args.remoteRef);
-        return assets.length ? { status: 'completed', result: { assets } } : { status: 'failed', error: new Error('GRSAI succeeded response has no safe result URL.') };
+        return assets.length ? { status: 'completed', result: { assets }, remoteStatus: 'succeeded', remoteOutputs: assets.map((asset, index) => ({ index, url: asset.url! })) } : { status: 'failed', error: new Error('GRSAI succeeded response has no safe result URL.') };
       }
       configsByRemoteRef.delete(args.remoteRef);
       return { status: 'failed', error: new Error('GRSAI result response has unknown status.') };

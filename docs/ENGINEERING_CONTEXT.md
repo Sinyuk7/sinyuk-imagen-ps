@@ -503,6 +503,9 @@ surface apps -> application/session -> core-engine + providers + execution backe
 - Model lists and provider parameter choices come from the provider catalog projection. The UI sends `providerId`, `modelId`, and a parameter value map; provider checkers normalize values and adapters perform wire mapping.
 - Provider adapters share the Application async job lifecycle and terminal asset projection. Provider-specific submit, poll, upload, and error handling stays inside `packages/providers`.
 - ComfyUI remains a separate workflow backend and does not consume the image provider catalog protocol.
+- Traceable generation contracts live in `packages/application/src/traceable-generation.ts`: public Task status is running/completed/failed/discarded, remote execution facts and remote output URLs are durable, and signed URL query strings are redacted before diagnostics.
+- Batch admission reserves the complete child-task count atomically with a default of 10 slots (configurable 2–100); rejected batches do not enter a local pending queue. Shared input assets use content-hash references and active/running references are retained.
+- Provider async adapters remain submit/poll protocol owners. Result URL records are separated from materialization and Photoshop placement; recovery only resumes tasks with an existing remote ID, while user placement resolves local asset, URL, then one remote query.
 
 | Code | Place |
 |---|---|

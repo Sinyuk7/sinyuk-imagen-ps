@@ -62,11 +62,11 @@ Focused development entrypoints:
 - `pnpm test:providers`: runs the `@imagen-ps/providers` deterministic provider suite.
 - `pnpm test:uxp`: runs only the app fake-UXP adapter and shell suite.
 
-Profile setup/default-model initialization coverage is mock-only: run
-`pnpm --filter @imagen-ps/application test` for atomic template setup outcome,
-cleanup, promotion, explicit-model admission, and final-model deletion contracts; run
-`pnpm --filter @imagen-ps/app test:ui`, `test:chrome`, and `test:uxp` for the
-Provider Picker, dedicated Profile routes, Composer selection, and host persistence adapters.
+Provider and application lifecycle coverage is mock-only: run
+`pnpm --filter @imagen-ps/providers test` and
+`pnpm --filter @imagen-ps/application test` for provider protocol, traceable
+batch, recovery, materialization, and task contracts. The app suite covers
+shared UI, host adapters, ComfyUI boundaries, placement, and policy seams.
 
 `pnpm check:policy` is the local architecture and documentation policy gate. It
 checks package import boundaries, high-authority documentation wording,
@@ -737,3 +737,10 @@ Keep these out of default `pnpm test`:
 - concurrent writes to one config directory
 - any scenario requiring human keys, proxy configuration, external network, or
   paid provider traffic
+
+## Traceable generation contracts
+
+Traceable batch tests use `createBatchExecution`, `createTaskStoreFake`, and
+`createSharedAssetStoreFake` from `@imagen-ps/application`. Contract tests assert
+whole-batch admission, independent child failure/cancellation, signed URL
+redaction, and recovery selection without network or provider credentials.

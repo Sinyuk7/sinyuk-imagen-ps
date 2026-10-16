@@ -1,4 +1,4 @@
-import type { ImageOutputSelection } from '@imagen-ps/providers';
+import type { ImageOutputSelection } from '@imagen-ps/application';
 import type { CaptureUploadPlan, ImageSize, PlacementScalePlan, ProviderInputPlan } from '../image/resize';
 import type { CanonicalMaskAsset } from './mask-source';
 
@@ -178,6 +178,9 @@ export function resolvePlacementTarget(
 ): PlacementTargetResolution {
   const evidenceStrength = placementEvidenceStrength(placement);
   if (placement.kind === 'unbound') {
+    if (placement.reason === 'no-photoshop-capture' && activeDocumentId !== undefined) {
+      return { kind: 'resolved', targetDocumentId: activeDocumentId, matchConfidence: 'active-document-fallback', evidenceStrength };
+    }
     return {
       kind: 'unbound',
       reason: placement.reason,

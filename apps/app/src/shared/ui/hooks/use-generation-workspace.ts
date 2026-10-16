@@ -21,7 +21,7 @@ import {
   type GenerationReadinessProjection,
 } from '../generation-workspace';
 import type { UiModelInfo } from '../model-info';
-import { getProviderCatalog } from '@imagen-ps/providers';
+import { getProviderCatalog } from '@imagen-ps/application';
 import type { CommandsPort } from '../../ports/commands-port';
 import type { GenerationSettingsState } from './use-generation-settings';
 import {

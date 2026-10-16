@@ -162,17 +162,21 @@ export type ProviderAsyncSubmitResult =
     readonly remoteRef: string;
     /** provider 建议的下一次查询等待时间。 */
     readonly nextPollAfterMs?: number;
+    /** provider response 摘要，供 Application 持久化追踪事实。 */
+    readonly diagnostics?: Readonly<Record<string, string | number | boolean | null>>;
   };
 
 /** Provider 异步查询的 canonical 结果。 */
 export type ProviderAsyncPollResult =
-  | { readonly status: 'completed'; readonly result: ProviderInvokeResult }
+  | { readonly status: 'completed'; readonly result: ProviderInvokeResult; readonly remoteStatus?: string; readonly remoteOutputs?: readonly { readonly index: number; readonly url: string; readonly metadata?: Readonly<Record<string, string | number | boolean | null>> }[]; readonly diagnostics?: Readonly<Record<string, string | number | boolean | null>> }
   | {
     readonly status: 'pending';
     /** provider 建议的下一次查询等待时间。 */
     readonly nextPollAfterMs?: number;
     /** 非权威进度事实；当前不进入跨包状态机。 */
     readonly progress?: number;
+    readonly remoteStatus?: string;
+    readonly diagnostics?: Readonly<Record<string, string | number | boolean | null>>;
   }
   | { readonly status: 'failed'; readonly error: Error };
 

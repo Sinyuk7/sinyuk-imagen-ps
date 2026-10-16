@@ -7,7 +7,7 @@ import type {
   WorkflowPrimitiveValue,
 } from '@imagen-ps/application';
 import { composeWorkflowMutations } from '@imagen-ps/application';
-import type { ImageOutputSelection } from '@imagen-ps/providers';
+import type { ImageOutputSelection } from '@imagen-ps/application';
 type FixedProviderId = 'grsai' | 'runninghub';
 type CatalogParameter = { readonly type: 'choice'; readonly default: string; readonly options: readonly { readonly value: string; readonly label: string }[] };
 import type { AppGenerationSettings, AppProviderInputSizePreset } from '../ports/app-generation-settings';
@@ -20,6 +20,8 @@ export type GenerationSettingsRoute = GenerationMode;
 
 export interface ProviderSubmitIntent {
   readonly backend: 'provider';
+  /** Legacy profile identity retained for the app command seam. */
+  readonly profileId?: string;
   readonly providerId: FixedProviderId;
   readonly providerName: string;
   readonly modelId?: string;
@@ -81,6 +83,7 @@ export interface GenerationComposerViewModel {
 
 export interface ProviderComposerBuilderInput {
   readonly providerId: FixedProviderId;
+  readonly selectedProfileId?: string;
   readonly models: readonly UiModelInfo[];
   readonly modelsLoading: boolean;
   readonly modelsError: string | null;
@@ -123,6 +126,7 @@ export function buildProviderComposerViewModel(input: ProviderComposerBuilderInp
   const providerId = input.providerId;
   const submitIntent = {
         backend: 'provider' as const,
+        ...(input.selectedProfileId ? { profileId: input.selectedProfileId } : {}),
         providerId: input.providerId,
         providerName: input.providerId === 'grsai' ? 'GRSAI' : 'RunningHub',
         ...(input.selectedModelId ? { modelId: input.selectedModelId } : {}),
