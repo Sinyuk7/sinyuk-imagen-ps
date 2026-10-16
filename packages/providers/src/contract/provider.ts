@@ -1,6 +1,6 @@
 import type { Logger } from '@imagen-ps/foundation';
 import type { ProviderFamily, ProviderOperation } from './capability.js';
-import type { ApiFormat } from './api-format.js';
+import type { ProviderId } from './provider-routing.js';
 import type {
   ExactTaskCost,
   ProviderBalanceQueryInput,
@@ -34,9 +34,6 @@ export interface ProviderDescriptor {
   /** 当前 provider family。仅作分类/展示标签（如 profile UI 分组），不参与调用、校验或兜底。 */
   readonly family: ProviderFamily;
 
-  /** 用户/profile 面向的 canonical API format。 */
-  readonly apiFormat?: ApiFormat;
-
   /** 展示名称。 */
   readonly displayName: string;
 
@@ -67,8 +64,8 @@ export interface ProviderDescriptor {
 
 /** Provider 为新 Profile 声明的完整本地默认模型数据。 */
 export interface ProviderDefaultModelTemplate {
-  /** 模板所属 API format，必须与 Provider descriptor 相同。 */
-  readonly apiFormat: ApiFormat;
+  /** 模板所属 Provider，必须与 Provider descriptor id 相同。 */
+  readonly providerId: ProviderId;
   /** Profile 内唯一的用户模型标识。 */
   readonly modelId: string;
   /** Provider 请求实际使用的 wire model 标识。 */

@@ -6,7 +6,7 @@ import type {
   ImageSizePreset,
   UserModelOutputExposure,
 } from '../../../contract/image-model-capability.js';
-import { GEMINI_GENERATE_CONTENT_OUTPUT_FORMATS, geminiGenerateContentImageConfigMatrix } from './gemini-generate-content-output.js';
+import { GEMINI_GENERATE_CONTENT_OUTPUT_FORMATS, googleGeminiImageConfigMatrix } from './google-gemini-output.js';
 
 export const GEMINI_3_PRO_IMAGE_RATIOS = [
   '1:1',
@@ -45,7 +45,7 @@ export const GEMINI_3_PRO_IMAGE_OUTPUT_EXPOSURE = Object.freeze({
 } as const satisfies UserModelOutputExposure);
 
 export function gemini3ProImageMatrix(operation: ImageOperation): ImageOutputMatrix {
-  return geminiGenerateContentImageConfigMatrix({
+  return googleGeminiImageConfigMatrix({
     operation,
     sizes: GEMINI_3_PRO_IMAGE_SIZES,
     ratios: GEMINI_3_PRO_IMAGE_RATIOS,

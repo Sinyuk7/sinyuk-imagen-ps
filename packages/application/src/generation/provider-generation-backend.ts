@@ -10,7 +10,7 @@ import {
   type ProviderRegistry,
   type ProviderRequest,
   type FixedGenerationRequest,
-  type ApiFormat,
+  type ProviderId,
 } from '@imagen-ps/providers';
 import type { createFixedProviderResolver } from './fixed-provider-resolution.js';
 import {
@@ -266,7 +266,7 @@ function canonicalRequest(args: {
   readonly operation: ProviderGenerationOperation;
   readonly prepared: Readonly<Record<string, unknown>>;
   readonly modelId: string;
-  readonly apiFormat: ApiFormat;
+  readonly providerId: ProviderId;
   readonly output: ProviderOutputOptions;
 }): ProviderRequest {
   const { prepared } = args;
@@ -279,7 +279,7 @@ function canonicalRequest(args: {
   }
   const providerOptions = providerOptionsWithoutModel(prepared.providerOptions);
   const maskExecutionPlan = resolveMaskExecutionPlan({
-    providerId: args.apiFormat === 'grsai' ? 'grsai-generate' : 'image-endpoint',
+    providerId: args.providerId === 'grsai' ? 'grsai' : 'openai',
     capabilityModelId: args.modelId,
     hasReadyMask: prepared.maskImage !== undefined,
   });
@@ -453,7 +453,7 @@ export function createProviderGenerationBackend(
         });
       }
       const payload = providerPayload(normalizedCommand);
-      const provider = dependencies.providerRegistry.get(payload.providerId === 'grsai' ? 'grsai-generate' : 'runninghub-generate');
+      const provider = dependencies.providerRegistry.get(payload.providerId === 'grsai' ? 'grsai' : 'runninghub');
       if (!provider) throw createValidationError('Fixed provider implementation is not registered.', { providerId: payload.providerId });
       if (!provider.describe().operations.includes(payload.operation)) throw createValidationError('Provider implementation does not support requested operation.');
       let prepared = dependencies.prepareRequest ? await dependencies.prepareRequest({ command: normalizedCommand, providerId: payload.providerId, operation: payload.operation, request: payload.request }) : payload.request;
@@ -463,8 +463,8 @@ export function createProviderGenerationBackend(
       if (!dependencies.fixedProviderResolver) throw createValidationError('Fixed provider resolver is unavailable.');
       const fixedResolved = await dependencies.fixedProviderResolver.resolveGeneration({ providerId: payload.providerId, modelId, operation: payload.operation, prompt: String(prepared.prompt ?? ''), ...(Array.isArray(prepared.images) ? { images: prepared.images as FixedGenerationRequest['images'] } : {}), ...(prepared.maskImage ? { maskImage: prepared.maskImage as FixedGenerationRequest['maskImage'] } : {}), parameters: isRecord(prepared.parameters) && Object.values(prepared.parameters).every((value) => typeof value === 'string') ? prepared.parameters as Readonly<Record<string, string>> : {} });
       prepared = { ...prepared, providerId: payload.providerId, modelId: fixedResolved.request.modelId, parameters: fixedResolved.request.parameters };
-      const apiFormat: ApiFormat = payload.providerId === 'grsai' ? 'grsai' : 'openai-images';
-      const request = canonicalRequest({ operation: payload.operation, prepared, modelId: fixedResolved.request.modelId, apiFormat, output: {} });
+      const providerId: ProviderId = payload.providerId === 'grsai' ? 'grsai' : 'openai';
+      const request = canonicalRequest({ operation: payload.operation, prepared, modelId: fixedResolved.request.modelId, providerId, output: {} });
       const runningTask = runningTaskForAdmission({ command: normalizedCommand, payload, providerId: payload.providerId, configModelId: fixedResolved.request.modelId, prompt: request.prompt });
       return normalizeAdmittedGeneration(normalizedCommand, backend.id, { taskId: normalizedCommand.taskId, backendId: PROVIDER_GENERATION_BACKEND_ID, execution: { workflow: payload.operation === 'image_edit' ? 'provider-edit' : 'provider-generate', input: { implementationId: provider.id, providerId: payload.providerId, request } }, runningTask, lane: { key: 'provider:' + payload.providerId, maxConcurrency: PROVIDER_LANE_MAX_CONCURRENCY }, retry: { allowed: true } });
     },

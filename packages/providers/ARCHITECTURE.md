@@ -13,7 +13,7 @@ The product-visible builtins are organized by business integration:
 src/providers/
   grsai/
   gemini/
-  openai-images/
+  openai/
 ```
 
 Each slice owns `models.ts`, `profile-template.ts`, `config-schema.ts`,
@@ -29,16 +29,16 @@ only Application projections.
 
 ## Decision Guide
 
-- Add a new `ApiFormat` when the upstream protocol and semantic request/response contract differ at the provider boundary.
-- Add an image-edit request codec when one API format needs a new wire dialect for the same canonical `image_edit` intent.
+- Add a new `ProviderId` when the upstream protocol and semantic request/response contract differ at the provider boundary.
+- Keep an image-edit request codec inside the owning Provider when its upstream wire dialect differs from the canonical `image_edit` intent.
 - Add a provider capability flag when the behavior changes recovery, billing, or catalog ownership without changing the canonical request.
 
 ## Recovery Policy
 
 - `RecoveryDisposition` records failure facts only.
-- `decideNextAction()` is the only recovery decision point for image-endpoint edit attempt plans.
+- `decideNextAction()` is the only recovery decision point for openai edit attempt plans.
 - `429` stays on the same endpoint and is owned by transport retry policy alone.
-- Unknown execution state (`502/503/504`, `timeout`, `network_error`) stops automatic replay for image-endpoint edit execution.
+- Unknown execution state (`502/503/504`, `timeout`, `network_error`) stops automatic replay for openai edit execution.
 - Endpoint failover plans and codec-fallback plans are mutually exclusive.
 
 ## Attempt Plan
@@ -67,7 +67,7 @@ only Application projections.
 2. Keep Provider-specific request builders, parsers, codecs, and polling inside that slice.
 3. Extract a shared primitive only after two current Providers consume identical semantics.
 4. Update `builtins` exhaustiveness and public exports.
-5. Confirm `ApiFormat` coverage and catalog ownership boundaries.
+5. Confirm `ProviderId` coverage and catalog ownership boundaries.
 6. Declare the canonical Provider's explicit `defaultModelTemplates`; every row
    must exactly resolve its `baseModelId` to an Official Model Preset. Templates
    are setup-only data, never a runtime discovery or synchronization source.

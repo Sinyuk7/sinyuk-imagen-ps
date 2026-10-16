@@ -9,7 +9,7 @@ import { createImageOutputMatrix, ratioResolutionCells, withFormats } from './ma
 
 export const GEMINI_GENERATE_CONTENT_OUTPUT_FORMATS: readonly ImageOutputFormat[] = ['png'];
 
-export function geminiGenerateContentImageConfigMatrix(args: {
+export function googleGeminiImageConfigMatrix(args: {
   readonly operation: ImageOperation;
   readonly sizes: readonly ImageSizePreset[];
   readonly ratios: readonly Exclude<ImageAspectRatio, 'auto' | 'source'>[];

@@ -1,5 +1,5 @@
 import type { Asset } from '@imagen-ps/core-engine';
-import type { ApiFormat } from './api-format.js';
+import type { ProviderId } from './provider-routing.js';
 import type { ProviderOperation } from './capability.js';
 import type { ImageOutputSelection } from './image-output-contract.js';
 import type { MaskExecutionPlan } from './image-model-capability.js';
@@ -7,7 +7,7 @@ import type { MaskExecutionPlan } from './image-model-capability.js';
 /** 旧 provider transport 的内部执行锚点；固定 provider 请求不再填充。 */
 export interface ProviderModelExecution {
   readonly modelId: string;
-  readonly apiFormat: ApiFormat;
+  readonly providerId: ProviderId;
   readonly requestStrategyId: string;
 }
 
@@ -34,30 +34,30 @@ export interface CanonicalMaskImage {
 }
 
 /** OpenAI Images API 已解析的输出字段。 */
-export interface ImageEndpointRequestOutput {
-  readonly kind: 'image-endpoint';
+export interface OpenAiRequestOutput {
+  readonly kind: 'openai';
   readonly size?: string;
   readonly outputFormat?: 'png' | 'jpeg' | 'webp';
 }
 
 /** Gemini Generate Content 已解析输出字段。 */
-export interface GeminiGenerateContentRequestOutput {
-  readonly kind: 'gemini-generate-content';
+export interface GoogleGeminiRequestOutput {
+  readonly kind: 'google-gemini';
   readonly imageConfig?: Readonly<Record<string, unknown>>;
 }
 
 /** GRSAI Generate 已解析的输出字段。 */
-export interface GrsaiGenerateRequestOutput {
-  readonly kind: 'grsai-generate';
+export interface GrsaiRequestOutput {
+  readonly kind: 'grsai';
   readonly aspectRatio?: string;
   readonly imageSize?: '1K' | '2K' | '4K';
 }
 
 /** Provider transport 可直接序列化的已解析输出字段。 */
 export type ProviderResolvedOutput =
-  | ImageEndpointRequestOutput
-  | GeminiGenerateContentRequestOutput
-  | GrsaiGenerateRequestOutput;
+  | OpenAiRequestOutput
+  | GoogleGeminiRequestOutput
+  | GrsaiRequestOutput;
 
 /** 归一化后的编辑输入几何上下文。 */
 export interface NormalizedImageInputGeometry {

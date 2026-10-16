@@ -19,7 +19,7 @@ import {
 
 export const GEMINI_GENERATE_CONTENT_MODEL_CAPABILITIES = Object.freeze([
   {
-    ruleId: 'gemini-generate-content-gemini-3.1-flash-image',
+    ruleId: 'google-gemini-gemini-3.1-flash-image',
     match: {
       ids: ['gemini-3.1-flash-image', 'models/gemini-3.1-flash-image'],
       prefixes: ['gemini-3.1-flash-image', 'models/gemini-3.1-flash-image'],
@@ -30,8 +30,8 @@ export const GEMINI_GENERATE_CONTENT_MODEL_CAPABILITIES = Object.freeze([
       visibleInPicker: true,
       allowAsDefault: true,
     },
-    appliesToProviders: ['gemini-generate-content'],
-    requestStrategyId: 'gemini-generate-content-image-config',
+    appliesToProviders: ['google-gemini'],
+    requestStrategyId: 'google-gemini-image-config',
     outputCapability: GEMINI_3_1_FLASH_IMAGE_OUTPUT_CAPABILITY,
     outputExposure: GEMINI_3_1_FLASH_IMAGE_OUTPUT_EXPOSURE,
     editInput: GEMINI_EDIT_INPUT_CAPABILITY,
@@ -41,7 +41,7 @@ export const GEMINI_GENERATE_CONTENT_MODEL_CAPABILITIES = Object.freeze([
     ],
   },
   {
-    ruleId: 'gemini-generate-content-gemini-3-pro-image',
+    ruleId: 'google-gemini-gemini-3-pro-image',
     match: {
       ids: ['gemini-3-pro-image', 'models/gemini-3-pro-image'],
       prefixes: ['gemini-3-pro-image', 'models/gemini-3-pro-image'],
@@ -52,8 +52,8 @@ export const GEMINI_GENERATE_CONTENT_MODEL_CAPABILITIES = Object.freeze([
       visibleInPicker: true,
       allowAsDefault: true,
     },
-    appliesToProviders: ['gemini-generate-content'],
-    requestStrategyId: 'gemini-generate-content-image-config',
+    appliesToProviders: ['google-gemini'],
+    requestStrategyId: 'google-gemini-image-config',
     outputCapability: GEMINI_3_PRO_IMAGE_OUTPUT_CAPABILITY,
     outputExposure: GEMINI_3_PRO_IMAGE_OUTPUT_EXPOSURE,
     editInput: GEMINI_EDIT_INPUT_CAPABILITY,
@@ -63,7 +63,7 @@ export const GEMINI_GENERATE_CONTENT_MODEL_CAPABILITIES = Object.freeze([
     ],
   },
   {
-    ruleId: 'gemini-generate-content-gemini-3.1-flash-lite-image',
+    ruleId: 'google-gemini-gemini-3.1-flash-lite-image',
     match: {
       ids: ['gemini-3.1-flash-lite-image', 'models/gemini-3.1-flash-lite-image'],
       prefixes: ['gemini-3.1-flash-lite-image', 'models/gemini-3.1-flash-lite-image'],
@@ -74,8 +74,8 @@ export const GEMINI_GENERATE_CONTENT_MODEL_CAPABILITIES = Object.freeze([
       visibleInPicker: true,
       allowAsDefault: true,
     },
-    appliesToProviders: ['gemini-generate-content'],
-    requestStrategyId: 'gemini-generate-content-image-config',
+    appliesToProviders: ['google-gemini'],
+    requestStrategyId: 'google-gemini-image-config',
     outputCapability: GEMINI_3_1_FLASH_LITE_IMAGE_OUTPUT_CAPABILITY,
     outputExposure: GEMINI_3_1_FLASH_LITE_IMAGE_OUTPUT_EXPOSURE,
     editInput: GEMINI_EDIT_INPUT_CAPABILITY,
@@ -97,7 +97,7 @@ export const GEMINI_DEFAULT_MODEL_TEMPLATES = Object.freeze(
       throw new Error(`Gemini model rule "${capability.ruleId}" requires an exact model id.`);
     }
     return {
-      apiFormat: 'gemini-generate-content',
+      providerId: 'google-gemini',
       modelId,
       wireModelId: modelId,
       baseModelId: modelId,

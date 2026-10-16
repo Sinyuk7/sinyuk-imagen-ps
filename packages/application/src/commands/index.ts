@@ -63,7 +63,7 @@ export type {
   Unsubscribe,
 } from './types.js';
 
-export type { ApiFormat } from '@imagen-ps/providers';
+export type { ProviderId } from '@imagen-ps/providers';
 export type { ImageOutputSelection, FixedProviderId } from '@imagen-ps/providers';
 
 export type {

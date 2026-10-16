@@ -9,31 +9,31 @@
 export type {
   BalanceChange,
   BillingEnabledProviderConfig,
-  ApiFormat,
-  ApiFormatPaths,
+  ProviderId,
+  ProviderIdPaths,
   AssetRef,
   AuthMode,
   CanonicalImageJobRequest,
   CanonicalMaskImage,
-  GeminiGenerateContentAuthMode,
-  GeminiGenerateContentProviderConfig,
-  GrsaiGenerateProviderConfig,
-  GrsaiGeneratePaths,
+  GoogleGeminiAuthMode,
+  GoogleGeminiProviderConfig,
+  GrsaiProviderConfig,
+  GrsaiPaths,
   EndpointClassification,
   EndpointClassificationReason,
   EndpointClassificationSource,
   ExactTaskCost,
-  GeminiGenerateContentPaths,
-  GeminiGenerateContentRequestOutput,
-  GrsaiGenerateRequestOutput,
+  GoogleGeminiPaths,
+  GoogleGeminiRequestOutput,
+  GrsaiRequestOutput,
   EffectiveImageOutputSelection,
   EditInputCapability,
   FlexiblePixelsGeometryCapability,
   GeometryCapability,
   ImageAspectRatio,
   ImageCatalogProviderId,
-  ImageEndpointProviderConfig,
-  ImageEndpointRequestOutput,
+  OpenAiProviderConfig,
+  OpenAiRequestOutput,
   ImageModelCapability,
   MaskCapability,
   MaskExecutionPlan,
@@ -97,7 +97,7 @@ export type {
   ProviderDiagnosticLevel,
   ProviderDiagnostics,
   ProviderFamily,
-  ProviderImplementationId,
+  ProviderAdapterId,
   ProviderInvokeArgs,
   ProviderInvokeMetadata,
   ProviderInvokeResult,
@@ -121,15 +121,15 @@ export type {
   UserModelOutputExposure,
 } from './contract/index.js';
 export {
-  apiFormatForImplementationId,
+  providerIdForAdapterId,
   assembleApiUrl,
   canonicalizeProviderBaseUrl,
   canonicalizeProviderEndpointUrl,
   classifyEndpoint,
-  defaultPathsForApiFormat,
+  defaultPathsForProviderId,
   getPrimaryProviderEndpoint,
-  implementationIdForApiFormat,
-  normalizeApiFormatPaths,
+  adapterIdForProviderId,
+  normalizeProviderIdPaths,
   normalizeApiPath,
   normalizeProviderConnection,
   providerConnectionAllowsFailover,
@@ -165,30 +165,30 @@ export { mockConfigSchema, mockRequestSchema, createMockProvider, mockDescriptor
 
 // Image endpoint provider
 export {
-  imageEndpointConfigSchema,
-  createImageEndpointProvider,
-  imageEndpointDescriptor,
-} from './providers/openai-images/index.js';
+  openAiConfigSchema,
+  createOpenAiProvider,
+  openAiDescriptor,
+} from './providers/openai/index.js';
 
 // Gemini Generate Content provider
 export {
-  geminiGenerateContentConfigSchema,
-  createGeminiGenerateContentProvider,
-  geminiGenerateContentDescriptor,
+  googleGeminiConfigSchema,
+  createGoogleGeminiProvider,
+  googleGeminiDescriptor,
 } from './providers/gemini/index.js';
 
 // GRSAI Generate provider
 export {
-  grsaiGenerateConfigSchema,
-  createGrsaiGenerateProvider,
-  grsaiGenerateDescriptor,
+  grsaiConfigSchema,
+  createGrsaiProvider,
+  grsaiDescriptor,
 } from './providers/grsai/index.js';
 
 // RunningHub fixed catalog provider
 export {
-  runningHubGenerateConfigSchema,
-  createRunningHubGenerateProvider,
-  runningHubGenerateDescriptor,
+  runningHubConfigSchema,
+  createRunningHubProvider,
+  runningHubDescriptor,
 } from './providers/runninghub/index.js';
 
 // Bridge adapter

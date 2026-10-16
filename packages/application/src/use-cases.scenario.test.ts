@@ -286,7 +286,7 @@ describe('generic Job execution scenarios', () => {
       adapters: [{ adapter: 'local-render', async dispatch() { return { assets: [] }; } }],
     });
     _setRuntimeInstanceForTesting(Object.assign(runtime, {
-      providerRegistry: { list: () => [], get: () => undefined, getByApiFormat: () => undefined },
+      providerRegistry: { list: () => [], get: () => undefined, getByProviderId: () => undefined },
     }) as never);
     const records: DurableJobRecord[] = [];
     setJobHistoryStore({

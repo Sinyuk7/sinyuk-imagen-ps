@@ -6,7 +6,7 @@ Scope: `packages/providers` image-generation transport
 
 ## Goal
 
-Freeze the paid replay safety contract and the image-endpoint attempt-plan shape before behavior changes.
+Freeze the paid replay safety contract and the OpenAI Provider attempt-plan shape before behavior changes.
 
 ## Principles
 

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { providerBillingConfigSchema, providerConnectionCollectionSchema } from '../../contract/config-schema.js';
-import { normalizeApiFormatPaths } from '../../contract/api-format.js';
-import type { GeminiGenerateContentPaths } from '../../contract/api-format.js';
+import { normalizeProviderIdPaths } from '../../contract/provider-routing.js';
+import type { GoogleGeminiPaths } from '../../contract/provider-routing.js';
 
 function authHeaderOverrideKeys(extraHeaders: Readonly<Record<string, string>> | undefined): readonly string[] {
   return Object.keys(extraHeaders ?? {}).filter((key) => {
@@ -13,17 +13,16 @@ function authHeaderOverrideKeys(extraHeaders: Readonly<Record<string, string>> |
 /**
  * Gemini Generate Content provider config 的 Zod schema。
  *
- * 与 `src/contract/config.ts` 中的 `GeminiGenerateContentProviderConfig` 对齐。
+ * 与 `src/contract/config.ts` 中的 `GoogleGeminiProviderConfig` 对齐。
  */
-export const geminiGenerateContentConfigSchema = z.object({
-  providerId: z.string().min(1),
+export const googleGeminiConfigSchema = z.object({
+  providerId: z.literal('google-gemini'),
   displayName: z.string().min(1),
-  family: z.literal('gemini-generate-content'),
-  apiFormat: z.literal('gemini-generate-content').default('gemini-generate-content'),
+  family: z.literal('google-gemini'),
   connection: providerConnectionCollectionSchema,
   paths: z.unknown().optional().transform((value, ctx) => {
     try {
-      return normalizeApiFormatPaths('gemini-generate-content', value) as GeminiGenerateContentPaths;
+      return normalizeProviderIdPaths('google-gemini', value) as GoogleGeminiPaths;
     } catch (error) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -65,5 +64,5 @@ export const geminiGenerateContentConfigSchema = z.object({
   }
 });
 
-/** 从 schema 推导的 GeminiGenerateContentProviderConfig 类型。 */
-export type GeminiGenerateContentProviderConfig = z.infer<typeof geminiGenerateContentConfigSchema>;
+/** 从 schema 推导的 GoogleGeminiProviderConfig 类型。 */
+export type GoogleGeminiProviderConfig = z.infer<typeof googleGeminiConfigSchema>;

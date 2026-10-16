@@ -10,8 +10,8 @@ import type {
 } from '../../contract/provider.js';
 import type { ProviderInvokeResult } from '../../contract/result.js';
 import type { Logger } from '@imagen-ps/foundation';
-import { imageEndpointDescriptor } from './descriptor.js';
-import { imageEndpointConfigSchema, type ImageEndpointProviderConfig } from './config-schema.js';
+import { openAiDescriptor } from './descriptor.js';
+import { openAiConfigSchema, type OpenAiProviderConfig } from './config-schema.js';
 import { mockRequestSchema, type MockProviderRequest } from '../mock/request-schema.js';
 import { probeEndpointReachability } from '../../shared/transport/endpoint-probe.js';
 import { httpRequest } from '../../shared/transport/http.js';
@@ -38,7 +38,7 @@ import {
   resolveImageEditCodec,
 } from './transport/wire-compatibility.js';
 import { providerConnectionAllowsFailover } from '../../contract/config.js';
-import { assembleApiUrl } from '../../contract/api-format.js';
+import { assembleApiUrl } from '../../contract/provider-routing.js';
 
 /** Provider 层可映射的结构化验证错误。 */
 interface ProviderValidationError extends Error {
@@ -156,7 +156,7 @@ async function mapWithConcurrency<TInput, TOutput>(
 }
 
 function compatibleImageEditCodecs(request: MockProviderRequest): readonly ImageEditCodec[] {
-  const declaredOrder = imageEndpointDescriptor.transport?.wire?.defaultEditCodecOrder ?? [];
+  const declaredOrder = openAiDescriptor.transport?.wire?.defaultEditCodecOrder ?? [];
   return declaredOrder.filter((codec) => isImageEditCodecCompatible(request, codec));
 }
 
@@ -177,17 +177,17 @@ function logEditCodecFallbackDecision(
 /**
  * 创建 image endpoint provider 实例。
  */
-export function createImageEndpointProvider(): Provider<ImageEndpointProviderConfig, MockProviderRequest> {
+export function createOpenAiProvider(): Provider<OpenAiProviderConfig, MockProviderRequest> {
   return {
-    id: imageEndpointDescriptor.id,
-    family: imageEndpointDescriptor.family,
+    id: openAiDescriptor.id,
+    family: openAiDescriptor.family,
 
     describe(): ProviderDescriptor {
-      return imageEndpointDescriptor;
+      return openAiDescriptor;
     },
 
-    validateConfig(input: unknown): ImageEndpointProviderConfig {
-      const result = imageEndpointConfigSchema.safeParse(input);
+    validateConfig(input: unknown): OpenAiProviderConfig {
+      const result = openAiConfigSchema.safeParse(input);
       if (!result.success) {
         const issues = result.error.issues.map((issue) => ({
           path: issue.path.join('.'),
@@ -218,7 +218,7 @@ export function createImageEndpointProvider(): Provider<ImageEndpointProviderCon
     },
 
     async invoke(
-      args: ProviderInvokeArgs<ImageEndpointProviderConfig, MockProviderRequest>,
+      args: ProviderInvokeArgs<OpenAiProviderConfig, MockProviderRequest>,
     ): Promise<ProviderInvokeResult> {
       const { config, request, signal } = args;
 
@@ -236,7 +236,7 @@ export function createImageEndpointProvider(): Provider<ImageEndpointProviderCon
       const resolvedEditCodec =
         request.operation === 'image_edit'
           ? resolveImageEditCodec({
-              descriptor: imageEndpointDescriptor,
+              descriptor: openAiDescriptor,
               config,
               request,
               targetPath: endpoint,
@@ -253,7 +253,7 @@ export function createImageEndpointProvider(): Provider<ImageEndpointProviderCon
           : undefined;
 
       // 付费生成请求：按 provider 能力解析保守重试策略与可选 idempotency key。
-      const paidRetry = resolvePaidRetryConfig(imageEndpointDescriptor);
+      const paidRetry = resolvePaidRetryConfig(openAiDescriptor);
       const idempotencyHeader = resolveIdempotencyHeader(paidRetry, request as unknown as Record<string, unknown>);
 
       const executeRequest = async (requestBody: unknown) => executeWithEndpointFailover({
@@ -400,7 +400,7 @@ export function createImageEndpointProvider(): Provider<ImageEndpointProviderCon
     },
 
     async measureEndpoints(
-      config: ImageEndpointProviderConfig,
+      config: OpenAiProviderConfig,
       options: ProviderEndpointMeasurementOptions = {},
     ): Promise<ProviderEndpointMeasurementResult> {
       const endpoints = config.connection.endpoints.filter((endpoint) => endpoint.enabled);
@@ -437,10 +437,10 @@ export function createImageEndpointProvider(): Provider<ImageEndpointProviderCon
       };
     },
 
-    async queryBalance(config: ImageEndpointProviderConfig, input) {
+    async queryBalance(config: OpenAiProviderConfig, input) {
       const billing = config.billing;
       if (!billing || billing.source === 'disabled') {
-        throw createValidationError(`Provider implementation "${imageEndpointDescriptor.id}" does not support balance query for disabled billing source.`);
+        throw createValidationError(`Provider implementation "${openAiDescriptor.id}" does not support balance query for disabled billing source.`);
       }
       const endpoint = config.connection.endpoints.find((candidate) => candidate.enabled) ?? config.connection.endpoints[0];
       if (!endpoint) {

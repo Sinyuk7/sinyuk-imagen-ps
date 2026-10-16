@@ -11,7 +11,7 @@ export function resolveProviderMaskExecutionPlan(input: {
   readonly hasReadyMask: boolean;
 }): MaskExecutionPlan {
   return resolveMaskExecutionPlan({
-    providerId: input.providerId === 'grsai' ? 'grsai-generate' : 'image-endpoint',
+    providerId: input.providerId === 'grsai' ? 'grsai' : 'openai',
     capabilityModelId: input.capabilityModelId,
     hasReadyMask: input.hasReadyMask,
   });

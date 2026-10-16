@@ -39,9 +39,9 @@ const coerceOptionalArray = (val: unknown): unknown => (Array.isArray(val) ? val
 
 const providerModelExecutionSchema = z.object({
   modelId: z.string().min(1),
-  apiFormat: z.union([
-    z.literal('openai-images'),
-    z.literal('gemini-generate-content'),
+  providerId: z.union([
+    z.literal('openai'),
+    z.literal('google-gemini'),
     z.literal('grsai'),
   ]),
   requestStrategyId: z.string().min(1),
@@ -118,7 +118,7 @@ const maskExecutionPlanSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('none') }),
   z.object({
     kind: z.literal('provider-native'),
-    transport: z.literal('image-endpoint'),
+    transport: z.literal('openai'),
     capability: maskCapabilitySchema,
   }),
   z.object({
@@ -134,6 +134,8 @@ export const mockRequestSchema = z.object({
   operation: z.union([z.literal('text_to_image'), z.literal('image_edit')]),
   prompt: z.string().min(1),
   providerId: z.union([z.literal('grsai'), z.literal('runninghub')]).optional(),
+  // 固定 Provider 的 canonical request 需要把 catalog modelId 传递到 submit 阶段。
+  modelId: z.string().min(1).optional(),
   parameters: z.record(z.string(), z.string()).optional(),
   images: z.preprocess(coerceOptionalArray, z.array(assetRefSchema).optional()),
   primaryAttachmentId: z.string().min(1).optional(),

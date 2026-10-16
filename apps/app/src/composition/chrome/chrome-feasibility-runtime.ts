@@ -44,7 +44,7 @@ export const CHROME_PROVIDER_CAPABILITY_MATRIX: readonly ChromeProviderCapabilit
     notes: 'Default Chrome feasibility and CI path uses this mock implementation.',
   },
   {
-    family: 'image-endpoint',
+    family: 'openai',
     bundleSupport: 'supported',
     corsExpectation: 'requires provider endpoint CORS approval for browser origins',
     authHeaderBehavior: 'Authorization-like headers are possible but expose user credentials to the browser runtime',
@@ -54,7 +54,7 @@ export const CHROME_PROVIDER_CAPABILITY_MATRIX: readonly ChromeProviderCapabilit
     notes: 'Default tests must intercept fetch or use mock profiles; live browser calls are opt-in only.',
   },
   {
-    family: 'gemini-generate-content',
+    family: 'google-gemini',
     bundleSupport: 'supported',
     corsExpectation: 'requires provider endpoint CORS approval for browser origins',
     authHeaderBehavior: 'x-goog-api-key is browser-buildable but exposes user credentials to the browser runtime',
@@ -64,7 +64,7 @@ export const CHROME_PROVIDER_CAPABILITY_MATRIX: readonly ChromeProviderCapabilit
     notes: 'Default tests must intercept fetch or use mock profiles; live browser calls are opt-in only.',
   },
   {
-    family: 'grsai-generate',
+    family: 'grsai',
     bundleSupport: 'supported',
     corsExpectation: 'requires GRSAI endpoint CORS approval for browser origins',
     authHeaderBehavior: 'Bearer headers are browser-buildable but expose user credentials to the browser runtime',

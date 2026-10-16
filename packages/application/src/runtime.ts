@@ -19,7 +19,7 @@ import {
   createProviderExecutionAdapter,
   createProviderRegistry,
   registerBuiltins,
-  type ApiFormat,
+  type ProviderId,
   type ProviderRequest,
   type ProviderRegistry,
   getProviderCatalog,
@@ -58,7 +58,7 @@ import {
 /** 扩展的 Runtime 类型，暴露 provider registry 只读访问 */
 export interface ExtendedRuntime extends Runtime {
   /** Provider registry 只读访问（与 Runtime.registry 的 WorkflowRegistry 不同） */
-  readonly providerRegistry: Pick<ProviderRegistry, 'list' | 'get' | 'getByApiFormat'>;
+  readonly providerRegistry: Pick<ProviderRegistry, 'list' | 'get' | 'getByProviderId'>;
 }
 
 let instance: ExtendedRuntime | null = null;
@@ -493,8 +493,8 @@ export function getRuntime(): ExtendedRuntime {
       providerRegistry,
       configResolver: {
         async resolve({ implementationId, providerId: _providerId }) {
-          if (implementationId === 'grsai-generate' || implementationId === 'runninghub-generate') {
-            const providerId = implementationId === 'grsai-generate' ? 'grsai' : 'runninghub';
+          if (implementationId === 'grsai' || implementationId === 'runninghub') {
+            const providerId = implementationId === 'grsai' ? 'grsai' : 'runninghub';
             const account = await getProviderAccountRepository().get(providerId);
             if (!account?.secretRef) throw createValidationError('Fixed provider API Key is not configured.', { providerId });
             const apiKey = await getSecretStorageAdapter().getSecret(account.secretRef);
@@ -504,8 +504,8 @@ export function getRuntime(): ExtendedRuntime {
             const connection = { selectionMode: 'manual' as const, selectedEndpointId: 'primary', endpoints: [{ id: 'primary', url: endpoint, enabled: true }] };
             const provider = providerRegistry.get(implementationId);
             if (!provider) throw createValidationError('Fixed provider implementation is not registered.', { implementationId });
-            const providerConfig = provider.validateConfig({ providerId: implementationId, displayName: account.displayName, family: provider.describe().family, apiFormat: provider.describe().apiFormat, connection, apiKey, ...(implementationId === 'grsai-generate' ? { paths: { submit: '/v1/api/generate', result: '/v1/api/result' } } : {}) });
-            return { providerId, apiFormat: provider.describe().apiFormat ?? 'openai-images', implementationId, providerConfig };
+            const providerConfig = provider.validateConfig({ providerId: implementationId, displayName: account.displayName, family: provider.describe().family, connection, apiKey, ...(implementationId === 'grsai' ? { paths: { submit: '/v1/api/generate', result: '/v1/api/result' } } : {}) });
+            return providerConfig;
           }
           throw createValidationError('Only fixed GRSAI and RunningHub providers are supported.', { implementationId });
         },
@@ -533,7 +533,7 @@ export function getRuntime(): ExtendedRuntime {
       providerRegistry: {
         list: () => providerRegistry.list(),
         get: (id: string) => providerRegistry.get(id),
-        getByApiFormat: (apiFormat: ApiFormat) => providerRegistry.getByApiFormat(apiFormat),
+        getByProviderId: (providerId: ProviderId) => providerRegistry.getByProviderId(providerId),
       },
     }) as ExtendedRuntime;
   }

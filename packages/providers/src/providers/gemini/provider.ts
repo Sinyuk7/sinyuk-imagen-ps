@@ -10,17 +10,17 @@ import type {
 import type { ProviderInvokeResult } from '../../contract/result.js';
 import type { Logger } from '@imagen-ps/foundation';
 import { mockRequestSchema, type MockProviderRequest } from '../mock/request-schema.js';
-import { geminiGenerateContentConfigSchema, type GeminiGenerateContentProviderConfig } from './config-schema.js';
-import { geminiGenerateContentDescriptor } from './descriptor.js';
+import { googleGeminiConfigSchema, type GoogleGeminiProviderConfig } from './config-schema.js';
+import { googleGeminiDescriptor } from './descriptor.js';
 import { probeEndpointReachability } from '../../shared/transport/endpoint-probe.js';
 import { httpRequest } from '../../shared/transport/http.js';
 import { executeWithEndpointFailover } from '../../shared/transport/failover.js';
 import { resolvePaidRetryConfig, resolveIdempotencyHeader } from '../../shared/transport/paid-retry.js';
 import {
-  buildGeminiGenerateContentRequest,
+  buildGoogleGeminiRequest,
 } from './transport/build-request.js';
-import { parseGeminiGenerateContentResponse } from './transport/parse-response.js';
-import { assembleApiUrl } from '../../contract/api-format.js';
+import { parseGoogleGeminiResponse } from './transport/parse-response.js';
+import { assembleApiUrl } from '../../contract/provider-routing.js';
 import { executeBillingProtocolChain } from '../../transport/billing/protocol-registry.js';
 import { resolveProviderResolvedOutput } from '../../contract/image-model-capability.js';
 
@@ -35,7 +35,7 @@ function createValidationError(message: string, details?: Record<string, unknown
   return err;
 }
 
-function buildAuthHeaders(config: GeminiGenerateContentProviderConfig): Readonly<Record<string, string>> {
+function buildAuthHeaders(config: GoogleGeminiProviderConfig): Readonly<Record<string, string>> {
   if (config.authMode === 'none') {
     return {};
   }
@@ -154,17 +154,17 @@ function countTokensRequestBody(): Readonly<{
   };
 }
 
-export function createGeminiGenerateContentProvider(): Provider<GeminiGenerateContentProviderConfig, MockProviderRequest> {
+export function createGoogleGeminiProvider(): Provider<GoogleGeminiProviderConfig, MockProviderRequest> {
   return {
-    id: geminiGenerateContentDescriptor.id,
-    family: geminiGenerateContentDescriptor.family,
+    id: googleGeminiDescriptor.id,
+    family: googleGeminiDescriptor.family,
 
     describe(): ProviderDescriptor {
-      return geminiGenerateContentDescriptor;
+      return googleGeminiDescriptor;
     },
 
-    validateConfig(input: unknown): GeminiGenerateContentProviderConfig {
-      const result = geminiGenerateContentConfigSchema.safeParse(input);
+    validateConfig(input: unknown): GoogleGeminiProviderConfig {
+      const result = googleGeminiConfigSchema.safeParse(input);
       if (!result.success) {
         const issues = result.error.issues.map((issue) => ({
           path: issue.path.join('.'),
@@ -195,7 +195,7 @@ export function createGeminiGenerateContentProvider(): Provider<GeminiGenerateCo
       }
       try {
         resolveProviderResolvedOutput({
-          providerId: 'gemini-generate-content',
+          providerId: 'google-gemini',
           capabilityModelId: result.data.capabilityModelId,
           operation: result.data.operation,
           output: result.data.output,
@@ -209,14 +209,14 @@ export function createGeminiGenerateContentProvider(): Provider<GeminiGenerateCo
       return result.data;
     },
 
-    async invoke(args: ProviderInvokeArgs<GeminiGenerateContentProviderConfig, MockProviderRequest>): Promise<ProviderInvokeResult> {
+    async invoke(args: ProviderInvokeArgs<GoogleGeminiProviderConfig, MockProviderRequest>): Promise<ProviderInvokeResult> {
       const { config, request, signal, logger } = args;
       const providerLogger = logger?.child({
         package: 'providers',
         component: 'provider',
-        provider_id: geminiGenerateContentDescriptor.id,
+        provider_id: googleGeminiDescriptor.id,
       });
-      const builtRequest = buildGeminiGenerateContentRequest({ request });
+      const builtRequest = buildGoogleGeminiRequest({ request });
       const imageConfig = recordField(builtRequest.body.generationConfig.imageConfig);
       for (const diagnostic of builtRequest.diagnostics) {
         providerLogger?.warn('provider.gemini_generate_content.request_option_ignored', {
@@ -241,7 +241,7 @@ export function createGeminiGenerateContentProvider(): Provider<GeminiGenerateCo
       });
       const path = config.paths.invokeTemplate.replace('{model}', encodeURIComponent(builtRequest.model));
 
-      const paidRetry = resolvePaidRetryConfig(geminiGenerateContentDescriptor);
+      const paidRetry = resolvePaidRetryConfig(googleGeminiDescriptor);
       const idempotencyHeader = resolveIdempotencyHeader(paidRetry, request as unknown as Record<string, unknown>);
 
       const execution = await executeWithEndpointFailover({
@@ -268,7 +268,7 @@ export function createGeminiGenerateContentProvider(): Provider<GeminiGenerateCo
         ),
       });
 
-      const parsed = parseGeminiGenerateContentResponse(execution.value.response.data);
+      const parsed = parseGoogleGeminiResponse(execution.value.response.data);
       const diagnostics = [
         ...builtRequest.diagnostics,
         ...execution.diagnostics,
@@ -306,7 +306,7 @@ export function createGeminiGenerateContentProvider(): Provider<GeminiGenerateCo
     },
 
     async measureEndpoints(
-      config: GeminiGenerateContentProviderConfig,
+      config: GoogleGeminiProviderConfig,
       options: ProviderEndpointMeasurementOptions = {},
     ): Promise<ProviderEndpointMeasurementResult> {
       const endpoints = config.connection.endpoints.filter((endpoint) => endpoint.enabled);
@@ -336,7 +336,7 @@ export function createGeminiGenerateContentProvider(): Provider<GeminiGenerateCo
     },
 
     async safeProbe(
-      config: GeminiGenerateContentProviderConfig,
+      config: GoogleGeminiProviderConfig,
       context,
       logger?: Logger,
     ): Promise<ProviderSafeProbeResult> {
@@ -382,10 +382,10 @@ export function createGeminiGenerateContentProvider(): Provider<GeminiGenerateCo
       }
     },
 
-    async queryBalance(config: GeminiGenerateContentProviderConfig, input) {
+    async queryBalance(config: GoogleGeminiProviderConfig, input) {
       const billing = config.billing;
       if (!billing || billing.source === 'disabled') {
-        throw createValidationError(`Provider implementation "${geminiGenerateContentDescriptor.id}" does not support balance query for disabled billing source.`);
+        throw createValidationError(`Provider implementation "${googleGeminiDescriptor.id}" does not support balance query for disabled billing source.`);
       }
       const endpoint = config.connection.endpoints.find((candidate) => candidate.enabled) ?? config.connection.endpoints[0];
       if (!endpoint) {

@@ -1,4 +1,4 @@
-import { apiFormatForImplementationId, type ApiFormat } from './api-format.js';
+import { providerIdForAdapterId, type ProviderId } from './provider-routing.js';
 import type {
   EffectiveImageOutputSelection,
   ImageAspectRatio,
@@ -33,7 +33,7 @@ export type {
   PixelDimensions,
 } from './image-output-contract.js';
 
-export type ImageCatalogProviderId = 'image-endpoint' | 'gemini-generate-content' | 'grsai-generate';
+export type ImageCatalogProviderId = 'openai' | 'google-gemini' | 'grsai';
 export type ImageSizePreset = Exclude<ImageOutputSizeOptionId, 'auto' | 'use-input-size'>;
 /** catalog 输出矩阵 cell 的稳定标识。 */
 export type ImageOutputCellId = string;
@@ -91,7 +91,7 @@ export type MaskExecutionPlan =
   | { readonly kind: 'none' }
   | {
       readonly kind: 'provider-native';
-      readonly transport: 'image-endpoint';
+      readonly transport: 'openai';
       readonly capability: MaskCapability;
     }
   | {
@@ -164,15 +164,15 @@ function isMatrixSizePreset(value: ImageOutputImageSize): value is ImageSizePres
 }
 
 export type RequestStrategyId =
-  | 'image-endpoint-default'
-  | 'image-endpoint-variant'
-  | 'gemini-generate-content-image-config'
-  | 'grsai-generate-image-config';
+  | 'openai-default'
+  | 'openai-variant'
+  | 'google-gemini-image-config'
+  | 'grsai-image-config';
 
 export interface RequestStrategy {
   readonly id: RequestStrategyId;
-  readonly apiFormat: ApiFormat;
-  readonly outputCodecId: 'image-endpoint' | 'gemini-image-config' | 'grsai-image-config';
+  readonly providerId: ProviderId;
+  readonly outputCodecId: 'openai' | 'gemini-image-config' | 'grsai-image-config';
   readonly wireRevisionId?: string;
 }
 
@@ -184,7 +184,7 @@ export interface ModelOutputConfig {
 }
 
 export interface OfficialModelPreset {
-  readonly apiFormat: ApiFormat;
+  readonly providerId: ProviderId;
   readonly modelId: string;
   readonly displayName: string;
   readonly requestStrategyId: RequestStrategyId;
@@ -196,24 +196,24 @@ export interface OfficialModelPreset {
 
 const REQUEST_STRATEGIES = Object.freeze([
   {
-    id: 'image-endpoint-default',
-    apiFormat: 'openai-images',
-    outputCodecId: 'image-endpoint',
+    id: 'openai-default',
+    providerId: 'openai',
+    outputCodecId: 'openai',
   },
   {
-    id: 'image-endpoint-variant',
-    apiFormat: 'openai-images',
-    outputCodecId: 'image-endpoint',
+    id: 'openai-variant',
+    providerId: 'openai',
+    outputCodecId: 'openai',
   },
   {
-    id: 'gemini-generate-content-image-config',
-    apiFormat: 'gemini-generate-content',
+    id: 'google-gemini-image-config',
+    providerId: 'google-gemini',
     outputCodecId: 'gemini-image-config',
     wireRevisionId: 'image-config',
   },
   {
-    id: 'grsai-generate-image-config',
-    apiFormat: 'grsai',
+    id: 'grsai-image-config',
+    providerId: 'grsai',
     outputCodecId: 'grsai-image-config',
   },
 ] as const satisfies readonly RequestStrategy[]);
@@ -340,12 +340,12 @@ function requestStrategyIdForCapability(
     return capability.requestStrategyId;
   }
   switch (providerId) {
-    case 'image-endpoint':
-      return 'image-endpoint-default';
-    case 'gemini-generate-content':
-      return 'gemini-generate-content-image-config';
-    case 'grsai-generate':
-      return 'grsai-generate-image-config';
+    case 'openai':
+      return 'openai-default';
+    case 'google-gemini':
+      return 'google-gemini-image-config';
+    case 'grsai':
+      return 'grsai-image-config';
   }
 }
 
@@ -384,7 +384,7 @@ function buildOfficialModelPreset(
     });
   }
   return {
-    apiFormat: apiFormatForImplementationId(providerId),
+    providerId: providerIdForAdapterId(providerId),
     modelId: canonicalModelIdForCapability(capability),
     displayName: capability.displayName,
     requestStrategyId: requestStrategyIdForCapability(providerId, capability),
@@ -495,7 +495,7 @@ function assertSingleCapability(
 }
 
 export function providerUsesImageModelCatalog(providerId: string): providerId is ImageCatalogProviderId {
-  return providerId === 'image-endpoint' || providerId === 'gemini-generate-content' || providerId === 'grsai-generate';
+  return providerId === 'openai' || providerId === 'google-gemini' || providerId === 'grsai';
 }
 
 function sizePresetsForOperation(
@@ -707,15 +707,15 @@ export function resolveMaskExecutionPlan(args: {
   }
 
   const nativeMask = resolved.capability.editInput?.mask;
-  if (args.providerId === 'image-endpoint' && nativeMask !== undefined) {
+  if (args.providerId === 'openai' && nativeMask !== undefined) {
     return {
       kind: 'provider-native',
-      transport: 'image-endpoint',
+      transport: 'openai',
       capability: nativeMask,
     };
   }
 
-  if (args.providerId === 'gemini-generate-content' || args.providerId === 'grsai-generate') {
+  if (args.providerId === 'google-gemini' || args.providerId === 'grsai') {
     return {
       kind: 'semantic-only',
       reason: 'transport-has-no-separate-raster-mask-field',
@@ -761,32 +761,32 @@ export function listLocalCatalogModels(providerId: ImageCatalogProviderId): read
 
 /** 从本地 Official Model Preset 生成新 Profile 的完整默认模板。 */
 export function listProviderDefaultModelTemplates(providerId: ImageCatalogProviderId): readonly ProviderDefaultModelTemplate[] {
-  return listOfficialModelPresets(apiFormatForImplementationId(providerId)).map((preset) => ({
-    apiFormat: preset.apiFormat,
+  return listOfficialModelPresets(providerIdForAdapterId(providerId)).map((preset) => ({
+    providerId: preset.providerId,
     modelId: preset.modelId,
     wireModelId: preset.modelId,
     baseModelId: preset.modelId,
   }));
 }
 
-export function listOfficialModelPresets(apiFormat?: ApiFormat): readonly OfficialModelPreset[] {
-  const presets = (['image-endpoint', 'gemini-generate-content', 'grsai-generate'] as const satisfies readonly ImageCatalogProviderId[])
+export function listOfficialModelPresets(providerId?: ProviderId): readonly OfficialModelPreset[] {
+  const presets = (['openai', 'google-gemini', 'grsai'] as const satisfies readonly ImageCatalogProviderId[])
     .flatMap((providerId) =>
       visibleCapabilitiesForProvider(providerId, IMAGE_MODEL_CAPABILITIES).map((capability) =>
         buildOfficialModelPreset(providerId, capability),
       ),
     );
-  return apiFormat === undefined ? presets : presets.filter((preset) => preset.apiFormat === apiFormat);
+  return providerId === undefined ? presets : presets.filter((preset) => preset.providerId === providerId);
 }
 
-export function getOfficialModelPreset(apiFormat: ApiFormat, modelId: string): OfficialModelPreset | undefined {
-  return listOfficialModelPresets(apiFormat).find((preset) => preset.modelId === modelId);
+export function getOfficialModelPreset(providerId: ProviderId, modelId: string): OfficialModelPreset | undefined {
+  return listOfficialModelPresets(providerId).find((preset) => preset.modelId === modelId);
 }
 
-export function listRequestStrategies(apiFormat?: ApiFormat): readonly RequestStrategy[] {
-  return apiFormat === undefined
+export function listRequestStrategies(providerId?: ProviderId): readonly RequestStrategy[] {
+  return providerId === undefined
     ? REQUEST_STRATEGIES
-    : REQUEST_STRATEGIES.filter((strategy) => strategy.apiFormat === apiFormat);
+    : REQUEST_STRATEGIES.filter((strategy) => strategy.providerId === providerId);
 }
 
 export function getRequestStrategy(requestStrategyId: string): RequestStrategy | undefined {
@@ -795,7 +795,7 @@ export function getRequestStrategy(requestStrategyId: string): RequestStrategy |
 
 export function assertProviderModelExecution(args: {
   readonly execution: ProviderModelExecution | undefined;
-  readonly apiFormat: ApiFormat;
+  readonly providerId: ProviderId;
 }): ProviderModelExecution {
   if (args.execution === undefined) {
     throw new ImageModelContractError('Provider request requires resolved model execution.');
@@ -806,14 +806,14 @@ export function assertProviderModelExecution(args: {
       requestStrategyId: args.execution.requestStrategyId,
     });
   }
-  if (strategy.apiFormat !== args.apiFormat || args.execution.apiFormat !== args.apiFormat) {
+  if (strategy.providerId !== args.providerId || args.execution.providerId !== args.providerId) {
     throw new ImageModelContractError(
-      `requestStrategyId "${args.execution.requestStrategyId}" is not valid for apiFormat "${args.apiFormat}".`,
+      `requestStrategyId "${args.execution.requestStrategyId}" is not valid for providerId "${args.providerId}".`,
       {
         requestStrategyId: args.execution.requestStrategyId,
-        strategyApiFormat: strategy.apiFormat,
-        executionApiFormat: args.execution.apiFormat,
-        apiFormat: args.apiFormat,
+        strategyProviderId: strategy.providerId,
+        executionProviderId: args.execution.providerId,
+        providerId: args.providerId,
       },
     );
   }
@@ -993,16 +993,16 @@ function buildResolvedOutputFromSelection(args: {
   const selection = projection.effectiveSelection;
   assertOutputFormatSupported({ rule: args.rule, outputFormat: selection.outputFormat });
 
-  if (args.providerId === 'image-endpoint') {
+  if (args.providerId === 'openai') {
     switch (selection.geometry.kind) {
       case 'provider-default':
-        return { kind: 'image-endpoint', size: 'auto', outputFormat: selection.outputFormat };
+        return { kind: 'openai', size: 'auto', outputFormat: selection.outputFormat };
       case 'pixels':
         validateFlexiblePixels({ rule: args.rule, width: selection.geometry.width, height: selection.geometry.height });
-        return { kind: 'image-endpoint', size: `${selection.geometry.width}x${selection.geometry.height}`, outputFormat: selection.outputFormat };
+        return { kind: 'openai', size: `${selection.geometry.width}x${selection.geometry.height}`, outputFormat: selection.outputFormat };
       case 'input-derived': {
         const size = exactSizeFromInput({ rule: args.rule, inputContext: args.inputContext });
-        return { kind: 'image-endpoint', size: `${size.width}x${size.height}`, outputFormat: selection.outputFormat };
+        return { kind: 'openai', size: `${size.width}x${size.height}`, outputFormat: selection.outputFormat };
       }
       case 'ratio-resolution':
         throw new ImageModelContractError('Image endpoint builder cannot consume ratio-resolution selection.', {
@@ -1012,10 +1012,10 @@ function buildResolvedOutputFromSelection(args: {
     }
   }
 
-  if (args.providerId === 'grsai-generate') {
+  if (args.providerId === 'grsai') {
     switch (selection.geometry.kind) {
       case 'provider-default':
-        return { kind: 'grsai-generate', aspectRatio: args.rule.capability.outputCapability?.geometry.kind === 'ratio-resolution' ? 'auto' : undefined };
+        return { kind: 'grsai', aspectRatio: args.rule.capability.outputCapability?.geometry.kind === 'ratio-resolution' ? 'auto' : undefined };
       case 'ratio-resolution':
         assertRatioResolutionSupported({
           rule: args.rule,
@@ -1023,16 +1023,16 @@ function buildResolvedOutputFromSelection(args: {
           resolution: selection.geometry.resolution,
         });
         return {
-          kind: 'grsai-generate',
+          kind: 'grsai',
           aspectRatio: selection.geometry.aspectRatio,
           imageSize: imageConfigSize(selection.geometry.resolution) as '1K' | '2K' | '4K',
         };
       case 'pixels':
         validateFlexiblePixels({ rule: args.rule, width: selection.geometry.width, height: selection.geometry.height });
-        return { kind: 'grsai-generate', aspectRatio: `${selection.geometry.width}x${selection.geometry.height}` };
+        return { kind: 'grsai', aspectRatio: `${selection.geometry.width}x${selection.geometry.height}` };
       case 'input-derived': {
         const size = exactSizeFromInput({ rule: args.rule, inputContext: args.inputContext });
-        return { kind: 'grsai-generate', aspectRatio: `${size.width}x${size.height}` };
+        return { kind: 'grsai', aspectRatio: `${size.width}x${size.height}` };
       }
     }
   }
@@ -1040,7 +1040,7 @@ function buildResolvedOutputFromSelection(args: {
   switch (selection.geometry.kind) {
     case 'provider-default':
       return {
-        kind: 'gemini-generate-content',
+        kind: 'google-gemini',
         imageConfig: {},
       };
     case 'ratio-resolution':
@@ -1050,7 +1050,7 @@ function buildResolvedOutputFromSelection(args: {
         resolution: selection.geometry.resolution,
       });
       return {
-        kind: 'gemini-generate-content',
+        kind: 'google-gemini',
         imageConfig: {
           imageSize: imageConfigSize(selection.geometry.resolution),
           aspectRatio: selection.geometry.aspectRatio,
@@ -1241,7 +1241,7 @@ export function validateImageModelCatalog(
     validateOutputMatrices(capability, errors);
   }
 
-  for (const providerId of ['image-endpoint', 'gemini-generate-content', 'grsai-generate'] as const satisfies readonly ImageCatalogProviderId[]) {
+  for (const providerId of ['openai', 'google-gemini', 'grsai'] as const satisfies readonly ImageCatalogProviderId[]) {
     const capabilitiesForProvider = capabilities.filter((capability) => capabilityAppliesToProvider(capability, providerId));
     const exactIds = new Map<string, string>();
     const aliases = new Map<string, string>();

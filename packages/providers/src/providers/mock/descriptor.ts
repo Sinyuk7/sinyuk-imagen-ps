@@ -7,7 +7,7 @@ import type { ProviderDescriptor } from '../../contract/provider.js';
  */
 export const mockDescriptor: ProviderDescriptor = {
   id: 'mock',
-  family: 'image-endpoint',
+  family: 'openai',
   displayName: 'Mock Provider',
   operations: ['text_to_image', 'image_edit'],
   invokeMode: 'sync',

@@ -2,9 +2,10 @@
  * API format 与 endpoint/path 归一化契约。
  */
 
-export type ApiFormat = 'openai-images' | 'gemini-generate-content' | 'grsai';
+export type ProviderId = 'openai' | 'google-gemini' | 'grsai' | 'runninghub';
+type EndpointProviderId = Exclude<ProviderId, 'runninghub'>;
 
-export type ProviderImplementationId = 'image-endpoint' | 'gemini-generate-content' | 'grsai-generate';
+export type ProviderAdapterId = 'openai' | 'google-gemini' | 'grsai';
 
 export type AuthMode = 'bearer' | 'x-goog-api-key' | 'none';
 
@@ -15,23 +16,23 @@ export interface OpenAiImagesPaths {
   readonly edit?: string;
 }
 
-export interface GeminiGenerateContentPaths {
+export interface GoogleGeminiPaths {
   /** Gemini GenerateContent 调用路径模板。 */
   readonly invokeTemplate: string;
 }
 
 /** GRSAI 异步生成与结果查询路径。 */
-export interface GrsaiGeneratePaths {
+export interface GrsaiPaths {
   /** GRSAI 异步任务提交路径。 */
   readonly submit: string;
   /** GRSAI 异步任务结果查询路径。 */
   readonly result: string;
 }
 
-export type ApiFormatPaths =
+export type ProviderIdPaths =
   | OpenAiImagesPaths
-  | GeminiGenerateContentPaths
-  | GrsaiGeneratePaths;
+  | GoogleGeminiPaths
+  | GrsaiPaths;
 
 export type EndpointClassificationSource = 'full-url' | 'path';
 
@@ -47,15 +48,15 @@ export type EndpointClassificationReason =
 export type EndpointClassification =
   | {
       readonly status: 'supported';
-      readonly apiFormat: ApiFormat;
+      readonly providerId: ProviderId;
       readonly source: EndpointClassificationSource;
       readonly baseUrl?: string;
-      readonly paths: ApiFormatPaths;
+      readonly paths: ProviderIdPaths;
       readonly extractedModel?: string;
     }
   | {
       readonly status: 'incomplete';
-      readonly apiFormat: ApiFormat;
+      readonly providerId: ProviderId;
       readonly source: EndpointClassificationSource;
       readonly baseUrl?: string;
       readonly paths: Partial<OpenAiImagesPaths>;
@@ -67,17 +68,17 @@ export type EndpointClassification =
       readonly reason: Exclude<EndpointClassificationReason, 'missing-generation-path'>;
     };
 
-const API_FORMAT_TO_IMPLEMENTATION = {
-  'openai-images': 'image-endpoint',
-  'gemini-generate-content': 'gemini-generate-content',
-  grsai: 'grsai-generate',
-} as const satisfies Record<ApiFormat, ProviderImplementationId>;
+const PROVIDER_TO_ADAPTER = {
+  'openai': 'openai',
+  'google-gemini': 'google-gemini',
+  grsai: 'grsai',
+} as const satisfies Record<EndpointProviderId, ProviderAdapterId>;
 
 const DEFAULT_PATHS = {
-  'openai-images': { generation: '/images/generations', edit: '/images/edits' },
-  'gemini-generate-content': { invokeTemplate: '/models/{model}:generateContent' },
+  'openai': { generation: '/images/generations', edit: '/images/edits' },
+  'google-gemini': { invokeTemplate: '/models/{model}:generateContent' },
   grsai: { submit: '/v1/api/generate', result: '/v1/api/result' },
-} as const satisfies Record<ApiFormat, ApiFormatPaths>;
+} as const satisfies Record<EndpointProviderId, ProviderIdPaths>;
 
 function defaultPortForScheme(protocol: string): string | undefined {
   if (protocol === 'http:') {
@@ -101,25 +102,25 @@ function normalizeBasePath(pathname: string): string {
 }
 
 /** API format 对应的内部 adapter id。 */
-export function implementationIdForApiFormat(apiFormat: ApiFormat): ProviderImplementationId {
-  return API_FORMAT_TO_IMPLEMENTATION[apiFormat];
+export function adapterIdForProviderId(providerId: EndpointProviderId): ProviderAdapterId {
+  return PROVIDER_TO_ADAPTER[providerId];
 }
 
 /** 内部 adapter id 对应的 API format。 */
-export function apiFormatForImplementationId(implementationId: ProviderImplementationId): ApiFormat {
+export function providerIdForAdapterId(implementationId: ProviderAdapterId): EndpointProviderId {
   switch (implementationId) {
-    case 'image-endpoint':
-      return 'openai-images';
-    case 'gemini-generate-content':
-      return 'gemini-generate-content';
-    case 'grsai-generate':
+    case 'openai':
+      return 'openai';
+    case 'google-gemini':
+      return 'google-gemini';
+    case 'grsai':
       return 'grsai';
   }
 }
 
 /** API format 的默认 path 配置。 */
-export function defaultPathsForApiFormat(apiFormat: ApiFormat): ApiFormatPaths {
-  return DEFAULT_PATHS[apiFormat];
+export function defaultPathsForProviderId(providerId: EndpointProviderId): ProviderIdPaths {
+  return DEFAULT_PATHS[providerId];
 }
 
 /** 规范化 endpoint base URL。 */
@@ -181,13 +182,13 @@ export function assembleApiUrl(baseUrl: string, path: string): string {
 }
 
 /** 按 API format 归一化 path config。 */
-export function normalizeApiFormatPaths(apiFormat: ApiFormat, paths: unknown): ApiFormatPaths {
-  const defaults = defaultPathsForApiFormat(apiFormat);
+export function normalizeProviderIdPaths(providerId: EndpointProviderId, paths: unknown): ProviderIdPaths {
+  const defaults = defaultPathsForProviderId(providerId);
   const record = typeof paths === 'object' && paths !== null && !Array.isArray(paths)
     ? paths as Record<string, unknown>
     : {};
 
-  if (apiFormat === 'openai-images') {
+  if (providerId === 'openai') {
     const generation = typeof record.generation === 'string' ? record.generation : (defaults as OpenAiImagesPaths).generation;
     const edit = typeof record.edit === 'string' ? record.edit : (defaults as OpenAiImagesPaths).edit;
     return {
@@ -196,15 +197,15 @@ export function normalizeApiFormatPaths(apiFormat: ApiFormat, paths: unknown): A
     };
   }
 
-  if (apiFormat === 'grsai') {
-    const submit = typeof record.submit === 'string' ? record.submit : (defaults as GrsaiGeneratePaths).submit;
-    const result = typeof record.result === 'string' ? record.result : (defaults as GrsaiGeneratePaths).result;
+  if (providerId === 'grsai') {
+    const submit = typeof record.submit === 'string' ? record.submit : (defaults as GrsaiPaths).submit;
+    const result = typeof record.result === 'string' ? record.result : (defaults as GrsaiPaths).result;
     return { submit: normalizeApiPath(submit), result: normalizeApiPath(result) };
   }
 
   const invokeTemplate = typeof record.invokeTemplate === 'string'
     ? record.invokeTemplate
-    : (defaults as GeminiGenerateContentPaths).invokeTemplate;
+    : (defaults as GoogleGeminiPaths).invokeTemplate;
   if (!invokeTemplate.includes('{model}')) {
     throw new Error('Gemini GenerateContent invokeTemplate must include {model}.');
   }
@@ -232,7 +233,7 @@ function classifyPathname(
   if (generation) {
     return {
       status: 'supported',
-      apiFormat: 'openai-images',
+      providerId: 'openai',
       source,
       ...(url ? { baseUrl: baseUrlForMatchedPath(url, generation[1] ?? '') } : {}),
       paths: { generation: '/images/generations' },
@@ -243,7 +244,7 @@ function classifyPathname(
   if (edit) {
     return {
       status: 'incomplete',
-      apiFormat: 'openai-images',
+      providerId: 'openai',
       source,
       ...(url ? { baseUrl: baseUrlForMatchedPath(url, edit[1] ?? '') } : {}),
       paths: { edit: '/images/edits' },
@@ -258,7 +259,7 @@ function classifyPathname(
     const isTemplate = decodedModel === '{model}';
     return {
       status: 'supported',
-      apiFormat: 'gemini-generate-content',
+      providerId: 'google-gemini',
       source,
       ...(url ? { baseUrl: baseUrlForMatchedPath(url, gemini[1] ?? '') } : {}),
       paths: { invokeTemplate: '/models/{model}:generateContent' },
@@ -270,7 +271,7 @@ function classifyPathname(
   if (grsai) {
     return {
       status: 'supported',
-      apiFormat: 'grsai',
+      providerId: 'grsai',
       source,
       ...(url ? { baseUrl: baseUrlForMatchedPath(url, grsai[1] ?? '') } : {}),
       paths: { submit: '/v1/api/generate', result: '/v1/api/result' },

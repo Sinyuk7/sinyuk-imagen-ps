@@ -1,19 +1,18 @@
 import { z } from 'zod';
 import { providerBillingConfigSchema, providerConnectionCollectionSchema } from '../../contract/config-schema.js';
-import { normalizeApiFormatPaths, type GrsaiGeneratePaths } from '../../contract/api-format.js';
+import { normalizeProviderIdPaths, type GrsaiPaths } from '../../contract/provider-routing.js';
 
 const GRSAI_API_KEY_CREDITS_PATH = '/client/openapi/getAPIKeyCredits';
 const GRSAI_TOKEN_CREDITS_PATH = '/client/openapi/getCredits';
 
 /** GRSAI Generate provider config 的 Zod schema。 */
-export const grsaiGenerateConfigSchema = z.object({
-  providerId: z.literal('grsai-generate'),
+export const grsaiConfigSchema = z.object({
+  providerId: z.literal('grsai'),
   displayName: z.string().min(1),
-  family: z.literal('grsai-generate'),
-  apiFormat: z.literal('grsai'),
+  family: z.literal('grsai'),
   connection: providerConnectionCollectionSchema,
   paths: z.unknown().optional().transform((value, ctx) => {
-    try { return normalizeApiFormatPaths('grsai', value) as GrsaiGeneratePaths; } catch (error) {
+    try { return normalizeProviderIdPaths('grsai', value) as GrsaiPaths; } catch (error) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: error instanceof Error ? error.message : 'Invalid GRSAI paths.' });
       return z.NEVER;
     }
@@ -35,4 +34,4 @@ export const grsaiGenerateConfigSchema = z.object({
     }
   }
 });
-export type GrsaiGenerateProviderConfig = z.infer<typeof grsaiGenerateConfigSchema>;
+export type GrsaiProviderConfig = z.infer<typeof grsaiConfigSchema>;

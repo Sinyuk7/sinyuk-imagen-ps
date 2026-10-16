@@ -2,10 +2,9 @@ import type { ProviderDescriptor } from '../../contract/provider.js';
 import { OPENAI_IMAGES_DEFAULT_MODEL_TEMPLATES } from './models.js';
 
 /** Image endpoint provider 的静态 descriptor。 */
-export const imageEndpointDescriptor: ProviderDescriptor = {
-  id: 'image-endpoint',
-  family: 'image-endpoint',
-  apiFormat: 'openai-images',
+export const openAiDescriptor: ProviderDescriptor = {
+  id: 'openai',
+  family: 'openai',
   displayName: 'Image Endpoint',
   operations: ['text_to_image', 'image_edit'],
   invokeMode: 'sync',

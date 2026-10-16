@@ -5,7 +5,7 @@
  */
 
 /** 当前阶段允许的 provider family。按 wire shape 分类，仅作展示/分组标签。 */
-export type ProviderFamily = 'image-endpoint' | 'gemini-generate-content' | 'grsai-generate' | 'runninghub-generate';
+export type ProviderFamily = 'openai' | 'google-gemini' | 'grsai' | 'runninghub';
 
 /** 当前阶段允许的 provider operation。 */
 export type ProviderOperation = 'text_to_image' | 'image_edit';

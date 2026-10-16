@@ -45,7 +45,7 @@ export const GPT_OUTPUT_EXPOSURE = Object.freeze({
   allowInputDerivedExactSize: true,
 } as const satisfies UserModelOutputExposure);
 
-export function gptImageEndpointMatrix(operation: ImageOperation): ImageOutputMatrix {
+export function gptOpenAiMatrix(operation: ImageOperation): ImageOutputMatrix {
   const cells = [
     ...(operation === 'image_edit' ? exactInputSizeCells(GPT_IMAGE_OUTPUT_FORMATS) : []),
     ...withFormats('auto', 'auto', GPT_IMAGE_OUTPUT_FORMATS, (outputFormat) => ({
@@ -63,5 +63,5 @@ export function gptImageEndpointMatrix(operation: ImageOperation): ImageOutputMa
 }
 
 export function chatGptImageMatrix(operation: ImageOperation): ImageOutputMatrix {
-  return gptImageEndpointMatrix(operation);
+  return gptOpenAiMatrix(operation);
 }

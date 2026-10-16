@@ -27,7 +27,7 @@ Product-visible Provider implementations are independent vertical slices:
 packages/providers/src/providers/
   grsai/
   gemini/
-  openai-images/
+  openai/
 ```
 
 Each slice owns:
@@ -82,7 +82,7 @@ Modify only the matching source of truth:
 
 - [GRSAI models](../../packages/providers/src/providers/grsai/models.ts)
 - [Gemini models](../../packages/providers/src/providers/gemini/models.ts)
-- [OpenAI Images models](../../packages/providers/src/providers/openai-images/models.ts)
+- [OpenAI models](../../packages/providers/src/providers/openai/models.ts)
 
 Every product-visible model must define enough local facts to resolve:
 
@@ -171,7 +171,7 @@ Update:
 
 - [builtin registry](../../packages/providers/src/registry/builtins.ts);
 - [Provider package exports](../../packages/providers/src/index.ts);
-- Application canonical `apiFormat` admission and Provider surface projection;
+- Application canonical `providerId` admission and Provider surface projection;
 - catalog harness inventory.
 
 The Application surface may expose only sanitized identity, operations, model

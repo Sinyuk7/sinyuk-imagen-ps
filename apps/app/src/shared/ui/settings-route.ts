@@ -2,7 +2,7 @@
 export type SettingsTab = 'provider' | 'comfyui' | 'general';
 
 /** Provider 产品 surface 的路由身份。 */
-export type ProviderSurfaceRouteId = 'grsai' | 'gemini' | 'openai-images';
+export type ProviderSurfaceRouteId = 'grsai' | 'gemini' | 'openai';
 
 /** 设置根页和详情页的层级关系。 */
 export type SettingsRoute =

@@ -27,7 +27,7 @@ tests/
   providers/
     grsai/
     gemini/
-    openai-images/
+    openai/
   registry/
   shared/
   release/
@@ -36,7 +36,7 @@ tests/
 
 Rules:
 
-- Provider descriptor/registry coverage proves canonical `ApiFormat` routing,
+- Provider descriptor/registry coverage proves canonical `ProviderId` routing,
   complete default templates, and rejection of invalid or conflicting templates.
 
 - Provider-specific request, parse, async lifecycle, and capability cases stay

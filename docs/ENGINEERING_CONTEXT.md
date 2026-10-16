@@ -53,7 +53,7 @@ surface apps -> application/session -> core-engine + providers + execution backe
   Provider model and parameter catalogs live in `packages/providers/catalog/` and
   are loaded through the catalog resolver. Each provider has one editable account
   record containing its API key and optional base URL.
-- Official model presets live in each Provider slice as `(apiFormat, modelId)`
+- Official model presets live in each Provider slice as `(providerId, modelId)`
   templates with `requestStrategyId` and output constraints. New Profiles consume
   the complete local inventory once and persist the resulting internal
   catalog parameter preferences keyed by provider and model. Models are selectable but read-only in the
@@ -71,12 +71,12 @@ surface apps -> application/session -> core-engine + providers + execution backe
   tests require an explicit configured `modelId`; they never infer a first
   model, a profile default, or a provider fallback. Production provider request
   builders consume the resolved `request.model` and `requestStrategyId` only.
-- Product names do not replace persisted protocol identity. GRSAI maps to
-  `grsai` / `grsai-generate`, Gemini maps to `gemini-generate-content`, and GPT
-  Image 2 maps to `openai-images` / `image-endpoint`. Profile persistence and UI
-  state key by canonical `apiFormat`; registry composition resolves the matching
-  implementation. Adding another relay or official API requires a new explicit
-  Provider slice and product surface, not a generic endpoint editor.
+- Product and runtime identity use the real Provider id directly: `runninghub`,
+  `grsai`, `google-gemini`, and `openai`. Models such as GPT Image 2 belong to
+  their Provider catalog. Provider adapters own their upstream request semantics;
+  shared layers provide only transport, asset, lifecycle, logging, and error
+  infrastructure. Adding another relay or official API requires a new explicit
+  Provider slice and product surface, not a generic protocol alias.
 - Model avatar icons follow catalog brand identity as the single source.
   `packages/providers` declares `ModelBrand` on `ImageModelCapability`;
   `packages/application` exposes the sync `resolveModelBrand` command over
@@ -395,7 +395,7 @@ surface apps -> application/session -> core-engine + providers + execution backe
 
 - Provider profiles keep the canonical config structure internally. Dedicated
   Provider templates own the single endpoint, paths, auth mode, billing defaults,
-  and `apiFormat`; the app submits only the Provider surface identity, Profile
+  and Provider identity; the app submits only the Provider surface identity, Profile
   name, and secret action to the fixed provider account command. Secrets remain in
   `SecretStorageAdapter`. Existing endpoint classification, measurement, and
   billing commands may remain internal seams when another runtime owner still
@@ -506,6 +506,8 @@ surface apps -> application/session -> core-engine + providers + execution backe
 - Traceable generation contracts live in `packages/application/src/traceable-generation.ts`: public Task status is running/completed/failed/discarded, remote execution facts and remote output URLs are durable, and signed URL query strings are redacted before diagnostics.
 - Batch admission reserves the complete child-task count atomically with a default of 10 slots (configurable 2–100); rejected batches do not enter a local pending queue. Shared input assets use content-hash references and active/running references are retained.
 - Provider async adapters remain submit/poll protocol owners. Result URL records are separated from materialization and Photoshop placement; recovery only resumes tasks with an existing remote ID, while user placement resolves local asset, URL, then one remote query.
+- The Provider execution bridge resolves a provider config once per dispatch and validates that config directly. Application resolvers must return the provider config itself; wrapping it in `{ providerId, implementationId, providerConfig }` causes local schema errors before any provider HTTP request.
+- Fixed-provider canonical requests must retain top-level `modelId` through Provider request validation. The shared request schema previously omitted this field, so Zod silently stripped it and RunningHub reached submit without a model; the schema now preserves and validates `modelId`.
 
 | Code | Place |
 |---|---|

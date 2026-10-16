@@ -1,6 +1,6 @@
 import type { ImageEditCodec, ProviderDescriptor } from '../../../contract/provider.js';
 import type { CanonicalImageJobRequest } from '../../../contract/request.js';
-import type { ImageEndpointProviderConfig } from '../config-schema.js';
+import type { OpenAiProviderConfig } from '../config-schema.js';
 import { assertProviderModelExecution } from '../../../contract/image-model-capability.js';
 import type { ImageEditRequestCodec } from './build-request.js';
 import { resolveImageEditRequestCodecById } from './build-request.js';
@@ -25,7 +25,7 @@ export interface ImageEditCompatibilityFingerprint {
   readonly targetPath: string;
   readonly model: string;
   readonly connection: {
-    readonly selectionMode: ImageEndpointProviderConfig['connection']['selectionMode'];
+    readonly selectionMode: OpenAiProviderConfig['connection']['selectionMode'];
     readonly selectedEndpointId?: string;
     readonly endpoints: readonly {
       readonly id: string;
@@ -137,11 +137,11 @@ function summarizeImageReferenceKinds(
 function resolveModel(request: CanonicalImageJobRequest): string {
   return assertProviderModelExecution({
     execution: request.model,
-    apiFormat: 'openai-images',
+    providerId: 'openai',
   }).modelId;
 }
 
-function normalizeExtraHeaders(extraHeaders: ImageEndpointProviderConfig['extraHeaders']): {
+function normalizeExtraHeaders(extraHeaders: OpenAiProviderConfig['extraHeaders']): {
   readonly extraHeaderNames: readonly string[];
   readonly extraHeadersFingerprint: string;
 } {
@@ -253,7 +253,7 @@ export function isImageEditCodecCompatible(
 /** 构造 image-edit 兼容性指纹。 */
 export function createImageEditCompatibilityFingerprint(args: {
   readonly descriptor: ProviderDescriptor;
-  readonly config: ImageEndpointProviderConfig;
+  readonly config: OpenAiProviderConfig;
   readonly request: CanonicalImageJobRequest;
   readonly targetPath: string;
 }): ImageEditCompatibilityFingerprint {
@@ -314,7 +314,7 @@ export function rememberSuccessfulImageEditCodec(cacheKey: string, codec: ImageE
 /** 解析 image-edit 请求应使用的 codec。 */
 export function resolveImageEditCodec(args: {
   readonly descriptor: ProviderDescriptor;
-  readonly config: ImageEndpointProviderConfig;
+  readonly config: OpenAiProviderConfig;
   readonly request: CanonicalImageJobRequest;
   readonly targetPath: string;
 }): ImageEditCodecResolution {

@@ -1,22 +1,21 @@
 import { z } from 'zod';
 import { providerBillingConfigSchema, providerConnectionCollectionSchema } from '../../contract/config-schema.js';
-import { normalizeApiFormatPaths } from '../../contract/api-format.js';
-import type { OpenAiImagesPaths } from '../../contract/api-format.js';
+import { normalizeProviderIdPaths } from '../../contract/provider-routing.js';
+import type { OpenAiImagesPaths } from '../../contract/provider-routing.js';
 
 /**
  * Mock provider config 的 Zod schema。
  *
- * 复用 image-endpoint 基线字段，并追加 mock 特有的延迟与失败控制。
+ * 复用 openai 基线字段，并追加 mock 特有的延迟与失败控制。
  */
 export const mockConfigSchema = z.object({
   providerId: z.string().min(1),
   displayName: z.string().min(1),
-  family: z.literal('image-endpoint'),
-  apiFormat: z.literal('openai-images').default('openai-images'),
+  family: z.literal('openai'),
   connection: providerConnectionCollectionSchema,
   paths: z.unknown().optional().transform((value, ctx) => {
     try {
-      return normalizeApiFormatPaths('openai-images', value) as OpenAiImagesPaths;
+      return normalizeProviderIdPaths('openai', value) as OpenAiImagesPaths;
     } catch (error) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

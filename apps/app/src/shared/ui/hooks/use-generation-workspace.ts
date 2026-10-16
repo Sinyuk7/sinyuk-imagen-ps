@@ -251,7 +251,6 @@ export function useGenerationWorkspace(options: GenerationWorkspaceOptions): Gen
         prompt,
         providerName: intent.providerName,
         providerId: intent.providerId,
-        apiFormat: intent.providerId === 'grsai' ? 'grsai' : 'openai-images',
         ...(intent.modelId ? { modelId: intent.modelId } : {}),
         attachments,
         ...(editRegion ? { editRegion } : {}),

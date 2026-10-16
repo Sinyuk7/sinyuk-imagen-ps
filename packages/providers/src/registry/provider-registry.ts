@@ -1,8 +1,7 @@
 import {
   getOfficialModelPreset,
   getRequestStrategy,
-  implementationIdForApiFormat,
-  type ApiFormat,
+  type ProviderId,
   type Provider,
   type ProviderConfig,
   type ProviderDescriptor,
@@ -21,8 +20,8 @@ export interface ProviderRegistry {
   /** 按 id 获取 provider 实例。 */
   get(providerId: string): Provider<ProviderConfig, ProviderRequest> | undefined;
 
-  /** 按 API format 获取 provider 实例。 */
-  getByApiFormat(apiFormat: ApiFormat): Provider<ProviderConfig, ProviderRequest> | undefined;
+  /** 按 Provider id 获取 provider 实例。 */
+  getByProviderId(providerId: ProviderId): Provider<ProviderConfig, ProviderRequest> | undefined;
 
   /** 列出所有已注册 provider 的 descriptor。 */
   list(): ProviderDescriptor[];
@@ -50,8 +49,7 @@ function assertDefaultModelTemplates(descriptor: ProviderDescriptor): void {
   const modelIds = new Set<string>();
   for (const template of descriptor.defaultModelTemplates) {
     if (
-      descriptor.apiFormat === undefined ||
-      template.apiFormat !== descriptor.apiFormat ||
+      template.providerId !== descriptor.id ||
       template.modelId.trim().length === 0 ||
       template.wireModelId.trim().length === 0 ||
       template.baseModelId.trim().length === 0 ||
@@ -62,9 +60,9 @@ function assertDefaultModelTemplates(descriptor: ProviderDescriptor): void {
       });
     }
     modelIds.add(template.modelId);
-    const preset = getOfficialModelPreset(template.apiFormat, template.baseModelId);
+    const preset = getOfficialModelPreset(template.providerId, template.baseModelId);
     const strategy = preset ? getRequestStrategy(preset.requestStrategyId) : undefined;
-    if (!preset || !strategy || strategy.apiFormat !== template.apiFormat) {
+    if (!preset || !strategy || strategy.providerId !== template.providerId) {
       throw createRegistryError('invalid_provider', `Provider "${descriptor.id}" default model template does not resolve exactly.`, {
         providerId: descriptor.id,
         modelId: template.modelId,
@@ -76,7 +74,7 @@ function assertDefaultModelTemplates(descriptor: ProviderDescriptor): void {
 /** 创建内存级 provider registry。 */
 export function createProviderRegistry(): ProviderRegistry {
   const providers = new Map<string, Provider>();
-  const providersByApiFormat = new Map<ApiFormat, Provider>();
+  const providersByProviderId = new Map<ProviderId, Provider>();
 
   return {
     register(provider: Provider): void {
@@ -96,23 +94,11 @@ export function createProviderRegistry(): ProviderRegistry {
           { providerId: provider.id },
         );
       }
-      if (descriptor.apiFormat !== undefined) {
-        const expectedId = implementationIdForApiFormat(descriptor.apiFormat);
-        if (provider.id !== expectedId) {
-          throw createRegistryError(
-            'invalid_provider',
-            `Provider "${provider.id}" is not canonical for apiFormat "${descriptor.apiFormat}".`,
-            { providerId: provider.id, apiFormat: descriptor.apiFormat, expectedId },
-          );
+      if (isProviderId(provider.id)) {
+        if (providersByProviderId.has(provider.id)) {
+          throw createRegistryError('invalid_provider', `Provider "${provider.id}" is already registered.`, { providerId: provider.id });
         }
-        if (providersByApiFormat.has(descriptor.apiFormat)) {
-          throw createRegistryError(
-            'invalid_provider',
-            `Provider apiFormat "${descriptor.apiFormat}" is already registered.`,
-            { providerId: provider.id, apiFormat: descriptor.apiFormat },
-          );
-        }
-        providersByApiFormat.set(descriptor.apiFormat, provider);
+        providersByProviderId.set(provider.id, provider);
       }
       providers.set(provider.id, provider);
     },
@@ -121,12 +107,16 @@ export function createProviderRegistry(): ProviderRegistry {
       return providers.get(providerId);
     },
 
-    getByApiFormat(apiFormat: ApiFormat): Provider | undefined {
-      return providersByApiFormat.get(apiFormat);
+    getByProviderId(providerId: ProviderId): Provider | undefined {
+      return providersByProviderId.get(providerId);
     },
 
     list(): ProviderDescriptor[] {
       return Array.from(providers.values()).map((p) => p.describe());
     },
   };
+}
+
+function isProviderId(value: string): value is ProviderId {
+  return value === 'openai' || value === 'google-gemini' || value === 'grsai' || value === 'runninghub';
 }

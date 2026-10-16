@@ -8,7 +8,7 @@ import type {
 } from '../../contract/image-model-capability.js';
 import type { ProviderDefaultModelTemplate } from '../../contract/provider.js';
 import { GEMINI_EDIT_INPUT_CAPABILITY } from '../../model-catalog/shared/matrix/edit-input-capabilities.js';
-import { geminiGenerateContentImageConfigMatrix } from '../../model-catalog/shared/matrix/gemini-generate-content-output.js';
+import { googleGeminiImageConfigMatrix } from '../../model-catalog/shared/matrix/google-gemini-output.js';
 import { GPT_IMAGE_OUTPUT_CAPABILITY, GPT_OUTPUT_EXPOSURE, chatGptImageMatrix } from '../../model-catalog/shared/matrix/openai-gpt-image-2.js';
 
 const GRSAI_OUTPUT_FORMATS = ['png'] as const;
@@ -35,20 +35,20 @@ function ratioExposure(ratios: readonly Exclude<ImageAspectRatio, 'auto' | 'sour
 
 function ratioMatrices(ratios: readonly Exclude<ImageAspectRatio, 'auto' | 'source'>[]): readonly ImageOutputMatrix[] {
   return [
-    geminiGenerateContentImageConfigMatrix({ operation: 'text_to_image', sizes: GRSAI_RESOLUTIONS, ratios }),
-    geminiGenerateContentImageConfigMatrix({ operation: 'image_edit', sizes: GRSAI_RESOLUTIONS, ratios }),
+    googleGeminiImageConfigMatrix({ operation: 'text_to_image', sizes: GRSAI_RESOLUTIONS, ratios }),
+    googleGeminiImageConfigMatrix({ operation: 'image_edit', sizes: GRSAI_RESOLUTIONS, ratios }),
   ];
 }
 
 function ratioRule(args: { readonly id: string; readonly displayName: string; readonly ratios: readonly Exclude<ImageAspectRatio, 'auto' | 'source'>[]; readonly brand: 'google-gemini' | 'openai' }): ImageModelCapability {
   return {
-    ruleId: `grsai-generate-${args.id}`,
+    ruleId: `grsai-${args.id}`,
     match: { ids: [args.id] },
     displayName: args.displayName,
     brand: args.brand,
     selection: { visibleInPicker: true, allowAsDefault: true },
-    appliesToProviders: ['grsai-generate'],
-    requestStrategyId: 'grsai-generate-image-config',
+    appliesToProviders: ['grsai'],
+    requestStrategyId: 'grsai-image-config',
     outputCapability: ratioOutputCapability(args.ratios),
     outputExposure: ratioExposure(args.ratios),
     editInput: GEMINI_EDIT_INPUT_CAPABILITY,
@@ -58,13 +58,13 @@ function ratioRule(args: { readonly id: string; readonly displayName: string; re
 
 function vipRule(): ImageModelCapability {
   return {
-    ruleId: 'grsai-generate-gpt-image-2-vip',
+    ruleId: 'grsai-gpt-image-2-vip',
     match: { ids: ['gpt-image-2-vip'] },
     displayName: 'GPT Image 2 VIP',
     brand: 'openai',
     selection: { visibleInPicker: true, allowAsDefault: true },
-    appliesToProviders: ['grsai-generate'],
-    requestStrategyId: 'grsai-generate-image-config',
+    appliesToProviders: ['grsai'],
+    requestStrategyId: 'grsai-image-config',
     outputCapability: { ...GPT_IMAGE_OUTPUT_CAPABILITY, outputFormats: GRSAI_OUTPUT_FORMATS },
     outputExposure: { ...GPT_OUTPUT_EXPOSURE, outputFormats: GRSAI_OUTPUT_FORMATS, allowInputDerivedExactSize: false },
     editInput: GEMINI_EDIT_INPUT_CAPABILITY,
@@ -101,6 +101,6 @@ export const GRSAI_DEFAULT_MODEL_TEMPLATES = Object.freeze(
     if (!modelId) {
       throw new Error(`GRSAI model rule "${capability.ruleId}" requires an exact model id.`);
     }
-    return { apiFormat: 'grsai', modelId, wireModelId: modelId, baseModelId: modelId };
+    return { providerId: 'grsai', modelId, wireModelId: modelId, baseModelId: modelId };
   }),
 );

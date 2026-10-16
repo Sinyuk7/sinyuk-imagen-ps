@@ -1,11 +1,11 @@
 import type { ProviderFamily } from './capability.js';
 import type {
   AuthMode,
-  GeminiGenerateContentPaths,
-  GrsaiGeneratePaths,
+  GoogleGeminiPaths,
+  GrsaiPaths,
   OpenAiImagesPaths,
-} from './api-format.js';
-import { canonicalizeProviderBaseUrl } from './api-format.js';
+} from './provider-routing.js';
+import { canonicalizeProviderBaseUrl } from './provider-routing.js';
 
 /**
  * Provider config 契约。
@@ -145,7 +145,7 @@ export function getPrimaryProviderEndpoint(connection: ProviderConnectionConfig)
 }
 
 /** `/v1/images/*` endpoint provider instance 的配置形状。 */
-export interface ImageEndpointProviderConfig {
+export interface OpenAiProviderConfig {
   /** Provider instance 的稳定标识符。 */
   readonly providerId: string;
 
@@ -155,8 +155,6 @@ export interface ImageEndpointProviderConfig {
   /** 当前 provider family。 */
   readonly family: ProviderFamily;
 
-  /** 当前 profile 使用的 API format。 */
-  readonly apiFormat: 'openai-images';
 
   /** Images endpoint relay / proxy / gateway 的连接集合。 */
   readonly connection: ProviderConnectionConfig;
@@ -178,10 +176,10 @@ export interface ImageEndpointProviderConfig {
 }
 
 /** Gemini Generate Content provider instance 的鉴权模式。 */
-export type GeminiGenerateContentAuthMode = Extract<AuthMode, 'x-goog-api-key' | 'bearer' | 'none'>;
+export type GoogleGeminiAuthMode = Extract<AuthMode, 'x-goog-api-key' | 'bearer' | 'none'>;
 
 /** Gemini Generate Content provider instance 的配置形状。 */
-export interface GeminiGenerateContentProviderConfig {
+export interface GoogleGeminiProviderConfig {
   /** Provider instance 的稳定标识符。 */
   readonly providerId: string;
 
@@ -191,20 +189,18 @@ export interface GeminiGenerateContentProviderConfig {
   /** 当前 provider family。 */
   readonly family: ProviderFamily;
 
-  /** 当前 profile 使用的 API format。 */
-  readonly apiFormat: 'gemini-generate-content';
 
   /** Gemini-compatible relay / proxy / gateway 的连接集合。 */
   readonly connection: ProviderConnectionConfig;
 
   /** Gemini GenerateContent API path template 配置。 */
-  readonly paths: GeminiGenerateContentPaths;
+  readonly paths: GoogleGeminiPaths;
 
   /** Gemini Generate Content 使用的鉴权 secret。 */
   readonly apiKey?: string;
 
   /** Provider instance 使用的显式鉴权模式。 */
-  readonly authMode: GeminiGenerateContentAuthMode;
+  readonly authMode: GoogleGeminiAuthMode;
 
   /** 缺省 model target。 */
   readonly defaultModel?: string;
@@ -217,19 +213,17 @@ export interface GeminiGenerateContentProviderConfig {
 }
 
 /** GRSAI 异步生成 provider instance 的配置形状。 */
-export interface GrsaiGenerateProviderConfig {
+export interface GrsaiProviderConfig {
   /** Provider instance 的稳定标识符。 */
   readonly providerId: string;
   /** 用于 UI / 日志展示的可读名称。 */
   readonly displayName: string;
   /** 当前 provider family。 */
-  readonly family: 'grsai-generate';
-  /** 当前 profile 使用的 API format。 */
-  readonly apiFormat: 'grsai';
+  readonly family: 'grsai';
   /** GRSAI relay / proxy / gateway 的连接集合。 */
   readonly connection: ProviderConnectionConfig;
   /** GRSAI 异步提交与查询路径。 */
-  readonly paths: GrsaiGeneratePaths;
+  readonly paths: GrsaiPaths;
   /** GRSAI Bearer API key。 */
   readonly apiKey: string;
   /** 可选余额查询配置；secret 值由 runtime resolver 注入。 */
@@ -249,7 +243,7 @@ export interface BillingEnabledProviderConfig {
 
 /** 当前阶段稳定公开的 provider config 联合。 */
 export type ProviderConfig =
-  | (ImageEndpointProviderConfig & BillingEnabledProviderConfig)
-  | (GeminiGenerateContentProviderConfig & BillingEnabledProviderConfig)
-  | (GrsaiGenerateProviderConfig & BillingEnabledProviderConfig);
+  | (OpenAiProviderConfig & BillingEnabledProviderConfig)
+  | (GoogleGeminiProviderConfig & BillingEnabledProviderConfig)
+  | (GrsaiProviderConfig & BillingEnabledProviderConfig);
 import type { ProviderBillingConfig } from './billing.js';

@@ -1,7 +1,7 @@
 import type { ImageOutputSelection } from '@imagen-ps/application';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
-  ApiFormat,
+  ProviderId,
   ComfyUiExecutionMaskInput,
   ComfyUiGenerationPayload,
   ComfyUiMaskBinding,
@@ -66,8 +66,7 @@ export interface ConversationRound {
   readonly providerName: string;
   readonly backendId?: 'provider' | 'comfyui';
   readonly workflowId?: string;
-  readonly apiFormat?: ApiFormat;
-  readonly providerId?: 'grsai' | 'runninghub' | 'mock';
+  readonly providerId?: ProviderId | 'mock';
   readonly elapsedSeconds: number;
   readonly elapsedLabel?: string;
   readonly errorMessage?: string;
@@ -100,7 +99,6 @@ interface SubmitConversationInputBase {
 export interface SubmitProviderConversationInput extends SubmitConversationInputBase {
   readonly backendId?: 'provider';
   readonly providerId: 'grsai' | 'runninghub';
-  readonly apiFormat?: ApiFormat;
   readonly modelId?: string;
   readonly output?: AppGenerationSettingsOutput;
   readonly providerInputSizePreset?: AppProviderInputSizePreset;
@@ -664,7 +662,7 @@ export function useConversation(
           removable: true,
           providerName: input.providerName,
           backendId: input.backendId ?? 'provider',
-          ...(providerInput?.apiFormat ? { apiFormat: providerInput.apiFormat } : {}),
+          ...(providerInput?.providerId ? { providerId: providerInput.providerId } : {}),
           ...(providerInput?.providerId ? { providerId: providerInput.providerId } : {}),
           ...(providerInput ? { providerId: providerInput.providerId } : {}),
           ...(providerInput?.modelId ? { modelId: providerInput.modelId } : {}),
@@ -838,11 +836,11 @@ export function useConversation(
           return;
         }
         if (round?.status === 'ok' && round.providerId) {
+          if (round.providerId !== 'runninghub' && round.providerId !== 'grsai') return;
           await submit({
             operation: round.attachments.length > 0 ? 'image-edit' : 'text-to-image',
             prompt: round.prompt,
-            providerId: round.providerId === 'runninghub' ? 'runninghub' : 'grsai',
-            ...(round.apiFormat ? { apiFormat: round.apiFormat } : {}),
+            providerId: round.providerId,
             providerName: round.providerName,
             ...(round.modelId ? { modelId: round.modelId } : {}),
             attachments: round.attachments,

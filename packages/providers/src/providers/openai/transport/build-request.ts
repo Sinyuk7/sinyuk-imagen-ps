@@ -19,7 +19,7 @@
 
 import type { Asset } from '@imagen-ps/core-engine';
 import { decode as decodePng, encode as encodePng } from 'fast-png';
-import type { CanonicalImageJobRequest, ImageEndpointRequestOutput, ProviderOutputOptions } from '../../../contract/request.js';
+import type { CanonicalImageJobRequest, OpenAiRequestOutput, ProviderOutputOptions } from '../../../contract/request.js';
 import type { ProviderDiagnostic } from '../../../contract/diagnostics.js';
 import type { ImageEditCodec } from '../../../contract/provider.js';
 import {
@@ -177,7 +177,7 @@ class BuildRequestError extends Error {
 function resolveModel(request: CanonicalImageJobRequest): string {
   return assertProviderModelExecution({
     execution: request.model,
-    apiFormat: 'openai-images',
+    providerId: 'openai',
   }).modelId;
 }
 
@@ -199,7 +199,7 @@ function resolveRequestOutput(
   request: CanonicalImageJobRequest,
   output: ProviderOutputOptions,
   providerId: ImageCatalogProviderId,
-): ImageEndpointRequestOutput {
+): OpenAiRequestOutput {
   const capabilityModelId = request.capabilityModelId ?? resolveModel(request);
   const resolvedOutput = resolveProviderResolvedOutput({
     providerId,
@@ -208,10 +208,10 @@ function resolveRequestOutput(
     output,
     inputContext: request.inputContext,
   });
-  if (resolvedOutput.kind !== 'image-endpoint') {
+  if (resolvedOutput.kind !== 'openai') {
     throw new BuildRequestError(
       `Image endpoint output received incompatible resolved output kind "${resolvedOutput.kind}".`,
-      { providerId, expected: 'image-endpoint', actual: resolvedOutput.kind },
+      { providerId, expected: 'openai', actual: resolvedOutput.kind },
     );
   }
   return resolvedOutput;
@@ -307,7 +307,7 @@ function openAiNativeMaskAsset(request: CanonicalImageJobRequest): Asset | undef
 
   const capabilityModelId = request.capabilityModelId ?? resolveModel(request);
   const plan = resolveMaskExecutionPlan({
-    providerId: 'image-endpoint',
+    providerId: 'openai',
     capabilityModelId,
     hasReadyMask: true,
   });
@@ -636,7 +636,7 @@ export function buildRequestBody(request: CanonicalImageJobRequest): OpenAIImage
   applyOutputToBody(body, request, request.output, {
     includeInputFidelity: false,
     operation: request.operation,
-    providerId: 'image-endpoint',
+    providerId: 'openai',
   });
 
   const isGptImageModel = body.model.startsWith('gpt-image') || body.model === 'chatgpt-image-latest';
@@ -685,7 +685,7 @@ function buildEditRequestBodyInternal(
   applyOutputToBody(body, request, request.output, {
     includeInputFidelity: true,
     operation: request.operation,
-    providerId: 'image-endpoint',
+    providerId: 'openai',
   });
 
   return body;
@@ -744,7 +744,7 @@ function buildEditMultipartBodyForCodecInternal(
   applyOutputToBody(body, request, request.output, {
     includeInputFidelity: true,
     operation: request.operation,
-    providerId: 'image-endpoint',
+    providerId: 'openai',
   });
   const form = new FormData();
 

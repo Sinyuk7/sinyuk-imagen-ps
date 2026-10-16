@@ -1,41 +1,41 @@
 import type { Asset } from '@imagen-ps/core-engine';
 import type { ProviderDiagnostic } from '../../../contract/diagnostics.js';
-import type { CanonicalImageJobRequest, GeminiGenerateContentRequestOutput, ProviderOutputOptions } from '../../../contract/request.js';
+import type { CanonicalImageJobRequest, GoogleGeminiRequestOutput, ProviderOutputOptions } from '../../../contract/request.js';
 import {
   assertProviderModelExecution,
   resolveProviderResolvedOutput,
 } from '../../../contract/image-model-capability.js';
 
 /** Gemini Generate Content provider-local 输出 revision。 */
-export type GeminiGenerateContentWireRevision = 'image-config';
+export type GoogleGeminiWireRevision = 'image-config';
 
-export interface GeminiGenerateContentInlineDataPart {
+export interface GoogleGeminiInlineDataPart {
   inlineData: {
     mimeType: string;
     data: string;
   };
 }
 
-export interface GeminiGenerateContentFileDataPart {
+export interface GoogleGeminiFileDataPart {
   fileData: {
     mimeType?: string;
     fileUri: string;
   };
 }
 
-export interface GeminiGenerateContentTextPart {
+export interface GoogleGeminiTextPart {
   text: string;
 }
 
-export type GeminiGenerateContentPart =
-  | GeminiGenerateContentInlineDataPart
-  | GeminiGenerateContentFileDataPart
-  | GeminiGenerateContentTextPart;
+export type GoogleGeminiPart =
+  | GoogleGeminiInlineDataPart
+  | GoogleGeminiFileDataPart
+  | GoogleGeminiTextPart;
 
-export interface GeminiGenerateContentRequestBody {
+export interface GoogleGeminiRequestBody {
   contents: readonly {
     role: 'user';
-    parts: readonly GeminiGenerateContentPart[];
+    parts: readonly GoogleGeminiPart[];
   }[];
   generationConfig: {
     responseModalities: readonly ('TEXT' | 'IMAGE')[];
@@ -47,27 +47,27 @@ export interface GeminiGenerateContentRequestBody {
   };
 }
 
-export interface GeminiGenerateContentBuiltRequest {
+export interface GoogleGeminiBuiltRequest {
   readonly model: string;
   readonly path: string;
-  readonly body: GeminiGenerateContentRequestBody;
+  readonly body: GoogleGeminiRequestBody;
   readonly diagnostics: readonly ProviderDiagnostic[];
-  readonly wireRevision: GeminiGenerateContentWireRevision;
+  readonly wireRevision: GoogleGeminiWireRevision;
 }
 
-class BuildGeminiGenerateContentRequestError extends Error {
+class BuildGoogleGeminiRequestError extends Error {
   readonly details?: Record<string, unknown>;
 
   constructor(message: string, details?: Record<string, unknown>) {
     super(message);
-    this.name = 'BuildGeminiGenerateContentRequestError';
+    this.name = 'BuildGoogleGeminiRequestError';
     if (details !== undefined) {
       this.details = details;
     }
   }
 }
 
-const DEFAULT_WIRE_REVISION: GeminiGenerateContentWireRevision = 'image-config';
+const DEFAULT_WIRE_REVISION: GoogleGeminiWireRevision = 'image-config';
 const MAX_REFERENCE_IMAGES = 14;
 const ALLOWED_PROVIDER_OPTION_KEYS = new Set(['model']);
 
@@ -86,7 +86,7 @@ function normalizeBase64Data(data: string): { readonly mimeType?: string; readon
   const marker = ';base64,';
   const markerIndex = data.indexOf(marker);
   if (markerIndex < 0) {
-    throw new BuildGeminiGenerateContentRequestError('Gemini inline image data URLs must use base64 encoding.');
+    throw new BuildGoogleGeminiRequestError('Gemini inline image data URLs must use base64 encoding.');
   }
   const mimeType = data.slice(5, markerIndex);
   return {
@@ -109,7 +109,7 @@ function normalizeGeminiFileUri(asset: Asset): string | undefined {
   return undefined;
 }
 
-function assetToGeminiPart(asset: Asset): GeminiGenerateContentInlineDataPart | GeminiGenerateContentFileDataPart {
+function assetToGeminiPart(asset: Asset): GoogleGeminiInlineDataPart | GoogleGeminiFileDataPart {
   if (typeof asset.data === 'string' && asset.data.length > 0) {
     const normalized = normalizeBase64Data(asset.data);
     return {
@@ -139,13 +139,13 @@ function assetToGeminiPart(asset: Asset): GeminiGenerateContentInlineDataPart | 
   }
 
   if (typeof asset.fileId === 'string' && asset.fileId.length > 0) {
-    throw new BuildGeminiGenerateContentRequestError(
+    throw new BuildGoogleGeminiRequestError(
       'Gemini Generate Content does not support OpenAI-style fileId image references.',
       { fileId: asset.fileId },
     );
   }
 
-  throw new BuildGeminiGenerateContentRequestError(
+  throw new BuildGoogleGeminiRequestError(
     'Gemini Generate Content image parts require inline data or a URI-style reference.',
     {
       name: asset.name,
@@ -158,24 +158,24 @@ function normalizeGeminiModelId(modelId: string): string {
   return modelId.trim().replace(/^models\//, '');
 }
 
-export function normalizeGeminiGenerateContentModelId(modelId: string): string {
+export function normalizeGoogleGeminiModelId(modelId: string): string {
   return normalizeGeminiModelId(modelId);
 }
 
 function resolveModel(request: CanonicalImageJobRequest): string {
   return normalizeGeminiModelId(assertProviderModelExecution({
     execution: request.model,
-    apiFormat: 'gemini-generate-content',
+    providerId: 'google-gemini',
   }).modelId);
 }
 
-function resolveWireRevision(request: CanonicalImageJobRequest): GeminiGenerateContentWireRevision {
+function resolveWireRevision(request: CanonicalImageJobRequest): GoogleGeminiWireRevision {
   if (request.model === undefined) {
     return DEFAULT_WIRE_REVISION;
   }
   assertProviderModelExecution({
     execution: request.model,
-    apiFormat: 'gemini-generate-content',
+    providerId: 'google-gemini',
   });
   return 'image-config';
 }
@@ -195,7 +195,7 @@ function createDiagnostic(
 
 function pushIgnoredProviderOptionDiagnostic(diagnostics: ProviderDiagnostic[], key: string): void {
   diagnostics.push(createDiagnostic(
-    'gemini-generate-content.request.provider-option-ignored',
+    'google-gemini.request.provider-option-ignored',
     `Ignored Gemini Generate Content provider option "${key}".`,
     { key, reason: 'not-allowlisted' },
   ));
@@ -207,7 +207,7 @@ function pushIgnoredOutputOptionDiagnostic(
   details?: Readonly<Record<string, unknown>>,
 ): void {
   diagnostics.push(createDiagnostic(
-    'gemini-generate-content.request.output-option-ignored',
+    'google-gemini.request.output-option-ignored',
     `Ignored unsupported Gemini Generate Content output option "${key}".`,
     { key, ...(details ?? {}) },
   ));
@@ -270,22 +270,22 @@ function copyResolvedRecord(value: Readonly<Record<string, unknown>> | undefined
   return value === undefined ? {} : { ...value };
 }
 
-function resolveRequestOutput(request: CanonicalImageJobRequest, output: ProviderOutputOptions | undefined): GeminiGenerateContentRequestOutput | undefined {
+function resolveRequestOutput(request: CanonicalImageJobRequest, output: ProviderOutputOptions | undefined): GoogleGeminiRequestOutput | undefined {
   if (output === undefined) {
     return undefined;
   }
   const capabilityModelId = request.capabilityModelId ?? resolveModel(request);
   const resolvedOutput = resolveProviderResolvedOutput({
-    providerId: 'gemini-generate-content',
+    providerId: 'google-gemini',
     capabilityModelId,
     operation: request.operation,
     output,
     inputContext: request.inputContext,
   });
-  if (resolvedOutput.kind !== 'gemini-generate-content') {
-    throw new BuildGeminiGenerateContentRequestError(
+  if (resolvedOutput.kind !== 'google-gemini') {
+    throw new BuildGoogleGeminiRequestError(
       `Gemini Generate Content output received incompatible resolved output kind "${resolvedOutput.kind}".`,
-      { expected: 'gemini-generate-content', actual: resolvedOutput.kind },
+      { expected: 'google-gemini', actual: resolvedOutput.kind },
     );
   }
   return resolvedOutput;
@@ -293,14 +293,14 @@ function resolveRequestOutput(request: CanonicalImageJobRequest, output: Provide
 
 function buildGenerationConfig(args: {
   readonly request: CanonicalImageJobRequest;
-  readonly wireRevision: GeminiGenerateContentWireRevision;
+  readonly wireRevision: GoogleGeminiWireRevision;
   readonly diagnostics: ProviderDiagnostic[];
-}): GeminiGenerateContentRequestBody['generationConfig'] {
+}): GoogleGeminiRequestBody['generationConfig'] {
   const { request, diagnostics } = args;
   const output = request.output;
   applyUnsupportedOutputDiagnostics(output, diagnostics);
 
-  const generationConfig: GeminiGenerateContentRequestBody['generationConfig'] = {
+  const generationConfig: GoogleGeminiRequestBody['generationConfig'] = {
     responseModalities: ['TEXT', 'IMAGE'],
   };
 
@@ -309,22 +309,22 @@ function buildGenerationConfig(args: {
   }
 
   const resolvedOutput = resolveRequestOutput(request, output);
-  const imageConfig = copyResolvedRecord(resolvedOutput?.imageConfig) as NonNullable<GeminiGenerateContentRequestBody['generationConfig']['imageConfig']>;
+  const imageConfig = copyResolvedRecord(resolvedOutput?.imageConfig) as NonNullable<GoogleGeminiRequestBody['generationConfig']['imageConfig']>;
   generationConfig.imageConfig = imageConfig;
 
   return generationConfig;
 }
 
-function buildParts(request: CanonicalImageJobRequest): readonly GeminiGenerateContentPart[] {
+function buildParts(request: CanonicalImageJobRequest): readonly GoogleGeminiPart[] {
   if (request.operation === 'text_to_image') {
     return [{ text: request.prompt }];
   }
 
   if (request.images === undefined || request.images.length === 0) {
-    throw new BuildGeminiGenerateContentRequestError('Gemini Generate Content edit requests require at least one input image.');
+    throw new BuildGoogleGeminiRequestError('Gemini Generate Content edit requests require at least one input image.');
   }
   if (request.images.length > MAX_REFERENCE_IMAGES) {
-    throw new BuildGeminiGenerateContentRequestError(
+    throw new BuildGoogleGeminiRequestError(
       `Gemini Generate Content edit requests support at most ${MAX_REFERENCE_IMAGES} input images.`,
       { imageCount: request.images.length },
     );
@@ -335,13 +335,13 @@ function buildParts(request: CanonicalImageJobRequest): readonly GeminiGenerateC
   ];
 }
 
-export function buildGeminiGenerateContentRequest(args: {
+export function buildGoogleGeminiRequest(args: {
   readonly request: CanonicalImageJobRequest;
-}): GeminiGenerateContentBuiltRequest {
+}): GoogleGeminiBuiltRequest {
   const diagnostics: ProviderDiagnostic[] = [];
   if (args.request.maskImage !== undefined) {
     diagnostics.push(createDiagnostic(
-      'gemini-generate-content.request.mask-omitted',
+      'google-gemini.request.mask-omitted',
       'Omitted canonical Mask because Gemini Generate Content has no separate raster mask field.',
       { reason: 'transport-has-no-separate-raster-mask-field' },
     ));
@@ -349,7 +349,7 @@ export function buildGeminiGenerateContentRequest(args: {
   applyProviderOptions(args.request.providerOptions, diagnostics);
   const model = resolveModel(args.request);
   const wireRevision = resolveWireRevision(args.request);
-  const body: GeminiGenerateContentRequestBody = {
+  const body: GoogleGeminiRequestBody = {
     contents: [
       {
         role: 'user',

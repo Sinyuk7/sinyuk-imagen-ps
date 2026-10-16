@@ -2,14 +2,14 @@ import type { Asset } from '@imagen-ps/core-engine';
 import type { Provider, ProviderAsyncLifecycle, ProviderInvokeArgs } from '../../contract/provider.js';
 import type { ProviderInvokeResult } from '../../contract/result.js';
 import { getPrimaryProviderEndpoint } from '../../contract/config.js';
-import { assembleApiUrl } from '../../contract/api-format.js';
+import { assembleApiUrl } from '../../contract/provider-routing.js';
 import { resolveProviderResolvedOutput } from '../../contract/image-model-capability.js';
 import type { CanonicalImageJobRequest } from '../../contract/request.js';
 import { httpRequest } from '../../shared/transport/http.js';
 import { executeBillingProtocolChain } from '../../transport/billing/protocol-registry.js';
 import { mockRequestSchema } from '../mock/request-schema.js';
-import { grsaiGenerateConfigSchema, type GrsaiGenerateProviderConfig } from './config-schema.js';
-import { grsaiGenerateDescriptor } from './descriptor.js';
+import { grsaiConfigSchema, type GrsaiProviderConfig } from './config-schema.js';
+import { grsaiDescriptor } from './descriptor.js';
 
 const NO_RETRY = { maxRetries: 0, baseDelayMs: 0, factor: 1 };
 
@@ -68,10 +68,10 @@ function requestBody(request: CanonicalImageJobRequest) {
   const prompt = request.prompt.trim();
   if (!prompt) throw new Error('GRSAI prompt must not be empty.');
   const output = resolveProviderResolvedOutput({
-    providerId: 'grsai-generate', capabilityModelId: modelId,
+    providerId: 'grsai', capabilityModelId: modelId,
     operation: request.operation, output: request.output, inputContext: request.inputContext,
   });
-  if (output.kind !== 'grsai-generate') throw new Error('GRSAI output strategy mismatch.');
+  if (output.kind !== 'grsai') throw new Error('GRSAI output strategy mismatch.');
   return {
     model: modelId,
     prompt,
@@ -82,9 +82,9 @@ function requestBody(request: CanonicalImageJobRequest) {
   };
 }
 
-export function createGrsaiGenerateProvider(): Provider<GrsaiGenerateProviderConfig, CanonicalImageJobRequest> {
-  const configsByRemoteRef = new Map<string, GrsaiGenerateProviderConfig>();
-  const asyncLifecycle: ProviderAsyncLifecycle<GrsaiGenerateProviderConfig, CanonicalImageJobRequest> = {
+export function createGrsaiProvider(): Provider<GrsaiProviderConfig, CanonicalImageJobRequest> {
+  const configsByRemoteRef = new Map<string, GrsaiProviderConfig>();
+  const asyncLifecycle: ProviderAsyncLifecycle<GrsaiProviderConfig, CanonicalImageJobRequest> = {
     async submit(args) {
       const endpoint = getPrimaryProviderEndpoint(args.config.connection);
       const response = await httpRequest({
@@ -118,13 +118,13 @@ export function createGrsaiGenerateProvider(): Provider<GrsaiGenerateProviderCon
     },
   };
   return {
-    id: 'grsai-generate', family: 'grsai-generate', describe: () => grsaiGenerateDescriptor,
-    validateConfig(input) { return grsaiGenerateConfigSchema.parse(input); },
+    id: 'grsai', family: 'grsai', describe: () => grsaiDescriptor,
+    validateConfig(input) { return grsaiConfigSchema.parse(input); },
     validateRequest(input) { return mockRequestSchema.parse(input); },
-    async invoke(_args: ProviderInvokeArgs<GrsaiGenerateProviderConfig, CanonicalImageJobRequest>): Promise<ProviderInvokeResult> {
+    async invoke(_args: ProviderInvokeArgs<GrsaiProviderConfig, CanonicalImageJobRequest>): Promise<ProviderInvokeResult> {
       throw new Error('GRSAI Generate uses async lifecycle.');
     },
-    async queryBalance(config: GrsaiGenerateProviderConfig, input) {
+    async queryBalance(config: GrsaiProviderConfig, input) {
       const endpoint = getPrimaryProviderEndpoint(config.connection);
       const billing = config.billing;
       // Token source wins; no token source means API key query.

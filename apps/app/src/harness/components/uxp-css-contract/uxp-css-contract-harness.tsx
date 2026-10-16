@@ -1322,7 +1322,7 @@ function ProviderSettingsBoard() {
             <span className="prov-name">OpenAI Main Profile</span>
           </div>
           <div className="prov-meta-row">
-            <span className="prov-family">image-endpoint</span>
+            <span className="prov-family">openai</span>
             <span className="prov-meta-sep" aria-hidden="true">•</span>
             <span className="prov-model">gpt-image-1</span>
           </div>

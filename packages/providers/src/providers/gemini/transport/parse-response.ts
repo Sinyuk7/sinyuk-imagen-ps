@@ -8,7 +8,7 @@ const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] as const;
 const WEBP_RIFF = [0x52, 0x49, 0x46, 0x46] as const;
 const WEBP_WEBP = [0x57, 0x45, 0x42, 0x50] as const;
 
-interface GeminiGenerateContentResponse {
+interface GoogleGeminiResponse {
   readonly candidates?: readonly GeminiCandidate[];
   readonly usageMetadata?: {
     readonly promptTokenCount?: number;
@@ -47,7 +47,7 @@ interface ParsedCandidate {
   readonly diagnostics: readonly ProviderDiagnostic[];
 }
 
-export interface ParsedGeminiGenerateContentResponse {
+export interface ParsedGoogleGeminiResponse {
   readonly assets: readonly Asset[];
   readonly text?: string;
   readonly raw: unknown;
@@ -237,7 +237,7 @@ function readInlineAsset(part: GeminiPart, index: number): { readonly asset?: As
   if (typeof inlineData.mimeType !== 'string' || !inlineData.mimeType.startsWith('image/')) {
     return {
       diagnostic: createDiagnostic(
-        'gemini-generate-content.response.image-part-invalid',
+        'google-gemini.response.image-part-invalid',
         'Ignored Gemini Generate Content inline image part without an image mime type.',
         { partIndex: index },
       ),
@@ -246,7 +246,7 @@ function readInlineAsset(part: GeminiPart, index: number): { readonly asset?: As
   if (typeof inlineData.data !== 'string' || inlineData.data.length === 0) {
     return {
       diagnostic: createDiagnostic(
-        'gemini-generate-content.response.image-part-invalid',
+        'google-gemini.response.image-part-invalid',
         'Ignored Gemini Generate Content inline image part without base64 data.',
         { partIndex: index, mimeType: inlineData.mimeType },
       ),
@@ -279,7 +279,7 @@ function readFileAsset(part: GeminiPart, index: number): { readonly asset?: Asse
   if (typeof fileData.fileUri !== 'string' || fileData.fileUri.length === 0) {
     return {
       diagnostic: createDiagnostic(
-        'gemini-generate-content.response.image-part-invalid',
+        'google-gemini.response.image-part-invalid',
         'Ignored Gemini Generate Content file image part without a URI.',
         { partIndex: index },
       ),
@@ -323,7 +323,7 @@ function parseCandidate(candidate: GeminiCandidate, candidateIndex: number): Par
     if (typeof part.text === 'string' && part.text.trim().length > 0) {
       if (thought) {
         diagnostics.push(createDiagnostic(
-          'gemini-generate-content.response.thought-part-ignored',
+          'google-gemini.response.thought-part-ignored',
           'Ignored Gemini Generate Content thought text part.',
           { candidateIndex, partIndex, kind: 'text' },
         ));
@@ -344,7 +344,7 @@ function parseCandidate(candidate: GeminiCandidate, candidateIndex: number): Par
       if (thought) {
         thoughtImages.push(asset);
         diagnostics.push(createDiagnostic(
-          'gemini-generate-content.response.thought-part-ignored',
+          'google-gemini.response.thought-part-ignored',
           'Ignored Gemini Generate Content thought image part.',
           { candidateIndex, partIndex, kind: 'image' },
         ));
@@ -376,7 +376,7 @@ function candidateScore(candidate: ParsedCandidate): number {
   return 0;
 }
 
-function parseUsage(raw: GeminiGenerateContentResponse): ProviderInvokeUsage | undefined {
+function parseUsage(raw: GoogleGeminiResponse): ProviderInvokeUsage | undefined {
   const usage = raw.usageMetadata ?? (
     raw.usage_metadata
       ? {
@@ -427,12 +427,12 @@ function sanitizeRaw(value: unknown): unknown {
   return next;
 }
 
-export function parseGeminiGenerateContentResponse(raw: unknown): ParsedGeminiGenerateContentResponse {
+export function parseGoogleGeminiResponse(raw: unknown): ParsedGoogleGeminiResponse {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
     throw mapInvalidResponseError('Gemini Generate Content response is not a JSON object.', { raw });
   }
 
-  const response = raw as GeminiGenerateContentResponse;
+  const response = raw as GoogleGeminiResponse;
   if (!Array.isArray(response.candidates)) {
     throw mapInvalidResponseError('Gemini Generate Content response missing "candidates" array.', { raw });
   }
@@ -445,7 +445,7 @@ export function parseGeminiGenerateContentResponse(raw: unknown): ParsedGeminiGe
   if (selected && assets.length === 0 && selected.thoughtImages.length > 0) {
     assets.push(selected.thoughtImages[selected.thoughtImages.length - 1]!);
     diagnostics.push(createDiagnostic(
-      'gemini-generate-content.response.thought-image-fallback',
+      'google-gemini.response.thought-image-fallback',
       'Selected the last thought image because no final image parts were present.',
       {
         candidateIndex: selected.candidateIndex,

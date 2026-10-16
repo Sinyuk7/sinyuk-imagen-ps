@@ -12,7 +12,7 @@ if (errors.length > 0) {
   }
   process.exitCode = 1;
 } else {
-  for (const providerId of ['grsai-generate', 'gemini-generate-content', 'image-endpoint']) {
+  for (const providerId of ['grsai', 'google-gemini', 'openai']) {
     const models = listLocalCatalogModels(providerId);
     console.log(`${providerId}: ${models.map((model) => model.id).join(', ')}`);
     for (const model of models) {

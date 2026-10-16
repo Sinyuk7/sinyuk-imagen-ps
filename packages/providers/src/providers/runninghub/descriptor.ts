@@ -1,2 +1,2 @@
 import type { ProviderDescriptor } from '../../contract/provider.js';
-export const runningHubGenerateDescriptor: ProviderDescriptor = { id: 'runninghub-generate', family: 'image-endpoint', displayName: 'RunningHub', operations: ['text_to_image', 'image_edit'], invokeMode: 'async', defaultModelTemplates: [], billing: { query: 'unsupported', mode: 'fixed', protocols: [] } };
+export const runningHubDescriptor: ProviderDescriptor = { id: 'runninghub', family: 'runninghub', displayName: 'RunningHub', operations: ['text_to_image', 'image_edit'], invokeMode: 'async', defaultModelTemplates: [], billing: { query: 'unsupported', mode: 'fixed', protocols: [] } };
