@@ -8,12 +8,10 @@ export const RESPONSIVE_CSS = `
 .panel[data-panel-width-mode="compact"] .cmp-model-row{ width:100%; }
 .panel[data-panel-width-mode="compact"] .cmp-secondary-row{
   margin-top:4px;
-  grid-template-columns:1fr;
-  grid-template-rows:auto auto auto;
-  gap:4px;
+  flex-wrap:wrap;
 }
-.panel[data-panel-width-mode="compact"] .cmp-prompt-slot{ margin-right:0; margin-bottom:0; }
-.panel[data-panel-width-mode="compact"] .cmp-ratio-slot,.panel[data-panel-width-mode="compact"] .cmp-size-slot{ }
+.panel[data-panel-width-mode="compact"] .cmp-prompt-slot{ flex:1 1 100%; margin-right:0; margin-bottom:4px; }
+.panel[data-panel-width-mode="compact"] .cmp-ratio-slot,.panel[data-panel-width-mode="compact"] .cmp-size-slot{ flex:1 1 0; }
 .panel[data-panel-width-mode="compact"] .cmp-advanced-toggle{ min-height:26px; font-size:9px; }
 .panel[data-panel-width-mode="compact"] .cmp-add{ width:28px; height:28px; }
 .panel[data-panel-width-mode="compact"] .cmp-send{ width:30px; height:30px; }

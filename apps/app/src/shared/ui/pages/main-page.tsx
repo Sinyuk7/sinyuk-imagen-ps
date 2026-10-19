@@ -27,7 +27,7 @@ import { configurationInstanceLabel, type UiModelInfo } from '../model-info';
 import type { GenerationWorkspaceController } from '../generation-workspace';
 import type { PromptSettings } from '../../ports/prompt-settings';
 import { assemblePromptTemplate, promptTemplateNeedsInput } from '../../ports/prompt-settings';
-import { Button, ComposerParameterField, ComposerSelect, Divider, HelpText, Icon, IconButton, ImageFallbackContent, imageFallbackTitle, List, ListStateItem, MotionActivityDot, MotionActivityIcon, MotionButtonSurface, MotionContent, MotionDimSurface, MotionHighlight, MotionImage, MotionPresenceView, PageFrame, PageHeader, PageScroll, PageState, ProviderIdentity, ProviderMediaHeader, UxpTextArea, type UxpTextAreaElement, useToast } from '../ui-system';
+import { Button, ComposerParameterField, ComposerSelect, HelpText, Icon, IconButton, ImageFallbackContent, imageFallbackTitle, List, ListStateItem, MotionActivityDot, MotionActivityIcon, MotionButtonSurface, MotionContent, MotionDimSurface, MotionHighlight, MotionImage, MotionPresenceView, PageFrame, PageHeader, PageScroll, PageState, ProviderIdentity, ProviderMediaHeader, UxpTextArea, type UxpTextAreaElement, useToast } from '../ui-system';
 import { composerConfigurationSummaryParts, composerRatioChoices, composerSizeChoices, projectComposerRatioSize, resolveComposerRatioSizeSource } from '../composer-parameter-presentation';
 
 function isImeCompositionKey(event: React.KeyboardEvent): boolean {
@@ -2051,10 +2051,9 @@ export function MainPage({
                 <HelpText className="cmp-readiness" data-testid="composer-readiness-status" data-state={composerReadinessState}>{composerReadinessText}</HelpText>
               </MotionContent> : null}
             </div>
-            <Divider className="cmp-footer-divider" />
             <div className="cmp-toolbar" data-testid="composer-toolbar">
               <div className="cmp-parameter-row cmp-model-row">
-              <ComposerParameterField label="Model" className="cmp-model-slot" title={viewModel.target.remotePath ?? viewModel.target.label}>
+              <ComposerParameterField label="Model" className="cmp-model-slot">
               <ComposerSelect
                 testId="generation-current-target-summary"
                 triggerKind="text"
