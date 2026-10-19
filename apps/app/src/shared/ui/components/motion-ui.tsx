@@ -108,11 +108,13 @@ export function MotionImage({
   className,
   alt,
   style,
+  onLoad,
 }: {
   readonly src: string;
   readonly className?: string;
   readonly alt: string | undefined;
   readonly style?: CSSProperties;
+  readonly onLoad?: (image: HTMLImageElement) => void;
 }) {
   const controller = useMotionController();
   const ref = useRef<HTMLImageElement | null>(null);
@@ -126,6 +128,9 @@ export function MotionImage({
       alt={alt}
       style={style}
       onLoad={() => {
+        if (ref.current) {
+          onLoad?.(ref.current);
+        }
         if (revealedSrcRef.current === src) {
           return;
         }

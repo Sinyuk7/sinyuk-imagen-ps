@@ -45,6 +45,7 @@ export type IconName =
   | 'settings'
   | 'spinner'
   | 'star'
+  | 'tune'
   | 'target'
   | 'trash'
   | 'upload'
@@ -400,6 +401,14 @@ const ICON_BODY_BY_NAME: Record<IconName, SvgBody> = {
       <line x1="12" y1="19" x2="12" y2="22" />
       <line x1="2" y1="12" x2="5" y2="12" />
       <line x1="19" y1="12" x2="22" y2="12" />
+    </>
+  ),
+  tune: () => (
+    <>
+      <line x1="4" y1="6.5" x2="20" y2="6.5" />
+      <circle cx="8" cy="6.5" r="2.2" fill="var(--app-color-background-elevated)" />
+      <line x1="4" y1="17.5" x2="20" y2="17.5" />
+      <circle cx="16" cy="17.5" r="2.2" fill="var(--app-color-background-elevated)" />
     </>
   ),
 };

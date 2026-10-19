@@ -10,6 +10,8 @@ export { Icon } from './components/icons';
 export { TextSelect } from './components/text-select';
 /** Composer 行内选择器。 */
 export { ComposerSelect } from './components/composer-select';
+/** Composer 参数字段布局原语。 */
+export { ComposerParameterField } from './components/composer-parameter-field';
 /** 页面可用的图标选择器。 */
 export { IconSelect } from './components/icon-select';
 /** 页面可用的状态提示。 */

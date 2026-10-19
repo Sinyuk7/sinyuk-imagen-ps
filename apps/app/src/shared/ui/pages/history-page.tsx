@@ -475,54 +475,58 @@ export function HistoryPage({
                     <span className="task-meta-dot">·</span>
                     <span className="history-meta-mono">{item.displayTime}</span>
                   </div>
-                  <div className="status-inline history-status-inline">
-                    <span className={`sdot ${item.status === 'running' ? 'run' : item.status}`} />
-                    <span className="history-status-label" data-status={item.displayStatus}>{displayStatusLabel(item.displayStatus)}</span>
-                    {retryRoundId && item.actions.retry === 'enabled' && (
-                      <IconButton
-                        data-testid={`history-retry-button-${retryRoundId}`}
-                        className="row-icon-action history-retry-action"
-                        hostClassName="history-retry-action-host"
-                        quiet
-                        icon={<Icon name="refresh" size={12} />}
-                        tooltip={t.history.retry}
-                        iconSize={12}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          void onRetry(retryRoundId).catch(() => undefined);
-                        }}
-                      />
-                    )}
-                    {item.output && (
-                      <>
+                  <div className="task-bottom">
+                    <div className="status-inline history-status-inline">
+                      <span className={`sdot ${item.status === 'running' ? 'run' : item.status}`} />
+                      <span className="history-status-label" data-status={item.displayStatus}>{displayStatusLabel(item.displayStatus)}</span>
+                    </div>
+                    <div className="task-actions">
+                      {retryRoundId && item.actions.retry === 'enabled' && (
                         <IconButton
-                          data-testid={`history-download-button-${item.id}`}
-                          className="row-icon-action"
+                          data-testid={`history-retry-button-${retryRoundId}`}
+                          className="row-icon-action history-retry-action"
+                          hostClassName="history-retry-action-host"
                           quiet
-                          disabled={item.actions.download !== 'enabled'}
-                          icon={<Icon name="download" size={12} />}
-                          tooltip={t.history.download}
+                          icon={<Icon name="refresh" size={12} />}
+                          tooltip={t.history.retry}
                           iconSize={12}
                           onClick={(event) => {
                             event.stopPropagation();
-                            void onDownload(item);
+                            void onRetry(retryRoundId).catch(() => undefined);
                           }}
                         />
-                        <IconButton
-                          data-testid={`history-place-button-${item.id}`}
-                          className="row-icon-action"
-                          quiet
-                          disabled={item.actions.place !== 'enabled'}
-                          icon={<Icon name="place-ps" size={12} />}
-                          tooltip={t.history.place}
-                          iconSize={12}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            void onPlace(item);
-                          }}
-                        />
-                      </>
-                    )}
+                      )}
+                      {item.output && (
+                        <>
+                          <IconButton
+                            data-testid={`history-download-button-${item.id}`}
+                            className="row-icon-action history-download-action"
+                            quiet
+                            disabled={item.actions.download !== 'enabled'}
+                            icon={<Icon name="download" size={12} />}
+                            tooltip={t.history.download}
+                            iconSize={12}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              void onDownload(item);
+                            }}
+                          />
+                          <IconButton
+                            data-testid={`history-place-button-${item.id}`}
+                            className="row-icon-action history-place-action"
+                            quiet
+                            disabled={item.actions.place !== 'enabled'}
+                            icon={<Icon name="place-ps" size={12} />}
+                            tooltip={t.history.place}
+                            iconSize={12}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              void onPlace(item);
+                            }}
+                          />
+                        </>
+                      )}
+                    </div>
                   </div>
                   {item.comfyUiExecutionError ? (
                     <div className="history-execution-error" data-testid={`history-comfyui-execution-error-${item.id}`}>

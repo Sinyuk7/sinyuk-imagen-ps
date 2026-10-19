@@ -113,7 +113,7 @@ export const CONVERSATION_CSS = `
 .prov-card-media{
   flex:0 1 auto;
   align-self:flex-start;
-  width:var(--ui-media-card-width, auto);
+  width:auto;
   max-width:100%;
 }
 .prov-card-text-only{ width:100%; max-width:var(--chat-result-inline-max); }
@@ -375,7 +375,8 @@ export const CONVERSATION_CSS = `
 }
 .img-frame{
   position:relative;
-  width:100%;
+  width:fit-content;
+  max-width:100%;
   display:block;
   overflow:hidden;
   border-radius:calc(var(--app-radius-medium) - 2px);
@@ -392,15 +393,17 @@ export const CONVERSATION_CSS = `
 }
 .img-media{
   display:block;
-  width:100%;
+  width:auto;
+  max-width:var(--chat-preview-inline-max);
+  height:auto;
 }
 .img-result[data-preview-visual-mode="full-bleed"][data-has-preview="true"] .img-stage{
   min-height:0;
 }
 .img-result[data-preview-visual-mode="full-bleed"][data-has-preview="true"] .img-media{
-  width:100%;
+  width:auto;
   height:auto;
-  max-width:100%;
+  max-width:min(100%, var(--chat-preview-inline-max));
 }
 .img-result[data-preview-visual-mode="contained-well"][data-has-preview="true"] .img-media{
   width:auto;
@@ -408,6 +411,13 @@ export const CONVERSATION_CSS = `
   max-width:100%;
   max-height:100%;
   object-fit:contain;
+}
+.img-result[data-preview-layout="fallback"][data-has-preview="true"] .img-media{
+  width:auto;
+  height:auto;
+  max-width:min(100%, var(--chat-preview-inline-max));
+  max-height:none;
+  object-fit:initial;
 }
 .img-result[data-preview-layout="tall-contain"][data-preview-visual-mode="contained-well"][data-has-preview="true"] .img-stage{
   min-height:0;
@@ -438,7 +448,6 @@ export const CONVERSATION_CSS = `
   justify-content:center;
   padding:10px;
 }
-.img-result[data-preview-layout="fallback"][data-has-preview="true"] .img-frame,
 .img-result[data-has-preview="false"] .img-frame{
   width:100%;
   height:100%;

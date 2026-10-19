@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { useAppServices } from '../../ports/app-services-context';
 import type { HostPort, LayerInfo } from '../../ports/host-port';
 import { suggestedGeneratedImageFileName } from '../../domain/asset-file';
@@ -27,7 +27,8 @@ import { configurationInstanceLabel, type UiModelInfo } from '../model-info';
 import type { GenerationWorkspaceController } from '../generation-workspace';
 import type { PromptSettings } from '../../ports/prompt-settings';
 import { assemblePromptTemplate, promptTemplateNeedsInput } from '../../ports/prompt-settings';
-import { Button, ComposerSelect, Divider, HelpText, Icon, IconButton, IconSelect, ImageFallbackContent, imageFallbackTitle, List, ListStateItem, MotionActivityDot, MotionActivityIcon, MotionButtonSurface, MotionContent, MotionDimSurface, MotionHighlight, MotionImage, MotionPresenceView, PageFrame, PageHeader, PageScroll, PageState, ProviderIdentity, ProviderMediaHeader, UxpTextArea, type UxpTextAreaElement, useToast } from '../ui-system';
+import { Button, ComposerParameterField, ComposerSelect, Divider, HelpText, Icon, IconButton, ImageFallbackContent, imageFallbackTitle, List, ListStateItem, MotionActivityDot, MotionActivityIcon, MotionButtonSurface, MotionContent, MotionDimSurface, MotionHighlight, MotionImage, MotionPresenceView, PageFrame, PageHeader, PageScroll, PageState, ProviderIdentity, ProviderMediaHeader, UxpTextArea, type UxpTextAreaElement, useToast } from '../ui-system';
+import { composerConfigurationSummaryParts, composerRatioChoices, composerSizeChoices, projectComposerRatioSize, resolveComposerRatioSizeSource } from '../composer-parameter-presentation';
 
 function isImeCompositionKey(event: React.KeyboardEvent): boolean {
   const nativeEvent = event.nativeEvent as KeyboardEvent & { readonly isComposing?: boolean };
@@ -223,11 +224,9 @@ function findRoundElement(container: HTMLElement, roundId: string): HTMLElement 
 }
 
 type PreviewLayoutMode = 'intrinsic' | 'tall-contain' | 'fallback';
-type MediaCardKind = 'landscape' | 'square' | 'portrait' | 'tall' | 'fallback';
 type PreviewVisualMode = 'full-bleed' | 'contained-well';
 
 const PREVIEW_MAX_PORTRAIT_RATIO = 2 / 3;
-const PREVIEW_SQUARE_RATIO_EPSILON = 0.04;
 
 function parseDimensionRatio(width: number, height: number): number | undefined {
   if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
@@ -280,46 +279,73 @@ export function previewLayoutModeForRound(round: Pick<ConversationRound, 'output
   return ratio < PREVIEW_MAX_PORTRAIT_RATIO ? 'tall-contain' : 'intrinsic';
 }
 
+function layoutModeForRatio(ratio: number | undefined): PreviewLayoutMode {
+  if (ratio === undefined) {
+    return 'fallback';
+  }
+  return ratio < PREVIEW_MAX_PORTRAIT_RATIO ? 'tall-contain' : 'intrinsic';
+}
+
 function previewVisualModeForRender(layoutMode: PreviewLayoutMode, hasPreview: boolean): PreviewVisualMode {
   return layoutMode === 'intrinsic' && hasPreview ? 'full-bleed' : 'contained-well';
 }
 
-function isSquareRatio(ratio: number): boolean {
-  return Math.abs(ratio - 1) <= PREVIEW_SQUARE_RATIO_EPSILON;
-}
+function ImageResultStage({
+  roundId,
+  previewIndex,
+  preview,
+  requestedLayout,
+  fallbackTitle,
+  children,
+}: {
+  readonly roundId: string;
+  readonly previewIndex: number;
+  readonly preview: ConversationRound['previews'][number] | undefined;
+  readonly requestedLayout: PreviewLayoutMode;
+  readonly fallbackTitle: string;
+  readonly children?: ReactNode;
+}) {
+  const [actualPreviewLayout, setActualPreviewLayout] = useState<{ key: string; mode: PreviewLayoutMode } | null>(null);
+  const previewKey = `${roundId}:${previewIndex}:${preview?.url ?? ''}`;
+  const previewLayout = actualPreviewLayout?.key === previewKey ? actualPreviewLayout.mode : requestedLayout;
+  const visualMode = previewVisualModeForRender(previewLayout, Boolean(preview?.url));
 
-export function mediaCardKindForRound(round: Pick<ConversationRound, 'output' | 'outputSize'>): MediaCardKind {
-  const ratio = previewRatioForRound(round);
-  if (ratio === undefined) {
-    return 'fallback';
-  }
-  if (ratio < PREVIEW_MAX_PORTRAIT_RATIO) {
-    return 'tall';
-  }
-  if (isSquareRatio(ratio)) {
-    return 'square';
-  }
-  if (ratio < 1) {
-    return 'portrait';
-  }
-  return 'landscape';
-}
-
-export function mediaCardWidthStyleForRound(round: Pick<ConversationRound, 'output' | 'outputSize'>): CSSProperties {
-  const ratio = previewRatioForRound(round);
-  if (ratio === undefined) {
-    return { width: 'var(--chat-preview-block-fallback)', maxWidth: '100%' };
-  }
-  if (ratio < PREVIEW_MAX_PORTRAIT_RATIO || isSquareRatio(ratio)) {
-    return { width: 'var(--chat-preview-block-fallback)', maxWidth: '100%' };
-  }
-  if (ratio < 1) {
-    return {
-      width: `calc(var(--chat-preview-block-fallback) * ${ratio})`,
-      maxWidth: '100%',
-    };
-  }
-  return { width: 'var(--chat-preview-inline-max)', maxWidth: '100%' };
+  return (
+    <div
+      className="img-result"
+      data-testid={`result-preview-${roundId}`}
+      data-preview-index={previewIndex}
+      data-preview-layout={previewLayout}
+      data-preview-visual-mode={visualMode}
+      data-has-preview={preview?.url ? 'true' : 'false'}
+    >
+      <div className="img-stage">
+        {preview?.url ? (
+          <div className="img-frame" data-alpha-state={preview.transparencyState}>
+            <MotionImage
+              key={previewKey}
+              src={preview.url}
+              className="img-media"
+              alt={preview.label}
+              onLoad={(image) => {
+                const nextMode = layoutModeForRatio(parseDimensionRatio(image.naturalWidth, image.naturalHeight));
+                setActualPreviewLayout((current) => (
+                  current?.key === previewKey && current.mode === nextMode
+                    ? current
+                    : { key: previewKey, mode: nextMode }
+                ));
+              }}
+            />
+          </div>
+        ) : (
+          <div className="img-frame img-frame-placeholder" data-alpha-state="unknown">
+            <ImageFallbackContent density="preview-frame" state={preview?.fallback?.state ?? 'preview-unavailable'} title={fallbackTitle} />
+          </div>
+        )}
+        {children}
+      </div>
+    </div>
+  );
 }
 
 function providerInputPolicy(settings: AppGenerationSettings): ProviderInputSizePolicy {
@@ -352,7 +378,8 @@ export function MainPage({
   const { messages: t } = useI18n();
   const [providerMenuOpen, setProfileMenuOpen] = useState(false);
   const [promptTemplateMenuOpen, setPromptTemplateMenuOpen] = useState(false);
-  const [openMenu, setOpenMenu] = useState<'model' | 'output-size' | 'output-ratio' | `catalog:${string}` | null>(null);
+  const [openMenu, setOpenMenu] = useState<'model' | 'prompt-template' | 'ratio' | 'size' | `catalog:${string}` | null>(null);
+  const [advancedParametersOpen, setAdvancedParametersOpen] = useState(false);
   const [attachOpen, setAttachOpen] = useState(false);
   const [layerOpen, setLayerOpen] = useState(false);
   const [captureInFlight, setCaptureInFlight] = useState(false);
@@ -379,6 +406,7 @@ export function MainPage({
   const selectedModelId = provider?.selectedModelId ?? '';
   const catalogParameters = provider?.parameters ?? {};
   const catalogParameterValues = workspace.catalogParameterValues;
+  const ratioSizeProjection = useMemo(() => projectComposerRatioSize(catalogParameters, catalogParameterValues), [catalogParameters, catalogParameterValues]);
   const generationSettings = workspace.providerSettings.generation;
   const convRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<UxpTextAreaElement>(null);
@@ -500,6 +528,13 @@ export function MainPage({
     })),
     [uniqueModels],
   );
+  const configurationSummary = composerConfigurationSummaryParts({
+    modelLabel: selectedModelInfo ? configurationInstanceLabel(selectedModelInfo) : selectedModelLabel,
+    ...(ratioSizeProjection.ratio ? { ratio: ratioSizeProjection.ratio.value } : {}),
+    ...(ratioSizeProjection.size ? { size: ratioSizeProjection.size.value } : {}),
+    parameters: catalogParameters,
+    values: catalogParameterValues,
+  });
   const visibleLabelForModelId = (modelId: string | undefined): string | undefined => {
     if (!modelId) {
       return undefined;
@@ -508,7 +543,7 @@ export function MainPage({
     return model ? configurationInstanceLabel(model) : modelId;
   };
   const currentPromptValue = () => taRef.current?.value ?? input;
-  const composerTextAreaNeedsUxpPopupOverlapWorkaround = openMenu !== null;
+  const composerTextAreaNeedsUxpPopupOverlapWorkaround = openMenu !== null || promptTemplateMenuOpen;
   const syncComposerInputBeforeMenuOpen = useCallback(() => {
     const liveValue = taRef.current?.value;
     if (liveValue !== undefined && liveValue !== input) {
@@ -516,8 +551,9 @@ export function MainPage({
     }
     taRef.current?.blur();
   }, [composerDraft, input]);
-  const handleOpenComposerMenu = useCallback((menu: 'model' | 'output-size' | 'output-ratio' | `catalog:${string}`, open: boolean) => {
+  const handleOpenComposerMenu = useCallback((menu: 'model' | 'prompt-template' | 'ratio' | 'size' | `catalog:${string}`, open: boolean) => {
     setProfileMenuOpen(false);
+    setPromptTemplateMenuOpen(menu === 'prompt-template' && open);
     if (open) {
       syncComposerInputBeforeMenuOpen();
     }
@@ -1389,7 +1425,8 @@ export function MainPage({
                           }
                           return;
                         case 'choose-supported-size':
-                          setOpenMenu('output-size');
+                          if (ratioSizeProjection.size) setOpenMenu('size');
+                          else if (ratioSizeProjection.ratio) setOpenMenu('ratio');
                           return;
                         case 'choose-compatible-model':
                           setOpenMenu('model');
@@ -1565,9 +1602,6 @@ export function MainPage({
                 const canGoPrev = selectedPreviewIndex > 0;
                 const canGoNext = selectedPreviewIndex < round.previews.length - 1;
                 const previewLayoutMode = previewLayoutModeForRound(round);
-                const previewVisualMode = previewVisualModeForRender(previewLayoutMode, Boolean(preview?.url));
-                const mediaCardKind = hasImages ? mediaCardKindForRound(round) : undefined;
-                const mediaCardWidth = hasImages ? mediaCardWidthStyleForRound(round).width : undefined;
                 const responseCard = showResponseText && round.responseText ? (
                   <div
                     className={`prov-response${splitResponseTextCard ? ' prov-response-standalone' : ''}`}
@@ -1619,9 +1653,7 @@ export function MainPage({
                   ) : null}
                   <div
                     className={`prov-card${hasImages ? ' prov-card-media' : ' prov-card-text-only'}`}
-                    {...(mediaCardKind ? { 'data-media-card-kind': mediaCardKind } : {})}
                     data-testid={hasImages ? `result-media-card-${round.id}` : undefined}
-                    style={{ '--ui-media-card-width': mediaCardWidth ?? 'auto' } as CSSProperties}
                   >
                     {hasImages ? (
                       <ProviderMediaHeader
@@ -1663,31 +1695,13 @@ export function MainPage({
                     {!splitResponseTextCard ? responseCard : null}
                     {hasImages ? (
                       <div className="prov-media-section">
-                        <div
-                          className="img-result"
-                          data-testid={`result-preview-${round.id}`}
-                          data-preview-index={selectedPreviewIndex}
-                          data-preview-layout={previewLayoutMode}
-                          data-preview-visual-mode={previewVisualMode}
-                          data-has-preview={preview?.url ? 'true' : 'false'}
+                        <ImageResultStage
+                          roundId={round.id}
+                          previewIndex={selectedPreviewIndex}
+                          preview={preview}
+                          requestedLayout={previewLayoutMode}
+                          fallbackTitle={imageFallbackTitle(t.imageFallback, preview?.fallback?.state ?? 'preview-unavailable')}
                         >
-                          <div className="img-stage">
-                            {preview?.url
-                              ? (
-                                <div className="img-frame" data-alpha-state={preview.transparencyState}>
-                                  <MotionImage key={`${round.id}:${selectedPreviewIndex}`} src={preview.url} className="img-media" alt={preview.label} />
-                                </div>
-                                )
-                              : (
-                                <div className="img-frame img-frame-placeholder" data-alpha-state="unknown">
-                                  <ImageFallbackContent
-                                    density="preview-frame"
-                                    state={preview?.fallback?.state ?? 'preview-unavailable'}
-                                    title={imageFallbackTitle(t.imageFallback, preview?.fallback?.state ?? 'preview-unavailable')}
-                                  />
-                                </div>
-                                )
-                            }
                             <div className="img-meta">{round.outputSize ?? t.main.assetFallback} · {round.outputFormat ?? t.main.imageFallback}</div>
                             {hasMultiplePreviews && (
                               <>
@@ -1744,8 +1758,7 @@ export function MainPage({
                                 })()}
                               </MotionButtonSurface>
                             </div>
-                          </div>
-                        </div>
+                        </ImageResultStage>
                       </div>
                     ) : null}
                     {hasImages && (
@@ -1959,20 +1972,6 @@ export function MainPage({
             <div className="cmp-action-row" data-testid="composer-action-row">
               <div className="cmp-action-left">
                 <MotionButtonSurface>
-                  <ComposerSelect
-                    testId="composer-prompt-template-selector"
-                    triggerId="composer-prompt-template-trigger"
-                    triggerKind="text"
-                    label={t.settings.promptTemplates}
-                    value={currentTemplate.name}
-                    selectedId={currentTemplate.id}
-                    open={promptTemplateMenuOpen}
-                    onOpenChange={setPromptTemplateMenuOpen}
-                    options={promptSettings.templates.map((template) => ({ id: template.id, label: template.name }))}
-                    onSelect={onSelectPromptTemplate}
-                  />
-                </MotionButtonSurface>
-                <MotionButtonSurface>
                   <IconButton
                     data-testid="composer-mask-toggle"
                     className="cmp-mask-toggle"
@@ -2045,27 +2044,24 @@ export function MainPage({
             ) : null}
           </div>
           <div className="cmp-footer">
-            <div className="cmp-meta-row">
+            <div className="cmp-meta-row" data-testid="composer-configuration-summary" title={[configurationSummary.model, ...configurationSummary.details.map(({ value }) => value)].join(' · ')} aria-label={`Current configuration: ${[configurationSummary.model, ...configurationSummary.details.map(({ value }) => value)].join(' · ')}`}>
+              <span className="cmp-summary-model">{configurationSummary.model}</span>
+              {configurationSummary.details.length ? <span className="cmp-summary-details">{configurationSummary.details.map((detail) => <span key={detail.key} className={`cmp-summary-detail cmp-summary-detail-${detail.key}`} data-kind={detail.key}>{detail.value}</span>)}</span> : null}
               {showFooterReadiness ? <MotionContent watch={composerReadinessState}>
-                <HelpText className="cmp-readiness" data-testid="composer-readiness-status" data-state={composerReadinessState}>
-                  {composerReadinessText}
-                </HelpText>
+                <HelpText className="cmp-readiness" data-testid="composer-readiness-status" data-state={composerReadinessState}>{composerReadinessText}</HelpText>
               </MotionContent> : null}
             </div>
             <Divider className="cmp-footer-divider" />
             <div className="cmp-toolbar" data-testid="composer-toolbar">
-            <div
-              className="cmp-toolbar-left"
-              data-testid="generation-current-target-summary"
-              title={viewModel.target.remotePath ?? viewModel.target.label}
-            >
-              <IconSelect
+              <div className="cmp-parameter-row cmp-model-row">
+              <ComposerParameterField label="Model" className="cmp-model-slot" testId="generation-current-target-summary" title={viewModel.target.remotePath ?? viewModel.target.label}>
+              <ComposerSelect
                 testId="main-model-selector"
-                containerClassName="cmp-select cmp-select-model"
+                triggerKind="text"
+                containerClassName="cmp-select cmp-select-model cmp-select-labeled"
                 menuClassName="cmp-select-menu cmp-select-menu-model"
                 label={comfyUiMode ? t.settings.comfyUiWorkflowTarget : 'Model'}
                 value={selectedModelLabel}
-                icon="algorithm"
                 disabled={comfyUiMode || (!comfyUiMode && modelOptions.length <= 1)}
                 open={openMenu === 'model'}
                 onOpenChange={(open) => {
@@ -2075,17 +2071,71 @@ export function MainPage({
                 selectedId={selectedModelId}
                 onSelect={handleSelectModel}
               />
-            </div>
-            {!comfyUiMode ? <div className="cmp-toolbar-right">
-              {Object.entries(catalogParameters).map(([name, parameter]) => {
-                const options = parameter.options.map((option) => ({ id: option.value, label: option.label }));
+            </ComposerParameterField>
+              </div>
+            {!comfyUiMode ? <>
+              <div className="cmp-parameter-row cmp-secondary-row">
+                <ComposerParameterField label="Prompt" className="cmp-prompt-slot"><ComposerSelect
+                  testId="composer-prompt-template-selector"
+                  triggerId="composer-prompt-template-trigger"
+                  triggerKind="text"
+                  label={t.settings.promptTemplates}
+                  value={currentTemplate.name}
+                  selectedId={currentTemplate.id}
+                  open={promptTemplateMenuOpen}
+                  onOpenChange={(open) => handleOpenComposerMenu('prompt-template', open)}
+                  options={promptSettings.templates.map((template) => ({ id: template.id, label: template.name }))}
+                  onSelect={onSelectPromptTemplate}
+                /></ComposerParameterField>
+                {ratioSizeProjection.ratio ? <ComposerParameterField label="Ratio" className="cmp-ratio-slot"><ComposerSelect
+                  testId="composer-ratio-selector"
+                  triggerKind="text"
+                  label="Ratio"
+                  value={ratioSizeProjection.ratio.value}
+                  open={openMenu === 'ratio'}
+                  onOpenChange={(open) => handleOpenComposerMenu('ratio', open)}
+                  options={composerRatioChoices(ratioSizeProjection)}
+                  selectedId={ratioSizeProjection.ratio.value}
+                  onSelect={(nextRatio) => {
+                    const source = resolveComposerRatioSizeSource(ratioSizeProjection, nextRatio, ratioSizeProjection.size?.value ?? '');
+                    if (ratioSizeProjection.compositePairs && ratioSizeProjection.sourceName && source) workspace.setCatalogParameter(ratioSizeProjection.sourceName, source);
+                    else if (ratioSizeProjection.ratioSourceName) workspace.setCatalogParameter(ratioSizeProjection.ratioSourceName, nextRatio);
+                  }}
+                /></ComposerParameterField> : null}
+                {ratioSizeProjection.size ? <ComposerParameterField label="Size" className="cmp-size-slot"><ComposerSelect
+                  testId="composer-size-selector"
+                  triggerKind="text"
+                  label="Size"
+                  value={ratioSizeProjection.size.value}
+                  open={openMenu === 'size'}
+                  onOpenChange={(open) => handleOpenComposerMenu('size', open)}
+                  options={composerSizeChoices(ratioSizeProjection)}
+                  selectedId={ratioSizeProjection.size.value}
+                  onSelect={(nextSize) => {
+                    const source = resolveComposerRatioSizeSource(ratioSizeProjection, ratioSizeProjection.ratio?.value ?? '', nextSize);
+                    if (ratioSizeProjection.compositePairs && ratioSizeProjection.sourceName && source) workspace.setCatalogParameter(ratioSizeProjection.sourceName, source);
+                    else if (ratioSizeProjection.sizeSourceName) workspace.setCatalogParameter(ratioSizeProjection.sizeSourceName, nextSize);
+                  }}
+                /></ComposerParameterField> : null}
+              </div>
+              {Object.keys(catalogParameters).some((name) => !['aspectRatio', 'resolution', 'imageSize'].includes(name)) ? <div className="cmp-advanced-toggle-row"><Button
+                  data-testid="composer-advanced-toggle"
+                  className="cmp-advanced-toggle"
+                  aria-expanded={advancedParametersOpen}
+                  aria-controls="composer-advanced-parameters"
+                  onClick={() => setAdvancedParametersOpen((current) => !current)}
+                ><span className="cmp-advanced-toggle-content">{advancedParametersOpen ? 'Hide advanced inputs' : 'Show advanced inputs'}<Icon name="tune" size={16} /></span></Button></div> : null}
+              {advancedParametersOpen ? <div id="composer-advanced-parameters" className="cmp-parameter-row cmp-advanced-row" data-testid="composer-advanced-parameters">
+              {Object.entries(catalogParameters).filter(([name]) => !['aspectRatio', 'resolution', 'imageSize'].includes(name)).map(([name, parameter]) => {
+                const options = parameter.options.map((option) => ({ id: option.value, label: /provider default/iu.test(option.label) ? 'default' : option.label }));
                 const value = catalogParameterValues[name] ?? parameter.default;
-                return <IconSelect
-                  key={name}
+                const label = name === 'input_fidelity' ? 'Input fidelity' : name.replace(/_/gu, ' ').replace(/\b\w/gu, (letter) => letter.toUpperCase());
+                return <ComposerParameterField key={name} label={label} className="cmp-advanced-field" testId={`composer-catalog-field-${name}`}><ComposerSelect
                   testId={`composer-catalog-parameter-${name}`}
-                  containerClassName="cmp-select cmp-select-output-size"
+                  triggerKind="text"
+                  containerClassName="cmp-select cmp-select-advanced"
                   menuClassName="cmp-select-menu cmp-select-menu-compact"
-                  label={name}
+                  label={label}
                   value={optionLabel(options, value)}
                   disabled={options.length === 0}
                   open={openMenu === `catalog:${name}`}
@@ -2093,10 +2143,10 @@ export function MainPage({
                   options={options}
                   selectedId={value}
                   onSelect={(next) => workspace.setCatalogParameter(name, next)}
-                  icon="algorithm"
-                />;
+                /></ComposerParameterField>;
               })}
-            </div> : null}
+              </div> : null}
+            </> : null}
           </div>
           </div>
           </MotionDimSurface>
