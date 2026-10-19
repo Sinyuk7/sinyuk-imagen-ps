@@ -2054,9 +2054,9 @@ export function MainPage({
             <Divider className="cmp-footer-divider" />
             <div className="cmp-toolbar" data-testid="composer-toolbar">
               <div className="cmp-parameter-row cmp-model-row">
-              <ComposerParameterField label="Model" className="cmp-model-slot" testId="generation-current-target-summary" title={viewModel.target.remotePath ?? viewModel.target.label}>
+              <ComposerParameterField label="Model" className="cmp-model-slot" title={viewModel.target.remotePath ?? viewModel.target.label}>
               <ComposerSelect
-                testId="main-model-selector"
+                testId="generation-current-target-summary"
                 triggerKind="text"
                 containerClassName="cmp-select cmp-select-model cmp-select-labeled"
                 menuClassName="cmp-select-menu cmp-select-menu-model"

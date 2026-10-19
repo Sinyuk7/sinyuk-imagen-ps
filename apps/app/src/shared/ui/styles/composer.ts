@@ -1,9 +1,20 @@
 /** Composer：底部输入区、chip 触发器、select 菜单、附件、图层列表。 */
 export const COMPOSER_CSS = `
+/* 字段统一规格 tokens */
+:root {
+  --cmp-field-label-size: 9px;
+  --cmp-field-label-line: 12px;
+  --cmp-field-control-size: 10px;
+  --cmp-field-control-line: 14px;
+  --cmp-field-control-height: 28px;
+  --cmp-field-control-padding-v: 4px;
+  --cmp-field-control-padding-h: 8px;
+}
+
 .composer{
   flex-shrink:0; padding:8px 12px 12px; background:var(--app-color-background-base);
   border-top:1px solid var(--app-color-border-default); position:relative;
-  max-height:min(58%, 330px); overflow:visible;
+  max-height:min(58%, 360px); overflow:visible;
 }
 
 /* Attachment row */
@@ -228,7 +239,7 @@ export const COMPOSER_CSS = `
 }
 .cmp-action-row{ flex:0 0 auto; flex-wrap:nowrap; margin-top:auto; padding-top:4px; }
 .cmp-toolbar{
-  margin-top:4px;
+  margin-top:6px;
   padding:0;
   border-top:none;
   flex-direction:column;
@@ -236,34 +247,120 @@ export const COMPOSER_CSS = `
   justify-content:flex-start;
   flex:0 0 auto;
 }
-.cmp-parameter-row{ display:flex; align-items:center; min-width:0; }
-.cmp-parameter-field{ display:flex; align-items:center; min-width:0; flex:0 1 auto; }
-.cmp-parameter-control{ display:flex; min-width:0; flex:1 1 auto; }
+.cmp-parameter-row{ display:flex; align-items:center; min-width:0; min-height:32px; }
+.cmp-parameter-field{
+  display:flex;
+  align-items:center;
+  min-width:0;
+  min-height:var(--cmp-field-control-height);
+  flex:0 1 auto;
+}
+.cmp-parameter-control{
+  display:flex;
+  min-width:0;
+  flex:1 1 auto;
+  font-size:var(--cmp-field-control-size);
+  line-height:var(--cmp-field-control-line);
+  min-height:var(--cmp-field-control-height);
+}
 .cmp-parameter-control > .cmp-select{ width:100%; min-width:0; flex:1 1 auto; }
-.cmp-parameter-label{ flex:0 0 auto; margin-right:5px; color:var(--app-color-text-muted); font-size:9px; line-height:12px; white-space:nowrap; }
+.cmp-parameter-label{
+  flex:0 0 auto;
+  margin-right:5px;
+  color:var(--app-color-text-muted);
+  font-size:var(--cmp-field-label-size);
+  line-height:var(--cmp-field-label-line);
+  white-space:nowrap;
+  align-self:center;
+}
 .cmp-parameter-row > .cmp-parameter-field{ margin-right:6px; }
 .cmp-parameter-row > :last-child{ margin-right:0; }
 .cmp-model-row{ width:100%; }
-.cmp-secondary-row{ width:100%; margin-top:5px; flex-wrap:nowrap; }
+.cmp-secondary-row{
+  width:100%;
+  margin-top:5px;
+  flex-wrap:nowrap;
+  display:grid;
+  grid-template-columns:2fr 1fr 1fr;
+  gap:6px;
+}
 .cmp-model-slot{ width:100%; flex:1 1 auto; }
-.cmp-prompt-slot{ flex:1 1 38%; }
-.cmp-ratio-slot,.cmp-size-slot{ flex:0 1 24%; }
+.cmp-prompt-slot,.cmp-ratio-slot,.cmp-size-slot{ flex:1 1 auto; }
 .cmp-select-labeled{ flex:1 1 auto; }
 .cmp-select-labeled .cmp-chip-host{ min-width:0; width:100%; }
 .cmp-parameter-row .cmp-chip-text{ min-width:0; width:100%; justify-content:space-between; }
 .cmp-parameter-row .cmp-chip-value-text{ min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .cmp-advanced-toggle-row{ width:100%; margin-top:5px; }
-.cmp-advanced-toggle{ display:flex; flex-direction:row; align-items:center; justify-content:center; width:100%; height:30px; min-height:30px; padding:4px 8px; border-radius:var(--app-radius-small); color:var(--app-color-text-muted); font-size:10px; white-space:nowrap; }
-.cmp-advanced-toggle-content{ display:inline-flex; flex-direction:row; align-items:center; justify-content:center; white-space:nowrap; }
-.cmp-advanced-toggle-content > [data-icon]{ margin-left:7px; }
-.cmp-advanced-row{ flex-wrap:wrap; margin-top:5px; }
-.cmp-advanced-field{ flex:0 1 48%; min-width:0; margin-right:4%; margin-bottom:5px; }
-.cmp-advanced-field:nth-child(2n){ margin-right:0; }
-.cmp-summary-model{ flex:0 1 48%; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--app-color-text-secondary); font-size:10px; font-weight:600; }
-.cmp-summary-details{ display:flex; align-items:center; min-width:0; margin-left:7px; overflow:hidden; }
-.cmp-summary-detail{ display:inline-flex; align-items:center; min-width:0; margin-right:5px; color:var(--app-color-text-muted); font-size:9px; line-height:12px; white-space:nowrap; }
-.cmp-summary-detail::before{ content:'·'; margin-right:5px; color:var(--app-color-border-strong); }
-.cmp-summary-detail-quality{ color:var(--app-color-text-secondary); }
+.cmp-advanced-toggle{
+  display:flex;
+  flex-direction:row;
+  align-items:center;
+  justify-content:center;
+  width:100%;
+  height:30px;
+  min-height:30px;
+  padding:4px 8px;
+  border-radius:var(--app-radius-small);
+  color:var(--app-color-text-muted);
+  font-size:10px;
+  white-space:nowrap;
+}
+.cmp-advanced-toggle-content{
+  display:inline-flex;
+  flex-direction:row;
+  align-items:center;
+  justify-content:center;
+  white-space:nowrap;
+  gap:7px;
+}
+.cmp-advanced-row{
+  margin-top:5px;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:5px 4%;
+}
+.cmp-advanced-field{
+  flex:0 1 auto;
+  min-width:0;
+}
+.cmp-summary-model{
+  flex:0 1 auto;
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  color:var(--app-color-text-primary);
+  font-size:11px;
+  font-weight:600;
+  line-height:15px;
+}
+.cmp-summary-details{
+  display:flex;
+  align-items:center;
+  min-width:0;
+  margin-left:8px;
+  overflow:hidden;
+  gap:8px;
+}
+.cmp-summary-detail{
+  display:inline-flex;
+  align-items:center;
+  min-width:0;
+  color:var(--app-color-text-muted);
+  font-size:9px;
+  line-height:12px;
+  white-space:nowrap;
+}
+.cmp-summary-detail::before{
+  content:'·';
+  margin-right:4px;
+  color:var(--app-color-border-strong);
+  opacity:0.5;
+}
+.cmp-summary-detail-quality{
+  color:var(--app-color-text-secondary);
+  font-weight:500;
+}
 .cmp-meta-row > .cmp-readiness{ flex:0 1 auto; margin-left:8px; white-space:nowrap; }
 .cmp-action-left{
   display:flex;
@@ -464,7 +561,7 @@ export const COMPOSER_CSS = `
 .cmp-meta-row > .motion-content{ flex:1 1 auto; min-width:0; text-align:right; }
 .cmp-footer{
   flex:0 0 auto;
-  padding:6px 8px 8px;
+  padding:8px 8px 10px;
   background:var(--app-color-background-elevated);
   border-radius:0 0 var(--app-radius-large) var(--app-radius-large);
 }
@@ -532,14 +629,14 @@ export const COMPOSER_CSS = `
 .cmp-chip-icon,
 .cmp-chip-text{
   max-width:100%;
-  min-height:28px;
-  padding:4px 8px 4px 10px;
+  min-height:var(--cmp-field-control-height);
+  padding:var(--cmp-field-control-padding-v) var(--cmp-field-control-padding-h);
   border:1px solid var(--app-color-border-default);
   border-radius:var(--app-radius-medium);
   background:var(--app-color-background-layer-1);
   font-family:var(--app-font-family-mono);
-  font-size:10px;
-  line-height:14px;
+  font-size:var(--cmp-field-control-size);
+  line-height:var(--cmp-field-control-line);
   color:var(--app-color-text-secondary);
   white-space:nowrap;
 }
@@ -549,18 +646,11 @@ export const COMPOSER_CSS = `
   text-overflow:ellipsis;
   text-align:left;
 }
+/* 移除 Model 选择器的特殊字体处理，统一使用字段规格 */
 .cmp-select-model .cmp-chip-icon,
 .cmp-select-output-size .cmp-chip-icon{
-  min-height:26px;
-  padding-top:3px;
-  padding-right:8px;
-  padding-bottom:3px;
-  padding-left:9px;
   border-color:color-mix(in srgb, var(--app-color-border-default) 72%, transparent);
   background:transparent;
-  font-size:9px;
-  font-weight:600;
-  line-height:13px;
 }
 .cmp-chip-icon:hover,
 .cmp-chip-text:hover{ border-color:var(--app-color-border-strong); color:var(--app-color-text-primary); }
@@ -603,15 +693,15 @@ export const COMPOSER_CSS = `
   flex:1 1 auto;
   overflow:hidden;
   color:var(--app-color-text-secondary);
+  font-family:var(--app-font-family-mono);
+  font-size:var(--cmp-field-control-size);
+  line-height:var(--cmp-field-control-line);
 }
+/* Model 选择器保持统一高度和字体，移除特殊字重 */
 .cmp-select-model .cmp-chip-host,
 .cmp-select-output-size .cmp-chip-host{
-  min-height:28px;
+  min-height:var(--cmp-field-control-height);
   align-items:center;
-  font-family:var(--app-font-family-mono);
-  font-size:9px;
-  font-weight:600;
-  line-height:13px;
 }
 .cmp-chip-host > .ui-overlay-icon-button,
 .cmp-chip-host > .ui-overlay-icon-layer{
@@ -730,13 +820,7 @@ export const COMPOSER_CSS = `
 .cmp-chip-overlay-inner-icon{
   padding:4px 12px 4px 14px;
 }
-.cmp-select-model .cmp-chip-overlay-inner-icon,
-.cmp-select-output-size .cmp-chip-overlay-inner-icon{
-  padding-top:3px;
-  padding-right:8px;
-  padding-bottom:3px;
-  padding-left:9px;
-}
+/* 移除 Model 选择器特殊 padding */
 .cmp-chip-overlay-value-icon,
 .cmp-chip-overlay-value-text{
   display:block;
@@ -748,12 +832,6 @@ export const COMPOSER_CSS = `
   text-align:left;
   min-height:16px;
   line-height:16px;
-}
-.cmp-select-model .cmp-chip-overlay-value-icon,
-.cmp-select-output-size .cmp-chip-overlay-value-icon{
-  min-height:14px;
-  line-height:14px;
-  top:0;
 }
 .cmp-chip-leading-proxy-icon{
   display:inline-flex;
@@ -768,19 +846,7 @@ export const COMPOSER_CSS = `
   margin-left:0;
   flex:0 0 auto;
 }
-.cmp-select-model .cmp-chip-leading-proxy-icon,
-.cmp-select-output-size .cmp-chip-leading-proxy-icon{
-  width:14px;
-  min-width:14px;
-  height:14px;
-  margin-right:5px;
-}
-.cmp-select-model .cmp-chip-leading-icon,
-.cmp-select-output-size .cmp-chip-leading-icon{
-  width:14px;
-  min-width:14px;
-  height:14px;
-}
+/* 移除 Model 图标特殊尺寸 */
 .cmp-chip-overlay-spacer-icon,
 .cmp-chip-overlay-spacer-text{
   display:block;
@@ -818,19 +884,7 @@ export const COMPOSER_CSS = `
   color:inherit;
   flex:0 0 auto;
 }
-.cmp-select-model .cmp-chip-arrow-proxy-icon,
-.cmp-select-output-size .cmp-chip-arrow-proxy-icon{
-  width:12px;
-  min-width:12px;
-  min-height:14px;
-  margin-left:4px;
-}
-.cmp-select-model .cmp-chip-arrow-icon-icon,
-.cmp-select-output-size .cmp-chip-arrow-icon-icon{
-  width:10px;
-  min-width:10px;
-  height:10px;
-}
+/* 移除 Model 箭头图标特殊尺寸 */
 .cmp-select-model .cmp-chip{ width:100%; min-width:0; }
 .cmp-select-model .cmp-chip-value-icon,
 .cmp-select-model .cmp-chip-value-text{
@@ -865,15 +919,10 @@ export const COMPOSER_CSS = `
   background:transparent;
   flex:0 0 auto;
 }
+/* Model 选择器保留透明背景和边框色，移除字重覆盖 */
 .cmp-select-model .cmp-chip-icon,
 .cmp-select-output-size .cmp-chip-icon{
   border-color:color-mix(in srgb, var(--app-color-border-default) 46%, transparent);
-  min-height:28px;
-  font-weight:400;
-}
-.cmp-select-model .cmp-chip-host,
-.cmp-select-output-size .cmp-chip-host{
-  font-weight:400;
 }
 .cmp-select-model .cmp-chip-leading-proxy-icon,
 .cmp-select-output-size .cmp-chip-leading-proxy-icon{
