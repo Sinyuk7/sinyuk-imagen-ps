@@ -290,11 +290,12 @@ surface apps -> application/session -> core-engine + providers + execution backe
 - In Photoshop UXP, local PNG/JPEG attachments prefer the app-local byte pipeline inside `apps/app` for preview and provider-input refs while source RGBA resizing fits the decode budget.
 - Oversized local-file provider-input resizing and provider-output thumbnails fall back to Photoshop host `imaging.getPixels(targetSize)` instead of decoding full-resolution pixels in JavaScript. Local WEBP remains an explicit host-native fallback until an app-local WEBP decode path is proven.
 - `resolveProviderInputPlan()` is the shared provider-input geometry contract:
-  `no-upscale`, hard `maxSide` ceiling, and aspect-safe 16px-grid normalization
-  for downscaled inputs. When that grid would exceed the aspect-error limit it
-  falls back to integer pixels. It returns only `kind`, `sourceSize`,
-  `targetSize`, and provenance-only `aspectRatioError`; consumers must treat
-  `targetSize` as the sole geometry source of truth.
+  `no-upscale`, hard `maxSide` ceiling, and proportional downscaling. It
+  returns only `kind`, `sourceSize`, `targetSize`, and provenance-only
+  `aspectRatioError`; consumers must treat `targetSize` as the sole geometry
+  source of truth. App-local provider-input PNG normalization also applies a
+  10 MB per-image encoded-byte ceiling after the max-side decision. There is
+  no aggregate input-byte ceiling.
 - Photoshop host provider-input reads now request that exact `targetSize` for
   both `imaging.getPixels()` and `imaging.getSelection()`, then fail closed if
   Photoshop returns a different width or height before PNG encoding or asset

@@ -9,9 +9,6 @@ export interface RgbaImage extends ImageSize {
 
 export interface ModelSizePolicy {
   readonly maxSide?: number;
-  readonly multiple?: number;
-  readonly maxAspectError?: number;
-  readonly minLongSideUtilization?: number;
 }
 
 export interface ProviderInputSizePolicy {
@@ -35,10 +32,7 @@ export interface ResolvedModelSize {
   readonly height: number;
   readonly ratioX: number;
   readonly ratioY: number;
-  readonly aspectError: number;
   readonly maxSide: number;
-  readonly requestedMultiple: number;
-  readonly effectiveMultiple: number;
 }
 
 export interface ProviderInputPlan {
@@ -50,16 +44,7 @@ export interface ProviderInputPlan {
 
 export const DEFAULT_MODEL_SIZE_POLICY = {
   maxSide: 1028,
-  multiple: 2,
-  maxAspectError: 0.0005,
-  minLongSideUtilization: 0.9,
 } as const satisfies Required<ModelSizePolicy>;
-
-const PROVIDER_INPUT_GRID_POLICY = {
-  multiple: 16,
-  maxAspectError: 0.0005,
-  minLongSideUtilization: 0.9,
-} as const satisfies Omit<Required<ModelSizePolicy>, 'maxSide'>;
 
 export const DEFAULT_IMAGE_RESIZE_STRATEGY = {
   captureDownscaleMode: 'photoshop-target-size',
@@ -74,8 +59,6 @@ export interface CaptureUploadPlan {
   readonly ratioX: number;
   readonly ratioY: number;
   readonly aspectError: number;
-  readonly requestedMultiple: number;
-  readonly effectiveMultiple: number;
 }
 
 export interface PlacementScalePlan {
@@ -94,18 +77,6 @@ function assertPositiveInteger(name: string, value: number): void {
   }
 }
 
-function assertFiniteNonNegative(name: string, value: number): void {
-  if (!Number.isFinite(value) || value < 0) {
-    throw new RangeError(`${name} must be a finite number >= 0, got ${value}`);
-  }
-}
-
-function assertUnitRange(name: string, value: number): void {
-  if (!Number.isFinite(value) || value <= 0 || value > 1) {
-    throw new RangeError(`${name} must be in (0, 1], got ${value}`);
-  }
-}
-
 function assertRgbaImage(image: RgbaImage): void {
   assertPositiveInteger('image.width', image.width);
   assertPositiveInteger('image.height', image.height);
@@ -116,14 +87,6 @@ function assertRgbaImage(image: RgbaImage): void {
   }
 }
 
-function roundToMultiple(value: number, multiple: number): number {
-  return Math.max(multiple, Math.round(value / multiple) * multiple);
-}
-
-function floorToMultiple(value: number, multiple: number): number {
-  return Math.floor(value / multiple) * multiple;
-}
-
 function aspectError(ratioX: number, ratioY: number): number {
   return Math.abs(ratioX - ratioY) / Math.max(ratioX, ratioY);
 }
@@ -132,8 +95,6 @@ function createResolvedSize(
   original: ImageSize,
   size: ImageSize,
   maxSide: number,
-  requestedMultiple: number,
-  effectiveMultiple: number,
 ): ResolvedModelSize {
   const ratioX = size.width / original.width;
   const ratioY = size.height / original.height;
@@ -145,80 +106,8 @@ function createResolvedSize(
     height: size.height,
     ratioX,
     ratioY,
-    aspectError: aspectError(ratioX, ratioY),
     maxSide,
-    requestedMultiple,
-    effectiveMultiple,
   };
-}
-
-function collectModelSizeCandidates(
-  original: ImageSize,
-  policy: Required<ModelSizePolicy>,
-  requestedMultiple: number,
-  effectiveMultiple: number,
-): readonly ResolvedModelSize[] {
-  const maxWidth = floorToMultiple(Math.min(original.width, policy.maxSide), effectiveMultiple);
-  const maxHeight = floorToMultiple(Math.min(original.height, policy.maxSide), effectiveMultiple);
-  if (maxWidth < effectiveMultiple || maxHeight < effectiveMultiple) {
-    return [];
-  }
-
-  const maxReachableLongSide = Math.max(maxWidth, maxHeight);
-  const minLongSide = maxReachableLongSide * policy.minLongSideUtilization;
-  const candidates = new Map<string, ResolvedModelSize>();
-
-  const addCandidate = (width: number, height: number): void => {
-    if (
-      width < effectiveMultiple ||
-      height < effectiveMultiple ||
-      width > maxWidth ||
-      height > maxHeight ||
-      width % effectiveMultiple !== 0 ||
-      height % effectiveMultiple !== 0 ||
-      Math.max(width, height) < minLongSide
-    ) {
-      return;
-    }
-
-    const key = `${width}x${height}`;
-    candidates.set(key, createResolvedSize(original, { width, height }, policy.maxSide, requestedMultiple, effectiveMultiple));
-  };
-
-  for (let height = effectiveMultiple; height <= maxHeight; height += effectiveMultiple) {
-    addCandidate(roundToMultiple((original.width / original.height) * height, effectiveMultiple), height);
-  }
-
-  for (let width = effectiveMultiple; width <= maxWidth; width += effectiveMultiple) {
-    addCandidate(width, roundToMultiple((original.height / original.width) * width, effectiveMultiple));
-  }
-
-  return [...candidates.values()];
-}
-
-function chooseBestSize(
-  candidates: readonly ResolvedModelSize[],
-  maxAspectError: number,
-  requireAspectLimit: boolean,
-): ResolvedModelSize | undefined {
-  const pool = requireAspectLimit ? candidates.filter((candidate) => candidate.aspectError <= maxAspectError) : candidates;
-  if (pool.length === 0) {
-    return undefined;
-  }
-
-  return [...pool].sort((a, b) => {
-    const areaDiff = b.width * b.height - a.width * a.height;
-    if (areaDiff !== 0 && requireAspectLimit) {
-      return areaDiff;
-    }
-
-    const errorDiff = a.aspectError - b.aspectError;
-    if (errorDiff !== 0) {
-      return errorDiff;
-    }
-
-    return areaDiff;
-  })[0];
 }
 
 export function resolveModelSize(originalSize: ImageSize, options: ModelSizePolicy = {}): ResolvedModelSize {
@@ -227,46 +116,20 @@ export function resolveModelSize(originalSize: ImageSize, options: ModelSizePoli
 
   const policy: Required<ModelSizePolicy> = {
     maxSide: options.maxSide ?? DEFAULT_MODEL_SIZE_POLICY.maxSide,
-    multiple: options.multiple ?? DEFAULT_MODEL_SIZE_POLICY.multiple,
-    maxAspectError: options.maxAspectError ?? DEFAULT_MODEL_SIZE_POLICY.maxAspectError,
-    minLongSideUtilization: options.minLongSideUtilization ?? DEFAULT_MODEL_SIZE_POLICY.minLongSideUtilization,
   };
 
   assertPositiveInteger('maxSide', policy.maxSide);
-  assertPositiveInteger('multiple', policy.multiple);
-  assertFiniteNonNegative('maxAspectError', policy.maxAspectError);
-  assertUnitRange('minLongSideUtilization', policy.minLongSideUtilization);
 
-  if (
-    Math.max(originalSize.width, originalSize.height) <= policy.maxSide &&
-    originalSize.width % policy.multiple === 0 &&
-    originalSize.height % policy.multiple === 0
-  ) {
-    return createResolvedSize(originalSize, originalSize, policy.maxSide, policy.multiple, policy.multiple);
+  const longest = Math.max(originalSize.width, originalSize.height);
+  if (longest <= policy.maxSide) {
+    return createResolvedSize(originalSize, originalSize, policy.maxSide);
   }
 
-  const candidates = collectModelSizeCandidates(originalSize, policy, policy.multiple, policy.multiple);
-  const evenCandidate = chooseBestSize(candidates, policy.maxAspectError, true);
-  if (evenCandidate !== undefined) {
-    return evenCandidate;
-  }
-
-  if (policy.multiple !== 1) {
-    const fallbackCandidates = collectModelSizeCandidates(originalSize, policy, policy.multiple, 1);
-    const fallbackCandidate =
-      chooseBestSize(fallbackCandidates, policy.maxAspectError, true) ??
-      chooseBestSize(fallbackCandidates, policy.maxAspectError, false);
-    if (fallbackCandidate !== undefined) {
-      return fallbackCandidate;
-    }
-  }
-
-  const bestCandidate = chooseBestSize(candidates, policy.maxAspectError, false);
-  if (bestCandidate === undefined) {
-    throw new Error('No valid target size found.');
-  }
-
-  return bestCandidate;
+  const scale = policy.maxSide / longest;
+  return createResolvedSize(originalSize, {
+    width: Math.max(1, Math.round(originalSize.width * scale)),
+    height: Math.max(1, Math.round(originalSize.height * scale)),
+  }, policy.maxSide);
 }
 
 function assertProviderInputMaxSide(maxSide: number | undefined): asserts maxSide is number {
@@ -303,11 +166,7 @@ export function resolveProviderInputPlan(
     };
   }
 
-  // Provider input use one grid policy. 无法在误差阈值内满足 16 栅格时，求解器回退到逐像素尺寸。
-  const resolved = resolveModelSize(sourceSize, {
-    maxSide: policy.maxSide,
-    ...PROVIDER_INPUT_GRID_POLICY,
-  });
+  const resolved = resolveModelSize(sourceSize, { maxSide: policy.maxSide });
   const targetSize = { width: resolved.width, height: resolved.height };
 
   return {
@@ -329,9 +188,7 @@ export function resolveCaptureUploadPlan(
     uploadSize: { width: size.width, height: size.height },
     ratioX: size.ratioX,
     ratioY: size.ratioY,
-    aspectError: size.aspectError,
-    requestedMultiple: size.requestedMultiple,
-    effectiveMultiple: size.effectiveMultiple,
+    aspectError: aspectError(size.ratioX, size.ratioY),
   };
 
   return {

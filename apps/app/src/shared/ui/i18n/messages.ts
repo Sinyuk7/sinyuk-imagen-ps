@@ -276,7 +276,6 @@ export interface AppMessages {
     readonly aspectRatio: string;
     readonly providerInputSizePreset: string;
     readonly providerInputSizePresetHint: string;
-    readonly useInputSizeNormalizedHint: string;
     readonly storageGroup: string;
     readonly logPath: string;
     readonly generatedImagePath: string;
@@ -591,9 +590,8 @@ const EN_MESSAGES: AppMessages = {
     outputSize: 'Output size',
     outputFormat: 'Output format',
     aspectRatio: 'Aspect ratio',
-    providerInputSizePreset: 'Input image size',
-    providerInputSizePresetHint: 'Input images resize locally before sending.',
-    useInputSizeNormalizedHint: 'Use Input Size follows the first input.',
+    providerInputSizePreset: 'Input image max side',
+    providerInputSizePresetHint: 'Input images are proportionally resized locally before sending.',
     storageGroup: 'Storage',
     logPath: 'Current log path',
     generatedImagePath: 'Generated image path',
@@ -908,9 +906,8 @@ const ZH_CN_MESSAGES: AppMessages = {
     outputSize: '输出尺寸',
     outputFormat: '输出格式',
     aspectRatio: '宽高比',
-    providerInputSizePreset: '输入图片尺寸',
-    providerInputSizePresetHint: '发送前本地缩放输入图。',
-    useInputSizeNormalizedHint: 'Use Input Size 会跟随首图。',
+    providerInputSizePreset: '输入图片最大边',
+    providerInputSizePresetHint: '发送前按比例本地缩放输入图。',
     storageGroup: '存储',
     logPath: '当前日志路径',
     generatedImagePath: '生成图片路径',

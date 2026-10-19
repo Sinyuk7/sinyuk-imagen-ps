@@ -38,6 +38,14 @@ export function prepareGrsaiRequest(request: FixedGenerationRequest): FixedPrepa
 }
 
 /** 构造 RunningHub 的固定请求；endpoint 与模型保持在 adapter/catalog 内。 */
+/** 检查 RunningHub 请求的模型能力和参数，不读取输入图片内容。 */
+export function validateRunningHubRequest(request: FixedGenerationRequest): void {
+  const { model } = checkProviderParameters(request);
+  if (request.maskImage && (model.input?.mask !== true || request.operation !== 'image_edit')) {
+    throw new Error(`RunningHub model "${request.modelId}" does not support mask input.`);
+  }
+}
+
 export function prepareRunningHubRequest(request: FixedGenerationRequest): FixedPreparedRequest {
   const { model, parameters: checked } = checkProviderParameters(request);
   if (request.maskImage && (model.input?.mask !== true || request.operation !== 'image_edit')) {

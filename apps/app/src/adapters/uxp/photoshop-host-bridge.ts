@@ -161,6 +161,7 @@ interface UxpStorageFormats {
 const PHOTOSHOP_THUMBNAIL_MAX_SIDE = 256;
 const LAYER_PICKER_THUMBNAIL_MAX_SIDE = 48;
 const APP_LOCAL_MAX_RGBA_DECODE_BYTES = 64 * 1024 * 1024;
+const MAX_PROVIDER_INPUT_BYTES = 10_000_000;
 const BACKGROUND_PREVIEW_START_DELAY_MS = 150;
 
 function photoshopAppFrom(modules: UxpModules): PhotoshopApp | undefined {
@@ -812,11 +813,27 @@ async function resizeLocalFileBytes(
     throw new Error(`App-local resize is unavailable for ${mimeType} at this source size.`);
   }
   const image = decodeLocalFileToRgba(bytes, mimeType);
-  const resized =
+  let resized =
     targetSize.width <= image.width && targetSize.height <= image.height
       ? downscaleArea(image, targetSize)
       : upscaleBilinear(image, targetSize);
-  return encodeRgbaPng(resized);
+  let encoded = encodeRgbaPng(resized);
+  while (encoded.byteLength > MAX_PROVIDER_INPUT_BYTES && (resized.width > 1 || resized.height > 1)) {
+    const scale = Math.min(0.95, Math.sqrt(MAX_PROVIDER_INPUT_BYTES / encoded.byteLength) * 0.98);
+    const nextSize = {
+      width: Math.max(1, Math.floor(resized.width * scale)),
+      height: Math.max(1, Math.floor(resized.height * scale)),
+    };
+    if (nextSize.width === resized.width && nextSize.height === resized.height) {
+      break;
+    }
+    resized = downscaleArea(resized, nextSize);
+    encoded = encodeRgbaPng(resized);
+  }
+  if (encoded.byteLength > MAX_PROVIDER_INPUT_BYTES) {
+    throw new Error(`Provider input image exceeds the ${MAX_PROVIDER_INPUT_BYTES} byte limit after normalization.`);
+  }
+  return encoded;
 }
 
 async function createLocalFileProviderDerivativeFromBytes(
@@ -826,7 +843,7 @@ async function createLocalFileProviderDerivativeFromBytes(
   meta: { readonly name: string; readonly mimeType: string },
 ): Promise<HostImageAsset> {
   const preview = await createAppLocalPreview(bytes, meta.mimeType);
-  if (plan.kind === 'passthrough') {
+  if (plan.kind === 'passthrough' && bytes.byteLength <= MAX_PROVIDER_INPUT_BYTES) {
     return createStoredHostImageAsset(assetStore, bytes, {
       source: 'file',
       name: meta.name,
@@ -1854,6 +1871,9 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
             failedStage = 'encode-capture-png';
             const encodeStarted = nowMs();
             const png = encodeRgbaPngStoredDeflate({ width: targetSize.width, height: targetSize.height, data: rgba });
+            if (png.bytes.byteLength > MAX_PROVIDER_INPUT_BYTES) {
+              throw new Error(`Provider input image exceeds the ${MAX_PROVIDER_INPUT_BYTES} byte limit after normalization.`);
+            }
             providerInputEncodeMs = elapsedMs(encodeStarted);
             providerInputEncoder = png.encoder;
             providerInputRgbaBytes = png.rgbaBytes;
@@ -2001,6 +2021,9 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
               sourceLevel: result.level,
             });
             const png = encodeRgbaPngStoredDeflate({ width: targetSize.width, height: targetSize.height, data: rgba });
+            if (png.bytes.byteLength > MAX_PROVIDER_INPUT_BYTES) {
+              throw new Error(`Provider input image exceeds the ${MAX_PROVIDER_INPUT_BYTES} byte limit after normalization.`);
+            }
             return createStoredHostImageAsset(assetStore, png.bytes, {
               source: 'layer',
               name: `layer-${layerId}.png`,

@@ -147,7 +147,7 @@ export function GlobalGenerationSettingsPage({
                 className="field-hint"
                 data-testid="global-settings-provider-input-size-hint"
               >
-                {`${t.settings.providerInputSizePresetHint} ${t.settings.useInputSizeNormalizedHint}`}
+                {t.settings.providerInputSizePresetHint}
               </HelpText>
             </div>
           </SettingsFormSection>
