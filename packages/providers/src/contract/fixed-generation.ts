@@ -7,6 +7,8 @@ export interface FixedGenerationRequest {
   readonly modelId: string;
   readonly operation: 'text_to_image' | 'image_edit';
   readonly prompt: string;
+  readonly systemPrompt?: string;
+  readonly userPrompt?: string;
   readonly images?: readonly AssetRef[];
   readonly maskImage?: CanonicalMaskImage;
   readonly parameters: Readonly<Record<string, string>>;

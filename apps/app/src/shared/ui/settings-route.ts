@@ -10,7 +10,7 @@ export type SettingsRoute =
   | { readonly kind: 'provider-account'; readonly providerId: 'grsai' | 'runninghub' }
   | { readonly kind: 'global-settings' }
   | { readonly kind: 'prompt-settings' }
-  | { readonly kind: 'prompt-preset-detail'; readonly presetId: string | null };
+  | { readonly kind: 'prompt-template-detail'; readonly templateId: string | null };
 
 /** 详情页返回其所属的根设置页。 */
 export function settingsBackRoute(route: SettingsRoute): SettingsRoute | 'main' {
@@ -22,7 +22,7 @@ export function settingsBackRoute(route: SettingsRoute): SettingsRoute | 'main' 
     case 'global-settings':
     case 'prompt-settings':
       return { kind: 'root', tab: 'general' };
-    case 'prompt-preset-detail':
+    case 'prompt-template-detail':
       return { kind: 'prompt-settings' };
   }
 }

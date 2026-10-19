@@ -63,7 +63,7 @@ const CHROME_STORES: readonly ChromeStoreName[] = [
   'comfyUiState',
 ];
 const GENERATION_SETTINGS_KEY = 'generation';
-const PROMPT_SETTINGS_KEY = 'prompt';
+const PROMPT_SETTINGS_KEY = 'prompt-templates';
 
 function requestResult<T>(request: IDBRequest<T>): Promise<T> {
   return new Promise((resolve, reject) => {

@@ -122,7 +122,11 @@ export interface CanonicalImageJobRequest {
   /** 当前请求是 text_to_image 还是 image_edit。 */
   readonly operation: Extract<ProviderOperation, 'text_to_image' | 'image_edit'>;
 
-  /** 用户 prompt。 */
+  /** 模板组装后的系统提示词。 */
+  readonly systemPrompt?: string;
+  /** 模板组装后的用户提示词。 */
+  readonly userPrompt?: string;
+  /** 当前 Provider transport 使用的用户提示词文本。 */
   readonly prompt: string;
   /** 固定 provider catalog 模型标识；由 adapter 负责映射到 wire 请求。 */
   readonly providerId?: 'grsai' | 'runninghub';

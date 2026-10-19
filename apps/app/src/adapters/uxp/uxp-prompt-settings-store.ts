@@ -52,7 +52,7 @@ export function createUxpPromptSettingsStore(modules: UxpModules): PromptSetting
     return createMemoryPromptSettingsStore();
   }
   const localFileSystem = fs;
-  const fileName = 'prompt-settings.json';
+  const fileName = 'prompt-templates.json';
 
   return {
     async load(): Promise<PromptSettings | null> {

@@ -131,6 +131,8 @@ const maskExecutionPlanSchema = z.discriminatedUnion('kind', [
 
 export const canonicalImageRequestSchema = z.object({
   operation: z.union([z.literal('text_to_image'), z.literal('image_edit')]),
+  systemPrompt: z.string().optional(),
+  userPrompt: z.string().min(1).optional(),
   prompt: z.string().min(1),
   providerId: z.union([z.literal('grsai'), z.literal('runninghub')]).optional(),
   // 固定 Provider 的 canonical request 需要把 catalog modelId 传递到 submit 阶段。

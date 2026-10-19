@@ -154,6 +154,8 @@ export interface TaskRecord {
   readonly status: TaskStatus;
   readonly operation: TaskOperation;
   readonly prompt: string;
+  readonly systemPrompt?: string;
+  readonly userPrompt?: string;
   readonly attachments: readonly TaskAttachment[];
   readonly outputs: readonly TaskOutput[];
   readonly editRegion?: TaskEditRegion;
@@ -209,6 +211,8 @@ const TASK_RECORD_KEYS = [
   'status',
   'operation',
   'prompt',
+  'systemPrompt',
+  'userPrompt',
   'attachments',
   'outputs',
   'editRegion',
@@ -296,6 +300,8 @@ export function assertTaskRecord(record: unknown): asserts record is TaskRecord 
   expectOneOf(record.status, ['running', 'completed', 'failed', 'discarded', 'interrupted'], 'status');
   expectOneOf(record.operation, ['text-to-image', 'image-edit'], 'operation');
   expectString(record.prompt, 'prompt');
+  if (record.systemPrompt !== undefined) expectString(record.systemPrompt, 'systemPrompt');
+  if (record.userPrompt !== undefined) expectString(record.userPrompt, 'userPrompt');
   expectArray(record.attachments, 'attachments');
   expectArray(record.outputs, 'outputs');
   assertPlacement(record.placement);

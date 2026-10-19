@@ -10,6 +10,12 @@ export interface FixedPreparedRequest {
   readonly body: Readonly<Record<string, unknown>>;
 }
 
+/** 将通用提示词组装为固定 Provider 的单段请求文本。 */
+export function promptForWire(request: Pick<FixedGenerationRequest, 'prompt' | 'systemPrompt' | 'userPrompt'>): string {
+  const userPrompt = request.userPrompt ?? request.prompt;
+  return request.systemPrompt?.trim() ? `${request.systemPrompt.trim()}\n\n${userPrompt}` : userPrompt;
+}
+
 /** 固定 provider transport 的统一构造入口；上层只需要选择 providerId。 */
 export function prepareFixedProviderRequest(request: FixedGenerationRequest): FixedPreparedRequest {
   if (request.providerId === 'grsai') return prepareGrsaiRequest(request);
@@ -30,7 +36,7 @@ export function prepareGrsaiRequest(request: FixedGenerationRequest): FixedPrepa
   return {
     providerId: 'grsai', urlPath: '/v1/api/generate',
     body: {
-      model: request.modelId, prompt: request.prompt, images: imageValues(request.images), replyType: 'async',
+      model: request.modelId, prompt: promptForWire(request), images: imageValues(request.images), replyType: 'async',
       ...parameters,
       ...(request.maskImage && model.input?.mask !== false ? { mask: imageValues([request.maskImage.asset])[0] } : {}),
     },
@@ -66,6 +72,6 @@ export function prepareRunningHubRequest(request: FixedGenerationRequest): Fixed
   const wireParameters = Object.fromEntries(Object.entries(parameters).filter(([name, value]) => !(name === 'aspectRatio' && value === 'auto')));
   return {
     providerId: 'runninghub', urlPath: endpoint,
-    body: { prompt: request.prompt, ...inputImages, ...(model.fixed ?? {}), ...wireParameters, ...mask },
+    body: { prompt: promptForWire(request), ...inputImages, ...(model.fixed ?? {}), ...wireParameters, ...mask },
   };
 }

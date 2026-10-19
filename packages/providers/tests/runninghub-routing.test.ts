@@ -16,6 +16,16 @@ describe('RunningHub operation routing', () => {
     expect(prepared.body).not.toHaveProperty('maskUrl');
   });
 
+  it('adapts both system and user prompts at the provider boundary', () => {
+    const prepared = prepareRunningHubRequest({
+      ...base,
+      systemPrompt: 'Keep the subject identity.',
+      userPrompt: 'A portrait in soft light.',
+      operation: 'text_to_image',
+    });
+    expect(prepared.body).toMatchObject({ prompt: 'Keep the subject identity.\n\nA portrait in soft light.' });
+  });
+
   it('omits auto aspect ratio from the wire request', () => {
     const prepared = prepareRunningHubRequest({ ...base, parameters: { aspectRatio: 'auto', resolution: '1k' }, operation: 'text_to_image' });
     expect(prepared.body).not.toHaveProperty('aspectRatio');

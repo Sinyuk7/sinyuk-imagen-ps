@@ -25,7 +25,9 @@ import { comfyUiExecutionNodeLabel } from '../comfyui-execution-error';
 import type { ImageOutputSelection } from '@imagen-ps/application';
 import { configurationInstanceLabel, type UiModelInfo } from '../model-info';
 import type { GenerationWorkspaceController } from '../generation-workspace';
-import { Button, Divider, HelpText, Icon, IconButton, IconSelect, ImageFallbackContent, imageFallbackTitle, List, ListStateItem, MotionActivityDot, MotionActivityIcon, MotionButtonSurface, MotionContent, MotionDimSurface, MotionHighlight, MotionImage, MotionPresenceView, PageFrame, PageHeader, PageScroll, PageState, ProviderIdentity, ProviderMediaHeader, UxpTextArea, type UxpTextAreaElement, useToast } from '../ui-system';
+import type { PromptSettings } from '../../ports/prompt-settings';
+import { assemblePromptTemplate, promptTemplateNeedsInput } from '../../ports/prompt-settings';
+import { Button, ComposerSelect, Divider, HelpText, Icon, IconButton, IconSelect, ImageFallbackContent, imageFallbackTitle, List, ListStateItem, MotionActivityDot, MotionActivityIcon, MotionButtonSurface, MotionContent, MotionDimSurface, MotionHighlight, MotionImage, MotionPresenceView, PageFrame, PageHeader, PageScroll, PageState, ProviderIdentity, ProviderMediaHeader, UxpTextArea, type UxpTextAreaElement, useToast } from '../ui-system';
 
 function isImeCompositionKey(event: React.KeyboardEvent): boolean {
   const nativeEvent = event.nativeEvent as KeyboardEvent & { readonly isComposing?: boolean };
@@ -55,6 +57,8 @@ interface MainPageProps {
   readonly layersLoading: boolean;
   readonly reloadLayers: () => Promise<void>;
   readonly conversation: ConversationController;
+  readonly promptSettings: PromptSettings;
+  readonly onSelectPromptTemplate: (templateId: string) => void;
   readonly highlightedRoundId?: string | null;
   readonly onEditProfile?: (providerId: string) => void;
   readonly restoreFailedRoundId?: string | null;
@@ -344,6 +348,8 @@ export function MainPage({
   layersLoading,
   reloadLayers,
   conversation,
+  promptSettings,
+  onSelectPromptTemplate,
   highlightedRoundId,
   onEditProfile,
   restoreFailedRoundId,
@@ -352,6 +358,7 @@ export function MainPage({
   const services = useAppServices();
   const { messages: t } = useI18n();
   const [providerMenuOpen, setProfileMenuOpen] = useState(false);
+  const [promptTemplateMenuOpen, setPromptTemplateMenuOpen] = useState(false);
   const [openMenu, setOpenMenu] = useState<'model' | 'output-size' | 'output-ratio' | `catalog:${string}` | null>(null);
   const [attachOpen, setAttachOpen] = useState(false);
   const [layerOpen, setLayerOpen] = useState(false);
@@ -367,6 +374,7 @@ export function MainPage({
   const [highlightKey, setHighlightKey] = useState<string | null>(null);
   const [scrolledAway, setScrolledAway] = useState(false);
   const { viewModel, composerDraft } = workspace;
+  const currentTemplate = promptSettings.templates.find((template) => template.id === promptSettings.selectedTemplateId) ?? promptSettings.templates[0]!;
   const provider = viewModel.provider;
   const providers = ([{ profileId: 'grsai', displayName: 'GRSAI' }, { profileId: 'runninghub', displayName: 'RunningHub' }] as const);
   const providersLoading = false;
@@ -1073,16 +1081,22 @@ export function MainPage({
       show(composerReadinessText, composerReadinessState === 'model-unavailable' ? 'warning' : 'info', { key: 'send-readiness' });
       return;
     }
-    const prompt = currentPromptValue().trim();
-    if (prompt.length === 0 && !comfyUiMode) {
+    const rawPrompt = currentPromptValue().trim();
+    if (rawPrompt.length === 0 && promptTemplateNeedsInput(currentTemplate)) {
+      show(t.main.readinessEnterPrompt, 'info', { key: 'prompt-template-input-required' });
       return;
     }
+    const assembled = assemblePromptTemplate(currentTemplate, rawPrompt);
+    const prompt = assembled.userPrompt.trim();
     if (/^\/new\b$/i.test(prompt)) {
       conversation.clear();
       show(t.toast.newSessionStarted, 'info', { key: 'session-new' });
       return;
     }
-    await workspace.send(prompt);
+    if (comfyUiMode && workspace.viewModel.notices.some((notice) => notice.includes('不使用当前提示词'))) {
+      show(t.main.comfyUiPromptUnused, 'info', { key: 'comfyui-prompt-unused' });
+    }
+    await workspace.send(prompt, assembled.systemPrompt);
   };
 
   const placeAsset = async (round: ConversationRound, previewIndex = 0) => {
@@ -1945,18 +1959,17 @@ export function MainPage({
             <div className="cmp-action-row" data-testid="composer-action-row">
               <div className="cmp-action-left">
                 <MotionButtonSurface>
-                  <IconButton
-                    data-testid="composer-prompt-optimize-button"
-                    className="cmp-opt-icon-button"
-                    quiet
-                    icon={<Icon name="magic-wand" size={13} className="cmp-opt-icon" />}
-                    tooltip={t.main.promptOptimizePlaceholder}
-                    placement="top"
-                    iconSize={13}
-                    disabled
-                    onClick={(event) => {
-                      event.stopPropagation();
-                    }}
+                  <ComposerSelect
+                    testId="composer-prompt-template-selector"
+                    triggerId="composer-prompt-template-trigger"
+                    triggerKind="text"
+                    label={t.settings.promptTemplates}
+                    value={currentTemplate.name}
+                    selectedId={currentTemplate.id}
+                    open={promptTemplateMenuOpen}
+                    onOpenChange={setPromptTemplateMenuOpen}
+                    options={promptSettings.templates.map((template) => ({ id: template.id, label: template.name }))}
+                    onSelect={onSelectPromptTemplate}
                   />
                 </MotionButtonSurface>
                 <MotionButtonSurface>

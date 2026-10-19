@@ -111,6 +111,7 @@ export interface AppMessages {
     readonly outputSizeUnsupportedForModel: string;
     readonly outputSizeAutoChanged: (from: string, to: string) => string;
     readonly promptOptimizePlaceholder: string;
+    readonly comfyUiPromptUnused: string;
     readonly layerKindSmartObject: string;
     readonly layerKindPixel: string;
     readonly layerKindText: string;
@@ -246,29 +247,19 @@ export interface AppMessages {
     readonly connectionFailed: string;
     readonly globalGeneration: string;
     readonly promptSettings: string;
-    readonly promptOptimization: string;
     readonly promptSettingsSummary: string;
-    readonly optimizerProvider: string;
-    readonly none: string;
-    readonly optimizationTemplate: string;
-    readonly templatePlaceholder: string;
-    readonly templateInputHint: string;
-    readonly optimizationNoProvider: string;
-    readonly optimizationInvalidTemplate: string;
-    readonly optimizationMissingProvider: string;
-    readonly promptPresets: string;
-    readonly promptPresetsLoading: string;
-    readonly promptPresetsEmpty: string;
-    readonly addPreset: string;
-    readonly editPreset: string;
-    readonly presetName: string;
-    readonly presetMode: string;
-    readonly presetModePrepend: string;
-    readonly presetModeAppend: string;
-    readonly presetModeReplace: string;
-    readonly presetContent: string;
-    readonly presetContentValid: string;
-    readonly presetReplaceInvalid: string;
+    readonly promptTemplates: string;
+    readonly addPromptTemplate: string;
+    readonly editPromptTemplate: string;
+    readonly systemPrompt: string;
+    readonly systemPromptHint: string;
+    readonly userPromptTemplate: string;
+    readonly userPromptTemplateHint: string;
+    readonly templateRequiresInput: string;
+    readonly templateStandalone: string;
+    readonly lastPromptTemplate: string;
+    readonly promptTemplatesLoading: string;
+    readonly templateName: string;
     readonly outputGroup: string;
     readonly inputGroup: string;
     readonly outputSize: string;
@@ -416,6 +407,7 @@ const EN_MESSAGES: AppMessages = {
     outputSizeUnsupportedForModel: 'Unavailable for this model',
     outputSizeAutoChanged: (from, to) => `${from} is unavailable; switched to ${to}`,
     promptOptimizePlaceholder: 'Not available yet',
+    comfyUiPromptUnused: 'This Workflow does not use the current prompt.',
     layerKindSmartObject: 'Smart Object',
     layerKindPixel: 'Pixel',
     layerKindText: 'Text',
@@ -562,29 +554,13 @@ const EN_MESSAGES: AppMessages = {
     connectionFailed: 'Connection failed',
     globalGeneration: 'Generation settings',
     promptSettings: 'Prompt Settings',
-    promptOptimization: 'Prompt Optimization',
-    promptSettingsSummary: 'Templates and presets',
-    optimizerProvider: 'Profile',
-    none: 'None',
-    optimizationTemplate: 'Template',
-    templatePlaceholder: 'Write instructions and include {prompt}',
-    templateInputHint: 'Instructions + {prompt} placeholder',
-    optimizationNoProvider: 'Select a profile to enable.',
-    optimizationInvalidTemplate: 'Fix the placeholder.',
-    optimizationMissingProvider: 'Saved profile is missing.',
-    promptPresets: 'Prompt Presets',
-    promptPresetsLoading: 'Loading presets...',
-    promptPresetsEmpty: 'No prompt presets yet.',
-    addPreset: 'Add preset',
-    editPreset: 'Edit preset',
-    presetName: 'Name',
-    presetMode: 'Mode',
-    presetModePrepend: 'Prepend',
-    presetModeAppend: 'Append',
-    presetModeReplace: 'Replace',
-    presetContent: 'Content',
-    presetContentValid: 'Content valid ( •̀ ω •́ )✧',
-    presetReplaceInvalid: 'Replace mode needs exactly one {prompt}.',
+    promptSettingsSummary: 'Prompt templates',
+    promptTemplates: 'Prompt Templates', addPromptTemplate: 'Add template', editPromptTemplate: 'Edit template',
+    systemPrompt: 'System prompt', systemPromptHint: 'Optional. {prompt} is not supported here.',
+    userPromptTemplate: 'User prompt template', userPromptTemplateHint: 'Required. Use {prompt} once to include Composer text; omit it for a standalone prompt.',
+    templateRequiresInput: 'Requires input', templateStandalone: 'Standalone', lastPromptTemplate: 'Keep at least one prompt template.',
+    promptTemplatesLoading: 'Loading templates...',
+    templateName: 'Name',
     outputGroup: 'Parameters',
     inputGroup: 'Input',
     outputSize: 'Output size',
@@ -732,6 +708,7 @@ const ZH_CN_MESSAGES: AppMessages = {
     outputSizeUnsupportedForModel: '不支持此尺寸',
     outputSizeAutoChanged: (from, to) => `${from} 不可用，已切换为 ${to}`,
     promptOptimizePlaceholder: '暂未开放',
+    comfyUiPromptUnused: '当前 Workflow 不使用提示词。',
     layerKindSmartObject: '智能对象',
     layerKindPixel: '像素图层',
     layerKindText: '文字图层',
@@ -878,29 +855,13 @@ const ZH_CN_MESSAGES: AppMessages = {
     connectionFailed: '连接失败',
     globalGeneration: '生成设置',
     promptSettings: '提示词设置',
-    promptOptimization: '提示词优化',
-    promptSettingsSummary: '模板与预设',
-    optimizerProvider: 'Provider 配置',
-    none: '无',
-    optimizationTemplate: '模板',
-    templatePlaceholder: '输入提示词，并保留 {prompt} 占位符',
-    templateInputHint: '提示词 + {prompt} 占位符',
-    optimizationNoProvider: '选择 Provider 配置后启用。',
-    optimizationInvalidTemplate: '请修正占位符。',
-    optimizationMissingProvider: '已保存配置不存在。',
-    promptPresets: '提示词预设',
-    promptPresetsLoading: '正在加载预设...',
-    promptPresetsEmpty: '暂无提示词预设。',
-    addPreset: '添加预设',
-    editPreset: '编辑预设',
-    presetName: '名称',
-    presetMode: '模式',
-    presetModePrepend: '前置',
-    presetModeAppend: '后置',
-    presetModeReplace: '替换',
-    presetContent: '内容',
-    presetContentValid: '内容有效 ( •̀ ω •́ )✧',
-    presetReplaceInvalid: '替换模式仅需一个 {prompt}。',
+    promptSettingsSummary: '提示词模板',
+    promptTemplates: '提示词模板', addPromptTemplate: '添加模板', editPromptTemplate: '编辑模板',
+    systemPrompt: '系统提示词', systemPromptHint: '可留空；此处不支持 {prompt}。',
+    userPromptTemplate: '用户提示词模板', userPromptTemplateHint: '必填。使用一次 {prompt} 插入输入框内容；不使用则可直接发送。',
+    templateRequiresInput: '需要输入', templateStandalone: '独立提示词', lastPromptTemplate: '至少保留一个提示词模板。',
+    promptTemplatesLoading: '正在加载模板...',
+    templateName: '名称',
     outputGroup: '参数配置',
     inputGroup: '输入',
     outputSize: '输出尺寸',

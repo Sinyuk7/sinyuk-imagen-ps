@@ -270,7 +270,8 @@ function canonicalRequest(args: {
   readonly output: ProviderOutputOptions;
 }): ProviderRequest {
   const { prepared } = args;
-  assertNonEmptyString(prepared.prompt, 'Provider request.prompt');
+  const userPrompt = typeof prepared.userPrompt === 'string' ? prepared.userPrompt : prepared.prompt;
+  assertNonEmptyString(userPrompt, 'Provider request.userPrompt');
   if (prepared.output !== undefined && !isRecord(prepared.output)) {
     throw createValidationError('Provider request.output must be a record.');
   }
@@ -286,7 +287,9 @@ function canonicalRequest(args: {
   const admitsMask = maskExecutionPlan.kind === 'provider-native';
   return {
     operation: args.operation,
-    prompt: prepared.prompt,
+    prompt: userPrompt,
+    userPrompt,
+    ...(typeof prepared.systemPrompt === 'string' ? { systemPrompt: prepared.systemPrompt } : {}),
     ...(prepared.providerId === 'grsai' || prepared.providerId === 'runninghub' ? { providerId: prepared.providerId } : {}),
     ...(typeof prepared.modelId === 'string' ? { modelId: prepared.modelId } : {}),
     ...(isRecord(prepared.parameters) && Object.values(prepared.parameters).every((value) => typeof value === 'string')
@@ -461,7 +464,8 @@ export function createProviderGenerationBackend(
       const modelId = typeof prepared.modelId === 'string' && prepared.modelId.trim() ? prepared.modelId.trim() : explicitConfigModelId(prepared, payload.runningTask);
       if (!modelId) throw createValidationError('Fixed provider admission requires modelId.');
       if (!dependencies.fixedProviderResolver) throw createValidationError('Fixed provider resolver is unavailable.');
-      const fixedResolved = await dependencies.fixedProviderResolver.resolveGeneration({ providerId: payload.providerId, modelId, operation: payload.operation, prompt: String(prepared.prompt ?? ''), ...(Array.isArray(prepared.images) ? { images: prepared.images as FixedGenerationRequest['images'] } : {}), ...(prepared.maskImage ? { maskImage: prepared.maskImage as FixedGenerationRequest['maskImage'] } : {}), parameters: isRecord(prepared.parameters) && Object.values(prepared.parameters).every((value) => typeof value === 'string') ? prepared.parameters as Readonly<Record<string, string>> : {} });
+      const fixedUserPrompt = String(prepared.userPrompt ?? prepared.prompt ?? '');
+      const fixedResolved = await dependencies.fixedProviderResolver.resolveGeneration({ providerId: payload.providerId, modelId, operation: payload.operation, prompt: fixedUserPrompt, userPrompt: fixedUserPrompt, ...(typeof prepared.systemPrompt === 'string' ? { systemPrompt: prepared.systemPrompt } : {}), ...(Array.isArray(prepared.images) ? { images: prepared.images as FixedGenerationRequest['images'] } : {}), ...(prepared.maskImage ? { maskImage: prepared.maskImage as FixedGenerationRequest['maskImage'] } : {}), parameters: isRecord(prepared.parameters) && Object.values(prepared.parameters).every((value) => typeof value === 'string') ? prepared.parameters as Readonly<Record<string, string>> : {} });
       prepared = { ...prepared, providerId: payload.providerId, modelId: fixedResolved.request.modelId, parameters: fixedResolved.request.parameters };
       const providerId: ProviderId = payload.providerId;
       const request = canonicalRequest({ operation: payload.operation, prepared, modelId: fixedResolved.request.modelId, providerId, output: {} });

@@ -62,6 +62,7 @@ export interface ConversationRound {
   readonly time: string;
   readonly createdAt?: string;
   readonly prompt: string;
+  readonly systemPrompt?: string;
   readonly status: RoundStatus;
   readonly providerName: string;
   readonly backendId?: 'provider' | 'comfyui';
@@ -90,6 +91,7 @@ export interface ConversationRound {
 interface SubmitConversationInputBase {
   readonly operation: 'image-edit' | 'text-to-image';
   readonly prompt: string;
+  readonly systemPrompt?: string;
   readonly providerName: string;
   readonly attachments?: readonly ConversationAttachment[];
   readonly editRegion?: EditRegion;
@@ -656,13 +658,13 @@ export function useConversation(
           time: nowTime(),
           createdAt,
           prompt,
+          ...(input.systemPrompt !== undefined ? { systemPrompt: input.systemPrompt } : {}),
           status: 'queued',
           queueState: 'queued',
           queuePosition: sessionBinding.snapshot.queuedTasks.length + 1,
           removable: true,
           providerName: input.providerName,
           backendId: input.backendId ?? 'provider',
-          ...(providerInput?.providerId ? { providerId: providerInput.providerId } : {}),
           ...(providerInput?.providerId ? { providerId: providerInput.providerId } : {}),
           ...(providerInput ? { providerId: providerInput.providerId } : {}),
           ...(providerInput?.modelId ? { modelId: providerInput.modelId } : {}),
@@ -688,6 +690,7 @@ export function useConversation(
               taskId: roundId,
               operation: input.operation,
               prompt,
+              ...(input.systemPrompt !== undefined ? { systemPrompt: input.systemPrompt } : {}),
               attachments,
               ...(input.editRegion ? { editRegion: input.editRegion } : {}),
               placementIntent,
@@ -731,6 +734,7 @@ export function useConversation(
             taskId: roundId,
             operation: input.operation,
             prompt,
+            ...(input.systemPrompt !== undefined ? { systemPrompt: input.systemPrompt } : {}),
             attachments,
             ...(input.editRegion ? { editRegion: input.editRegion } : {}),
             placementIntent,
@@ -765,6 +769,8 @@ export function useConversation(
             : undefined;
           const request = {
             prompt,
+            userPrompt: prompt,
+            ...(input.systemPrompt !== undefined ? { systemPrompt: input.systemPrompt } : {}),
             ...(providerInput.providerId ? { providerId: providerInput.providerId } : {}),
             ...(providerInput.modelId ? { modelId: providerInput.modelId } : {}),
             ...(providerInput.parameters ? { parameters: providerInput.parameters } : {}),
@@ -828,6 +834,7 @@ export function useConversation(
             backendId: 'comfyui',
             operation: round.attachments.length > 0 ? 'image-edit' : 'text-to-image',
             prompt: round.prompt,
+            ...(round.systemPrompt !== undefined ? { systemPrompt: round.systemPrompt } : {}),
             providerName: 'ComfyUI',
             selectedWorkflowId: identity.workflowId,
             workflowName: identity.displayName,
@@ -840,6 +847,7 @@ export function useConversation(
           await submit({
             operation: round.attachments.length > 0 ? 'image-edit' : 'text-to-image',
             prompt: round.prompt,
+            ...(round.systemPrompt !== undefined ? { systemPrompt: round.systemPrompt } : {}),
             providerId: round.providerId,
             providerName: round.providerName,
             ...(round.modelId ? { modelId: round.modelId } : {}),

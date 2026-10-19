@@ -1,21 +1,13 @@
-export type PromptPresetMode = 'prepend' | 'append' | 'replace';
-
-export interface PromptPreset {
+export interface PromptTemplate {
   readonly id: string;
   readonly name: string;
-  readonly mode: PromptPresetMode;
-  readonly content: string;
+  readonly systemPrompt: string;
+  readonly userPrompt: string;
 }
 
 export interface PromptSettings {
-  readonly optimization: {
-    readonly providerId: string | null;
-    readonly template: string;
-  };
-  readonly presets: {
-    readonly selectedId: string | null;
-    readonly items: readonly PromptPreset[];
-  };
+  readonly selectedTemplateId: string;
+  readonly templates: readonly PromptTemplate[];
 }
 
 export interface PromptSettingsStore {
@@ -23,93 +15,62 @@ export interface PromptSettingsStore {
   save(settings: PromptSettings): Promise<void>;
 }
 
-export const DEFAULT_PROMPT_OPTIMIZATION_TEMPLATE = 'Improve this image prompt while preserving the user intent:\n\n{prompt}';
+export const DEFAULT_PROMPT_TEMPLATES: readonly PromptTemplate[] = [{
+  id: 'template-default',
+  name: 'Default',
+  systemPrompt: '',
+  userPrompt: 'Improve this image prompt while preserving the user intent:\n\n{prompt}',
+}];
 
-export const DEFAULT_CINEMATIC_PROMPT_PRESET: PromptPreset = {
-  id: 'preset-cinematic',
-  name: 'Cinematic',
-  mode: 'append',
-  content: 'cinematic lighting, rich detail, cohesive composition',
-};
-
-export const DEFAULT_PROMPT_SETTINGS = {
-  optimization: {
-    providerId: null,
-    template: DEFAULT_PROMPT_OPTIMIZATION_TEMPLATE,
-  },
-  presets: {
-    selectedId: null,
-    items: [DEFAULT_CINEMATIC_PROMPT_PRESET],
-  },
-} as const satisfies PromptSettings;
-
-const PROMPT_PRESET_MODES = new Set<PromptPresetMode>(['prepend', 'append', 'replace']);
-
-function objectValue(input: unknown): Record<string, unknown> {
-  return typeof input === 'object' && input !== null && !Array.isArray(input)
-    ? input as Record<string, unknown>
-    : {};
-}
-
-function stringOrDefault(value: unknown, fallback: string): string {
-  return typeof value === 'string' ? value : fallback;
-}
-
-function nullableString(value: unknown): string | null {
-  return typeof value === 'string' && value.length > 0 ? value : null;
-}
-
-function normalizePreset(input: unknown, index: number): PromptPreset {
-  const value = objectValue(input);
-  const mode = PROMPT_PRESET_MODES.has(value.mode as PromptPresetMode)
-    ? value.mode as PromptPresetMode
-    : 'append';
+export function assemblePromptTemplate(template: PromptTemplate, input: string): {
+  readonly systemPrompt: string;
+  readonly userPrompt: string;
+} {
   return {
-    id: stringOrDefault(value.id, `preset-${index + 1}`),
-    name: stringOrDefault(value.name, ''),
-    mode,
-    content: stringOrDefault(value.content, ''),
+    systemPrompt: template.systemPrompt,
+    userPrompt: template.userPrompt.replace('{prompt}', input),
   };
 }
 
+export function promptTemplateNeedsInput(template: PromptTemplate): boolean {
+  return template.userPrompt.includes('{prompt}');
+}
+
+export function isPromptTemplateValid(template: PromptTemplate): boolean {
+  return template.name.trim().length > 0
+    && template.userPrompt.trim().length > 0
+    && (template.userPrompt.match(/\{prompt\}/g)?.length ?? 0) <= 1
+    && !template.systemPrompt.includes('{prompt}');
+}
+
 export function normalizePromptSettings(input: unknown): PromptSettings {
-  const value = objectValue(input);
-  const optimization = objectValue(value.optimization);
-  const presets = objectValue(value.presets);
-  const items = Array.isArray(presets.items)
-    ? presets.items.map(normalizePreset)
-    : [];
-  const selectedId = nullableString(presets.selectedId);
+  const value = typeof input === 'object' && input !== null ? input as Record<string, unknown> : {};
+  const templates = Array.isArray(value.templates) ? value.templates.flatMap((item, index) => {
+    if (!item || typeof item !== 'object') return [];
+    const row = item as Record<string, unknown>;
+    return [{
+      id: typeof row.id === 'string' ? row.id : `template-${index + 1}`,
+      name: typeof row.name === 'string' ? row.name : '',
+      systemPrompt: typeof row.systemPrompt === 'string' ? row.systemPrompt : '',
+      userPrompt: typeof row.userPrompt === 'string' ? row.userPrompt : '',
+    }];
+  }) : [];
+  const safeTemplates = templates.length ? templates : DEFAULT_PROMPT_TEMPLATES.map((item) => ({ ...item }));
+  const requestedId = typeof value.selectedTemplateId === 'string' ? value.selectedTemplateId : '';
   return {
-    optimization: {
-      providerId: nullableString(optimization.providerId),
-      template: stringOrDefault(optimization.template, DEFAULT_PROMPT_SETTINGS.optimization.template),
-    },
-    presets: {
-      selectedId: selectedId && items.some((item) => item.id === selectedId) ? selectedId : null,
-      items,
-    },
+    selectedTemplateId: safeTemplates.some((item) => item.id === requestedId) ? requestedId : safeTemplates[0]!.id,
+    templates: safeTemplates,
   };
 }
 
 export function createDefaultPromptSettings(): PromptSettings {
-  return {
-    optimization: { ...DEFAULT_PROMPT_SETTINGS.optimization },
-    presets: {
-      selectedId: DEFAULT_PROMPT_SETTINGS.presets.selectedId,
-      items: DEFAULT_PROMPT_SETTINGS.presets.items.map((item) => ({ ...item })),
-    },
-  };
+  return normalizePromptSettings({ templates: DEFAULT_PROMPT_TEMPLATES, selectedTemplateId: DEFAULT_PROMPT_TEMPLATES[0]!.id });
 }
 
 export function createMemoryPromptSettingsStore(initial?: PromptSettings | null): PromptSettingsStore {
-  let current = initial === undefined ? null : initial === null ? null : normalizePromptSettings(initial);
+  let current = initial == null ? null : normalizePromptSettings(initial);
   return {
-    async load(): Promise<PromptSettings | null> {
-      return current === null ? null : normalizePromptSettings(current);
-    },
-    async save(settings): Promise<void> {
-      current = normalizePromptSettings(settings);
-    },
+    async load() { return current === null ? null : normalizePromptSettings(current); },
+    async save(settings) { current = normalizePromptSettings(settings); },
   };
 }

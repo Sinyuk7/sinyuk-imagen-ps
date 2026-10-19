@@ -24,6 +24,8 @@ import type { UiModelInfo } from '../model-info';
 import { getProviderCatalog } from '@imagen-ps/application';
 import type { CommandsPort } from '../../ports/commands-port';
 import type { GenerationSettingsState } from './use-generation-settings';
+import type { PromptSettings } from '../../ports/prompt-settings';
+import { assemblePromptTemplate, promptTemplateNeedsInput } from '../../ports/prompt-settings';
 import {
   deriveComposerReadiness,
   modelSupportsImageInput,
@@ -43,6 +45,7 @@ export interface GenerationWorkspaceOptions {
   readonly selectedModelId: string;
   readonly selectModel: (modelId: string) => void;
   readonly generationSettings: GenerationSettingsState;
+  readonly promptSettings: PromptSettings;
   readonly commands: CommandsPort;
 }
 
@@ -126,6 +129,9 @@ export function useGenerationWorkspace(options: GenerationWorkspaceOptions): Gen
   }
   const maskCoordinator = maskCoordinatorRef.current;
   const { input, attachments, operation } = composerDraft;
+  const promptTemplate = options.promptSettings.templates.find((item) => item.id === options.promptSettings.selectedTemplateId) ?? options.promptSettings.templates[0]!;
+  const assembledPrompt = assemblePromptTemplate(promptTemplate, input);
+  const readinessPrompt = promptTemplateNeedsInput(promptTemplate) ? input : assembledPrompt.userPrompt;
   const selectedModel = options.models.find((model) => model.id === options.selectedModelId);
   const photoshopPrimary = attachments[0]?.photoshopPlacement !== undefined;
   const providerMaskPlan = selectedModel
@@ -177,7 +183,7 @@ export function useGenerationWorkspace(options: GenerationWorkspaceOptions): Gen
     // Provider catalog 参数和返回图片实际尺寸取代旧 output matrix 作为生成准入条件。
     hasOutputMatrix: true,
     placementIntent,
-    prompt: input,
+    prompt: readinessPrompt,
   });
   const providerReadinessProjection: GenerationReadinessProjection = {
     canSend: providerReadiness.canSend && !maskBlocksSubmit,
@@ -203,7 +209,7 @@ export function useGenerationWorkspace(options: GenerationWorkspaceOptions): Gen
     });
   }, [catalogParameters, fixedProviderId, options.commands, selectedModel?.id]);
   const comfyReady = Boolean(options.comfyUi.runtime) && !attachmentPreparing && !maskBlocksSubmit;
-  const comfyMapping = mappingForComposer(options.comfyUi.mappingProjection, attachments, input);
+  const comfyMapping = mappingForComposer(options.comfyUi.mappingProjection, attachments, assembledPrompt.userPrompt);
   const viewModel = generationMode === 'provider'
     ? buildProviderComposerViewModel({
         providerId: options.providerId,
@@ -224,7 +230,7 @@ export function useGenerationWorkspace(options: GenerationWorkspaceOptions): Gen
         ...(options.comfyUi.runtime ? { runtime: options.comfyUi.runtime } : {}),
         ...(comfyMapping ? { mapping: comfyMapping } : {}),
         draftValues: options.comfyUi.draftValues,
-        prompt: input,
+        prompt: assembledPrompt.userPrompt,
         attachmentCount: attachments.length,
         readiness: comfyReadiness(t, comfyReady, Boolean(options.comfyUi.runtime)),
       });
@@ -239,7 +245,7 @@ export function useGenerationWorkspace(options: GenerationWorkspaceOptions): Gen
   const retryMask = useCallback(() => {
     void maskCoordinator.reconcile(maskAttachments, effectiveMaskPreference);
   }, [effectiveMaskPreference, maskAttachments, maskCoordinator]);
-  const send = useCallback(async (prompt: string): Promise<boolean> => {
+  const send = useCallback(async (prompt: string, systemPrompt = ''): Promise<boolean> => {
     const intent = viewModel.submitIntent;
     if (!intent || !viewModel.readiness.canSend || maskBlocksSubmit) return false;
     const editRegion = maskState.kind === 'ready' && (intent.backend !== 'provider' || providerMaskSupported)
@@ -249,6 +255,7 @@ export function useGenerationWorkspace(options: GenerationWorkspaceOptions): Gen
       return options.conversation.submit({
         operation: intent.operation,
         prompt,
+        systemPrompt,
         providerName: intent.providerName,
         providerId: intent.providerId,
         ...(intent.modelId ? { modelId: intent.modelId } : {}),
@@ -268,6 +275,7 @@ export function useGenerationWorkspace(options: GenerationWorkspaceOptions): Gen
       backendId: 'comfyui',
       operation: attachments.length > 0 ? 'image-edit' : 'text-to-image',
       prompt,
+      systemPrompt,
       providerName: 'ComfyUI',
       selectedWorkflowId: intent.selectedWorkflowId,
       workflowName: workflow.identity.displayName,

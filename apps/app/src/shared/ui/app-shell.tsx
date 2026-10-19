@@ -16,7 +16,7 @@ import { HistoryPage } from './pages/history-page';
 import { SettingsPage } from './pages/settings-page';
 import { GlobalGenerationSettingsPage } from './pages/global-generation-settings-page';
 import { PromptSettingsPage } from './pages/prompt-settings-page';
-import { PromptPresetDetailPage } from './pages/prompt-preset-detail-page';
+import { PromptTemplateDetailPage } from './pages/prompt-template-detail-page';
 import { ProviderAccountSettingsPage } from './pages/provider-account-settings-page';
 import { ToastHost, ToastProvider } from './components/toast-host';
 import { PopupLayerProvider, PopupLayerRoot } from './components/popup-layer';
@@ -49,7 +49,7 @@ type View =
   | 'provider-account'
   | 'global-generation-settings'
   | 'prompt-settings'
-  | 'prompt-preset-detail';
+  | 'prompt-template-detail';
 type AppTheme = 'dark' | 'light';
 type AppThemeOverride = AppTheme | undefined;
 type PanelWidthMode = 'compact' | 'regular' | 'wide';
@@ -64,13 +64,13 @@ function viewForSettingsRoute(route: SettingsRoute): View {
     case 'global-settings': return 'global-generation-settings';
     case 'provider-account': return 'provider-account';
     case 'prompt-settings': return 'prompt-settings';
-    case 'prompt-preset-detail': return 'prompt-preset-detail';
+    case 'prompt-template-detail': return 'prompt-template-detail';
   }
 }
 
 function rootTabForSettingsRoute(route: SettingsRoute): SettingsTab {
   if (route.kind === 'provider-account') return 'provider';
-  if (route.kind === 'global-settings' || route.kind === 'prompt-settings' || route.kind === 'prompt-preset-detail') return 'general';
+  if (route.kind === 'global-settings' || route.kind === 'prompt-settings' || route.kind === 'prompt-template-detail') return 'general';
   return route.tab;
 }
 
@@ -264,6 +264,7 @@ function AppShellContent({ host }: AppShellProps) {
     selectedModelId,
     selectModel: setSelectedModelId,
     generationSettings,
+    promptSettings: promptSettings.settings,
     commands: services.commands,
   });
   const [settingsRoute, setSettingsRoute] = useState<SettingsRoute>({ kind: 'root', tab: 'provider' });
@@ -413,6 +414,8 @@ function AppShellContent({ host }: AppShellProps) {
           layersLoading={layersLoading}
           reloadLayers={reloadLayers}
           conversation={conversation}
+          promptSettings={promptSettings.settings}
+          onSelectPromptTemplate={(templateId) => void promptSettings.save({ ...promptSettings.settings, selectedTemplateId: templateId })}
           highlightedRoundId={highlightedRoundId}
           restoreFailedRoundId={restoreFailedRoundId}
           onFailedRoundRestored={(roundId) => {
@@ -487,30 +490,24 @@ function AppShellContent({ host }: AppShellProps) {
           <PromptSettingsPage
           onNav={onNav}
           settings={promptSettings.settings}
-          providers={promptSettings.providers}
           loading={promptSettings.loading}
           error={promptSettings.error}
           saveState={promptSettings.saveState}
-          templateValid={promptSettings.templateValid}
-          activationState={promptSettings.activationState}
-          presetViews={promptSettings.presetViews}
-          onSave={promptSettings.save}
-          onSelectPreset={promptSettings.selectPreset}
-          onDeletePreset={promptSettings.deletePreset}
-          onOpenPreset={(presetId) => {
-            openSettingsRoute({ kind: 'prompt-preset-detail', presetId });
+          onDeleteTemplate={promptSettings.deleteTemplate}
+          onOpenTemplate={(templateId) => {
+            openSettingsRoute({ kind: 'prompt-template-detail', templateId });
           }}
           />
         </MotionPageFrame>
       )}
-      {view === 'prompt-preset-detail' && settingsRoute.kind === 'prompt-preset-detail' && (
+      {view === 'prompt-template-detail' && settingsRoute.kind === 'prompt-template-detail' && (
         <MotionPageFrame watch={view}>
-          <PromptPresetDetailPage
+          <PromptTemplateDetailPage
           onNav={onNav}
-          preset={settingsRoute.presetId
-            ? promptSettings.settings.presets.items.find((preset) => preset.id === settingsRoute.presetId) ?? null
+          template={settingsRoute.templateId
+            ? promptSettings.settings.templates.find((template) => template.id === settingsRoute.templateId) ?? null
             : null}
-          onSave={promptSettings.upsertPreset}
+          onSave={promptSettings.upsertTemplate}
           />
         </MotionPageFrame>
       )}

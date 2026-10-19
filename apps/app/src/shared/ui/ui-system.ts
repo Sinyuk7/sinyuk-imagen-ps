@@ -8,6 +8,8 @@ export { IconButton } from './primitives/icon-button';
 export { Icon } from './components/icons';
 /** 页面可用的文本选择器。 */
 export { TextSelect } from './components/text-select';
+/** Composer 行内选择器。 */
+export { ComposerSelect } from './components/composer-select';
 /** 页面可用的图标选择器。 */
 export { IconSelect } from './components/icon-select';
 /** 页面可用的状态提示。 */

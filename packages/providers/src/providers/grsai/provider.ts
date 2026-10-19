@@ -8,6 +8,7 @@ import type { CanonicalImageJobRequest } from '../../contract/request.js';
 import { httpRequest } from '../../shared/transport/http.js';
 import { executeBillingProtocolChain } from '../../transport/billing/protocol-registry.js';
 import { canonicalImageRequestSchema } from '../../contract/request-schema.js';
+import { promptForWire } from '../../fixed-provider-adapters.js';
 import { grsaiConfigSchema, type GrsaiProviderConfig } from './config-schema.js';
 import { grsaiDescriptor } from './descriptor.js';
 
@@ -65,7 +66,11 @@ function safeResultAssets(data: unknown): readonly Asset[] {
 function requestBody(request: CanonicalImageJobRequest) {
   const modelId = request.modelId?.trim();
   if (!modelId) throw new Error('GRSAI modelId is required.');
-  const prompt = request.prompt.trim();
+  const prompt = promptForWire({
+    prompt: request.prompt,
+    ...(request.userPrompt !== undefined ? { userPrompt: request.userPrompt } : {}),
+    ...(request.systemPrompt !== undefined ? { systemPrompt: request.systemPrompt } : {}),
+  }).trim();
   if (!prompt) throw new Error('GRSAI prompt must not be empty.');
   const output = resolveCatalogProviderOutput({
     providerId: 'grsai', modelId: modelId,

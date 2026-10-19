@@ -28,6 +28,8 @@ interface CreateRunningTaskRecordInput {
   readonly taskId: string;
   readonly operation: TaskRecord['operation'];
   readonly prompt: string;
+  readonly systemPrompt?: string;
+  readonly userPrompt?: string;
   readonly attachments: readonly TaskSnapshotAttachmentInput[];
   readonly editRegion?: EditRegion;
   readonly placementIntent: PlacementIntent;
@@ -233,6 +235,8 @@ export function createRunningTaskRecord(input: CreateRunningTaskRecordInput): Ta
     status: 'running',
     operation: input.operation,
     prompt: input.prompt,
+    ...(input.systemPrompt !== undefined ? { systemPrompt: input.systemPrompt } : {}),
+    userPrompt: input.userPrompt ?? input.prompt,
     attachments: input.attachments.map(taskAttachmentFromConversation),
     outputs: [],
     ...(input.editRegion !== undefined ? { editRegion: taskEditRegionFromReadyEditRegion(input.editRegion) } : {}),

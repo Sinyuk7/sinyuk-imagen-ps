@@ -211,15 +211,10 @@ surface apps -> application/session -> core-engine + providers + execution backe
   footers, toolbars, heading rows, action rows, or list rows. Host slots own
   outer spacing; `StatusNotice` itself must stay marginless so one primitive
   can serve multiple placements without stacked margin rules.
-- App settings/list surfaces currently allow only two row patterns. Use
-  `SettingsListRow` for single-action navigation rows with row-level click and
-  no redundant secondary edit button; use `prompt-preset-row` for selectable
-  management rows that combine selection state with auxiliary edit/delete
-  actions. Keep summaries in `SettingsListRow` as one secondary sans line, and
-  drive `prompt-preset-row` selection from one shared `isSelected` state across
-  indicator, fill, radio, and ARIA. Do not introduce a third list-row visual
-  system in `apps/app` unless the existing two patterns cannot express the
-  product need.
+- App settings/list surfaces use shared row primitives. Use `SettingsListRow`
+  for single-action navigation rows and `prompt-template-row` for template
+  management rows that combine selection with edit/delete actions. Keep
+  selection state consistent across the row indicator, fill, radio, and ARIA.
 - Provider Settings exposes dedicated GRSAI and RunningHub account pages built on
   a shared API-key/base-URL form. Saving updates that provider's single account
   record. Endpoint/path/auth/protocol/model configuration stays inside the

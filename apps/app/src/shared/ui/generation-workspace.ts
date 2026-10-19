@@ -222,7 +222,7 @@ export interface GenerationWorkspaceController {
   readonly maskToggleDisabled: boolean;
   readonly setMaskEnabled: (enabled: boolean) => void;
   readonly retryMask: () => void;
-  readonly send: (prompt: string) => Promise<boolean>;
+  readonly send: (prompt: string, systemPrompt?: string) => Promise<boolean>;
   readonly selectProvider: (providerId: FixedProviderId) => void;
   readonly selectModel: (modelId: string) => void;
   readonly catalogParameterValues: Readonly<Record<string, string>>;
