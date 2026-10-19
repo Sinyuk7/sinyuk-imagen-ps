@@ -56,7 +56,6 @@ export function ProviderIdentity({
           <span className="prov-name-lbl">{providerName}</span>
           {modelLabel ? (
             <span className="prov-model-lbl">
-              <span className="prov-model-sep">/ </span>
               {modelLabel}
             </span>
           ) : null}

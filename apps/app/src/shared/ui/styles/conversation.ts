@@ -227,7 +227,7 @@ export const CONVERSATION_CSS = `
 }
 .prov-identity-overlay{ align-items:center; justify-content:center; }
 .prov-identity-icon-shell{
-  width:18px; height:18px; min-width:18px; border-radius:50%;
+  width:18px; height:18px; min-width:18px; min-height:18px; flex:0 0 18px; border-radius:9px;
   background:var(--app-color-accent-default); color:var(--app-color-text-on-accent);
   display:flex; align-items:center; justify-content:center;
 }
@@ -259,12 +259,12 @@ export const CONVERSATION_CSS = `
   margin-top:0; margin-right:0; margin-bottom:0; margin-left:0;
   color:var(--app-color-text-primary); font-family:var(--app-font-family-base);
 }
-.prov-name-wrap{ display:flex; align-items:flex-start; flex-wrap:wrap; min-width:0; max-width:100%; line-height:18px; }
+.prov-name-wrap{ display:block; min-width:0; max-width:100%; line-height:18px; }
 .prov-name-lbl{ font-family:var(--app-font-family-base); font-size:12px; font-weight:300; color:var(--app-color-text-primary); letter-spacing:0; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.prov-model-lbl{ margin-top:0; margin-right:0; margin-bottom:0; margin-left:5px; font-family:var(--app-font-family-mono); font-size:10px; font-weight:300; color:var(--app-color-text-muted); letter-spacing:0; min-width:0; overflow-wrap:anywhere; }
+.prov-model-lbl{ display:block; margin-top:0; margin-right:0; margin-bottom:0; margin-left:0; font-family:var(--app-font-family-mono); font-size:10px; font-weight:300; color:var(--app-color-text-muted); letter-spacing:0; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .prov-model-sep{ white-space:pre; }
 .prov-status{ display:flex; align-items:center; min-width:0; flex:0 0 auto; margin-top:0; margin-right:0; margin-bottom:0; margin-left:auto; padding-left:12px; font-family:var(--app-font-family-mono); font-size:10px; font-weight:500; }
-.sdot{ width:5px; height:5px; border-radius:50%; }
+.sdot{ width:6px; height:6px; min-width:6px; min-height:6px; flex:0 0 6px; display:block; border-radius:3px; }
 .prov-status .sdot{ margin-right:4px; }
 .sdot.ok{ background:var(--app-color-positive); }
 .sdot.run{ background:var(--app-color-notice); }
@@ -279,6 +279,7 @@ export const CONVERSATION_CSS = `
 .prov-status-text.run{ color:var(--app-color-notice); }
 .prov-status-text.ok{ color:var(--app-color-text-muted); }
 .prov-status-text.info{ color:var(--app-color-text-muted); }
+.prov-status-duration{ margin-left:4px; color:color-mix(in srgb, var(--app-color-notice) 58%, var(--app-color-text-muted)); font-size:9px; font-weight:400; }
 
 /* Provider response text */
 .prov-response{

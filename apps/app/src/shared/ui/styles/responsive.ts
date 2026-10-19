@@ -40,12 +40,14 @@ export const RESPONSIVE_CSS = `
     --chat-preview-inline-max:100%;
     --chat-preview-block-fallback:232px;
   }
-    .panel[data-panel-width-mode="compact"] .prov-top{ align-items:flex-start; flex-direction:column; }
-    .panel[data-panel-width-mode="compact"] .prov-identity{ width:100%; max-width:100%; margin-right:0; margin-bottom:5px; }
-    .panel[data-panel-width-mode="compact"] .prov-name-wrap{ flex-wrap:wrap; }
-    .panel[data-panel-width-mode="compact"] .prov-model-lbl{ margin-left:0; width:100%; }
-    .panel[data-panel-width-mode="compact"] .prov-status{ margin-top:0; margin-right:0; margin-bottom:0; margin-left:25px; padding-left:0; }
-    .panel[data-panel-width-mode="compact"] .prov-top .prov-status-text{ max-width:none; text-align:left; white-space:normal; line-height:12px; }
+    .panel[data-panel-width-mode="compact"] .prov-top{ display:flex; align-items:flex-start; justify-content:flex-start; }
+    .panel[data-panel-width-mode="compact"] .prov-identity{ width:auto; max-width:100%; margin-right:8px; margin-bottom:0; min-width:0; flex:1 1 auto; }
+    .panel[data-panel-width-mode="compact"] .prov-identity-button{ min-width:0; }
+    .panel[data-panel-width-mode="compact"] .prov-name-lbl{ display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .panel[data-panel-width-mode="compact"] .prov-model-lbl{ width:100%; }
+    .panel[data-panel-width-mode="compact"] .prov-model-sep{ display:none; }
+    .panel[data-panel-width-mode="compact"] .prov-status{ margin:0; padding-left:0; align-self:flex-start; }
+    .panel[data-panel-width-mode="compact"] .prov-top .prov-status-text{ max-width:none; text-align:right; white-space:nowrap; line-height:18px; }
     .panel[data-panel-width-mode="compact"] .prov-media-meta-row{ flex-direction:column; align-items:flex-start; flex-wrap:nowrap; }
     .panel[data-panel-width-mode="compact"] .prov-media-model-name{ width:100%; max-width:100%; margin-right:0; }
     .panel[data-panel-width-mode="compact"] .prov-media-status-group{ margin-bottom:0; }

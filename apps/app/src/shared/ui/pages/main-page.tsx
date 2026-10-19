@@ -120,13 +120,6 @@ function LayerThumbnailImpl({
 
 const LayerThumbnail = memo(LayerThumbnailImpl);
 
-function roundStatusElapsed(round: ConversationRound): string {
-  if (round.status === 'running') {
-    return `${round.elapsedSeconds}s`;
-  }
-  return round.elapsedLabel ?? '';
-}
-
 function statusDot(status: ConversationRound['status']): 'ok' | 'run' | 'err' {
   return status === 'ok' ? 'ok' : status === 'running' ? 'run' : 'err';
 }
@@ -1534,17 +1527,24 @@ export function MainPage({
                       <div className="prov-status">
                         <span className="sdot run" />
                         <span className="prov-status-text run">
-                          {(round.elapsedSeconds <= 0 ? t.main.runningPhaseSubmitting : t.main.runningPhaseGenerating)} · {roundStatusElapsed(round)}
+                          {round.elapsedSeconds <= 0 ? t.main.runningPhaseSubmitting : t.main.runningPhaseGenerating}
                         </span>
+                        {round.elapsedSeconds > 0 ? (
+                          <span className="prov-status-duration">{round.elapsedSeconds}s</span>
+                        ) : null}
                       </div>
                     </div>
                     <div className="prov-loading">
-                      <div className="ldots">
+                      <div
+                        className="ldots"
+                        role="status"
+                        aria-live="polite"
+                        aria-label={round.elapsedSeconds <= 0 ? t.main.runningPhaseSubmitting : t.main.runningPhaseGenerating}
+                      >
                         <MotionActivityDot className="ldot" />
                         <MotionActivityDot className="ldot" />
                         <MotionActivityDot className="ldot" />
                       </div>
-                      <span className="prov-loading-phase">{round.elapsedSeconds <= 0 ? t.main.runningPhaseSubmitting : t.main.runningPhaseGenerating}</span>
                     </div>
                   </div>
                 </div>
