@@ -14,7 +14,7 @@
 ## Capabilities
 
 ### New Capabilities
-- `provider-local-model-catalog`: Provider 完整默认模型模板、Profile 首次初始化与手动模型配置兼容。
+- `provider-catalog`: Provider 完整默认模型条目、Profile 首次初始化与参数配置兼容。
 - `remote-model-discovery-removal`: 远端 discovery/cache/suggestion 删除后 Profile 与 UI 的稳定行为。
 
 ### Modified Capabilities

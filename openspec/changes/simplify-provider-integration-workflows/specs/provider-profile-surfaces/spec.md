@@ -30,7 +30,7 @@
 - **AND** Provider-specific config assembly SHALL 继续由各自页面或其专用 controller 拥有
 
 ### Requirement: Profile 页面 SHALL 只公开必要配置
-创建页 SHALL 公开 Profile 名称、API Key、Save/Cancel；编辑页 SHALL 额外公开 Delete，并允许替换或移除已保存 API Key。只有 Provider 已实现不生成图片、不产生费用的 safe probe 时，页面才 SHALL 显示 Test Connection。页面 SHALL NOT 公开 endpoint collection、endpoint measurement、API path、auth mode、billing protocol、system instruction、wire model、request strategy 或 capability matrix。
+创建页 SHALL 公开 Profile 名称、API Key、Save/Cancel；编辑页 SHALL 额外公开 Delete，并允许替换或移除已保存 API Key。只有 Provider 已实现不生成图片、不产生费用的 safe probe 时，页面才 SHALL 显示 Test Connection。页面 SHALL NOT 公开 endpoint collection、endpoint measurement、API path、auth mode、billing protocol、system instruction、wire model、request strategy 或 catalog capability rules。
 
 #### Scenario: 创建 GRSAI Profile
 - **WHEN** 用户打开 GRSAI 创建页

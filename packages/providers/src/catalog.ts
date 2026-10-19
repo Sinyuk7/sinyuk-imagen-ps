@@ -1,8 +1,11 @@
 import grsaiCatalog from '../catalog/grsai.json';
 import runninghubCatalog from '../catalog/runninghub.json';
+import openaiCatalog from '../catalog/openai.json';
+import googleGeminiCatalog from '../catalog/google-gemini.json';
 
 /** 本地 provider catalog 的固定 provider 标识。 */
-export type FixedProviderId = 'grsai' | 'runninghub';
+export type FixedProviderId = 'grsai' | 'runninghub' | 'openai' | 'google-gemini';
+export type ImageCatalogProviderId = 'openai' | 'google-gemini' | 'grsai';
 
 /** 目录中的基础参数选项。 */
 export interface CatalogChoiceOption { readonly value: string; readonly label: string; }
@@ -23,11 +26,39 @@ export interface CatalogModel {
   readonly input?: { readonly maxImages?: number; readonly mask?: boolean };
   readonly endpoint?: string;
   readonly fixed?: Readonly<Record<string, string>>;
+  readonly output?: CatalogOutput;
+  readonly routes?: Readonly<Record<string, { readonly path?: string; readonly endpoint?: string }>>;
+}
+
+/** 模型输出能力；由 JSON catalog 声明，Provider 负责 wire 映射。 */
+export interface CatalogOutput {
+  readonly formats?: readonly ('png' | 'jpeg' | 'webp')[];
+  readonly geometry?: Readonly<Record<string, unknown>>;
+}
+
+/** 返回指定 Provider catalog 中的模型条目。 */
+export function getProviderCatalogModel(providerId: FixedProviderId, modelId: string): CatalogModel | undefined {
+  return getProviderCatalog(providerId).models.find((model) => model.id === modelId);
+}
+
+/** 返回 catalog 模型声明的 operation 参数选项。 */
+export function getProviderCatalogParameters(providerId: FixedProviderId, modelId: string): Readonly<Record<string, CatalogParameter>> {
+  return getProviderCatalogModel(providerId, modelId)?.parameters ?? {};
+}
+
+/** 返回模型针对指定 operation 的 catalog 路由。 */
+export function getProviderCatalogRoute(
+  providerId: FixedProviderId,
+  modelId: string,
+  operation: 'text_to_image' | 'image_edit',
+): string | undefined {
+  const route = getProviderCatalogModel(providerId, modelId)?.routes?.[operation];
+  return route?.path ?? route?.endpoint;
 }
 
 /** 随发布物提供的只读 provider catalog。 */
 export interface ProviderCatalog {
-  readonly schemaVersion: 1;
+  readonly schemaVersion: 1 | 2;
   readonly providerId: FixedProviderId;
   readonly displayName: string;
   readonly baseUrl: string;
@@ -62,8 +93,8 @@ function assertText(value: unknown, path: string): asserts value is string {
 
 function parseCatalog(value: unknown): ProviderCatalog {
   if (!isRecord(value)) throw new Error('Catalog must be an object.');
-  if (value.schemaVersion !== 1) throw new Error('Catalog schemaVersion must be 1.');
-  if (value.providerId !== 'grsai' && value.providerId !== 'runninghub') throw new Error('Catalog providerId is unsupported.');
+  if (value.schemaVersion !== 1 && value.schemaVersion !== 2) throw new Error('Catalog schemaVersion must be 1 or 2.');
+  if (value.providerId !== 'grsai' && value.providerId !== 'runninghub' && value.providerId !== 'openai' && value.providerId !== 'google-gemini') throw new Error('Catalog providerId is unsupported.');
   assertText(value.displayName, 'displayName');
   assertText(value.baseUrl, 'baseUrl');
   assertText(value.defaultModel, 'defaultModel');
@@ -86,21 +117,23 @@ function parseCatalog(value: unknown): ProviderCatalog {
       if (!values.has(parameter.default)) throw new Error(`models[${index}].parameters.${name}.default is not an option.`);
       parameters[name] = { type: 'choice', default: parameter.default, options };
     }
-    return { id: raw.id, label: raw.label, operations: raw.operations, parameters, ...(isRecord(raw.input) ? { input: raw.input as CatalogModel['input'] } : {}), ...(typeof raw.endpoint === 'string' ? { endpoint: raw.endpoint } : {}), ...(isRecord(raw.fixed) ? { fixed: raw.fixed as Readonly<Record<string, string>> } : {}) };
+    return { id: raw.id, label: raw.label, operations: raw.operations, parameters, ...(isRecord(raw.input) ? { input: raw.input as CatalogModel['input'] } : {}), ...(typeof raw.endpoint === 'string' ? { endpoint: raw.endpoint } : {}), ...(isRecord(raw.fixed) ? { fixed: raw.fixed as Readonly<Record<string, string>> } : {}), ...(isRecord(raw.output) ? { output: { ...(Array.isArray(raw.output.formats) ? { formats: raw.output.formats as CatalogOutput['formats'] } : {}), ...(isRecord(raw.output.geometry) ? { geometry: raw.output.geometry } : {}) } } : {}), ...(isRecord(raw.routes) ? { routes: raw.routes as CatalogModel['routes'] } : {}) };
   });
   if (!ids.has(value.defaultModel)) throw new Error('Catalog defaultModel is not present in models.');
-  return { schemaVersion: 1, providerId: value.providerId, displayName: value.displayName, baseUrl: value.baseUrl, defaultModel: value.defaultModel, models };
+  return { schemaVersion: value.schemaVersion, providerId: value.providerId, displayName: value.displayName, baseUrl: value.baseUrl, defaultModel: value.defaultModel, models };
 }
 
 const CATALOGS: Readonly<Record<FixedProviderId, ProviderCatalog>> = Object.freeze({
   grsai: parseCatalog(grsaiCatalog),
   runninghub: parseCatalog(runninghubCatalog),
+  openai: parseCatalog(openaiCatalog),
+  'google-gemini': parseCatalog(googleGeminiCatalog),
 });
 
 /** 返回固定 provider 的只读本地目录。 */
 export function getProviderCatalog(providerId: FixedProviderId): ProviderCatalog { return CATALOGS[providerId]; }
 /** 列出固定 provider。 */
-export function listFixedProviders(): readonly FixedProviderId[] { return ['grsai', 'runninghub']; }
+export function listFixedProviders(): readonly FixedProviderId[] { return ['openai', 'google-gemini', 'grsai', 'runninghub']; }
 
 /** 优先远程读取并校验，失败时回退到发布物内置 catalog。 */
 export async function resolveProviderCatalog(providerId: FixedProviderId, options: CatalogResolverOptions = {}): Promise<CatalogResolution> {

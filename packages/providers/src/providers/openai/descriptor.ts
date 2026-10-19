@@ -1,5 +1,5 @@
 import type { ProviderDescriptor } from '../../contract/provider.js';
-import { OPENAI_IMAGES_DEFAULT_MODEL_TEMPLATES } from './models.js';
+import { defaultModelTemplates } from '../../catalog/provider-templates.js';
 
 /** Image endpoint provider 的静态 descriptor。 */
 export const openAiDescriptor: ProviderDescriptor = {
@@ -8,7 +8,7 @@ export const openAiDescriptor: ProviderDescriptor = {
   displayName: 'Image Endpoint',
   operations: ['text_to_image', 'image_edit'],
   invokeMode: 'sync',
-  defaultModelTemplates: OPENAI_IMAGES_DEFAULT_MODEL_TEMPLATES,
+  defaultModelTemplates: defaultModelTemplates('openai'),
   transport: {
     wire: {
       supportedEditCodecs: ['multipart-bracket', 'multipart-plain', 'json-reference'],

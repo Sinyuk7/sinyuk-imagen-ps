@@ -7,7 +7,7 @@
 - 固定产品 provider 为 `GRSAI` 和 `RunningHub`，每个 provider 只维护一份 API Key；更新 Key 直接覆盖该 provider 的当前账号。
 - 将 `runninghub_catalog.json` 与 GRSAI 对应的 `config.example.json` 内容复制或同步到当前仓库 `packages/providers/catalog/`，作为发布时随插件提供的本地只读模型目录。
 - 让本地 catalog 直接驱动模型列表、主页面的基础参数控件、默认值和 provider/model 参数偏好；模型选择不再创建或持久化 `UserModelConfig`。
-- 移除多 Profile、`wireModelId`、`baseModelId`、`requestStrategyId`、通用 endpoint 编辑、远端模型发现、输出矩阵和 capability projection 等旧产品层概念。
+- 移除多 Profile、`wireModelId`、`baseModelId`、`provider route selection`、通用 endpoint 编辑、远端模型发现、输出矩阵和 capability projection 等旧产品层概念。
 - 保留一个公共 `GenerationRequest`，承载 prompt、输入图片、Mask、operation、provider/model 选择和目录声明的参数值。
 - 将 GRSAI 的 `replyType: "async"`、GRSAI 轮询、RunningHub 图片上传、endpoint 选择、请求字段和响应解析限制在各自 provider adapter 内。
 - 统一 provider adapter 的异步执行、错误、结果资源、历史、预览、下载和 Photoshop 放置流程。

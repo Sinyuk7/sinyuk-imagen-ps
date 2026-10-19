@@ -19,7 +19,7 @@
 - [x] 3.2 建立 `packages/providers/src/providers/gemini`，集中迁入 Gemini 的 `profile-template.ts`、`config-schema.ts`、`models.ts`、`descriptor.ts`、`provider.ts` 与 GenerateContent request/parse transport；保持 `gemini-generate-content` implementation ID 与 `x-goog-api-key` wire 行为不变。
 - [x] 3.3 建立 `packages/providers/src/providers/openai-images`，集中迁入 OpenAI Images 的 `profile-template.ts`、`config-schema.ts`、`models.ts`、`descriptor.ts`、`provider.ts` 与 generation/edit codec、paid retry、response parse transport；保持 `image-endpoint` implementation ID 与 `openai-images` apiFormat 不变。
 - [x] 3.4 让每个 `models.ts` 成为该 Provider modelId/wireModelId/baseModelId/capability/default model 的唯一真相源；`descriptor.defaultModelTemplates` 必须派生生成，删除 contract catalog rules、descriptor 或 app 中的重复模型数组。
-- [x] 3.5 将至少两个保留 Provider 已有真实消费者且语义一致的 HTTP/retry/failover primitive 迁入 `packages/providers/src/shared/transport`，将跨 Provider capability 类型与 matrix builder 迁入 `model-catalog/shared`；Provider-specific schema、codec、error mapping 与 polling 不得进入 shared。
+- [x] 3.5 将至少两个保留 Provider 已有真实消费者且语义一致的 HTTP/retry/failover primitive 迁入 `packages/providers/src/shared/transport`，将跨 Provider capability 类型与 matrix builder 迁入 `provider catalog`；Provider-specific schema、codec、error mapping 与 polling 不得进入 shared。
 - [x] 3.6 更新三个 slice 的 `index.ts`、package root barrel、builtin registry、catalog harness 与全部 import；禁止 slice 间互相 import、Application 深引 `providers/*/transport`、app 直接 import `@imagen-ps/providers`。
 - [x] 3.7 将 Provider tests 镜像整理到 `tests/providers/{grsai,gemini,openai-images}`，共享 primitive 放 `tests/shared`，registry contract 放 `tests/registry`；移动 fixture 时保持 deterministic、mock-only、零真实 API 调用。
 

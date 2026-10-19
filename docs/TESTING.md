@@ -244,7 +244,7 @@ after `packages/providers` has been built. It checks the GRSAI, Gemini, and
 OpenAI Images local inventories:
 
 ```bash
-node packages/providers/scripts/check-image-model-catalog.mjs
+node packages/providers/scripts/check-image-catalog.mjs
 ```
 
 Placement-only app work may additionally cite the standalone harness:

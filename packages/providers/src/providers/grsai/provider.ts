@@ -3,11 +3,11 @@ import type { Provider, ProviderAsyncLifecycle, ProviderInvokeArgs } from '../..
 import type { ProviderInvokeResult } from '../../contract/result.js';
 import { getPrimaryProviderEndpoint } from '../../contract/config.js';
 import { assembleApiUrl } from '../../contract/provider-routing.js';
-import { resolveProviderResolvedOutput } from '../../contract/image-model-capability.js';
+import { resolveCatalogProviderOutput } from '../../catalog/output-resolution.js';
 import type { CanonicalImageJobRequest } from '../../contract/request.js';
 import { httpRequest } from '../../shared/transport/http.js';
 import { executeBillingProtocolChain } from '../../transport/billing/protocol-registry.js';
-import { mockRequestSchema } from '../mock/request-schema.js';
+import { canonicalImageRequestSchema } from '../../contract/request-schema.js';
 import { grsaiConfigSchema, type GrsaiProviderConfig } from './config-schema.js';
 import { grsaiDescriptor } from './descriptor.js';
 
@@ -67,8 +67,8 @@ function requestBody(request: CanonicalImageJobRequest) {
   if (!modelId) throw new Error('GRSAI modelId is required.');
   const prompt = request.prompt.trim();
   if (!prompt) throw new Error('GRSAI prompt must not be empty.');
-  const output = resolveProviderResolvedOutput({
-    providerId: 'grsai', capabilityModelId: modelId,
+  const output = resolveCatalogProviderOutput({
+    providerId: 'grsai', modelId: modelId,
     operation: request.operation, output: request.output, inputContext: request.inputContext,
   });
   if (output.kind !== 'grsai') throw new Error('GRSAI output strategy mismatch.');
@@ -120,7 +120,7 @@ export function createGrsaiProvider(): Provider<GrsaiProviderConfig, CanonicalIm
   return {
     id: 'grsai', family: 'grsai', describe: () => grsaiDescriptor,
     validateConfig(input) { return grsaiConfigSchema.parse(input); },
-    validateRequest(input) { return mockRequestSchema.parse(input); },
+    validateRequest(input) { return canonicalImageRequestSchema.parse(input); },
     async invoke(_args: ProviderInvokeArgs<GrsaiProviderConfig, CanonicalImageJobRequest>): Promise<ProviderInvokeResult> {
       throw new Error('GRSAI Generate uses async lifecycle.');
     },

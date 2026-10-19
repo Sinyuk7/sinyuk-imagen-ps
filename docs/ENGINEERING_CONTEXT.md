@@ -53,24 +53,17 @@ surface apps -> application/session -> core-engine + providers + execution backe
   Provider model and parameter catalogs live in `packages/providers/catalog/` and
   are loaded through the catalog resolver. Each provider has one editable account
   record containing its API key and optional base URL.
-- Official model presets live in each Provider slice as `(providerId, modelId)`
-  templates with `requestStrategyId` and output constraints. New Profiles consume
-  the complete local inventory once and persist the resulting internal
-  catalog parameter preferences keyed by provider and model. Models are selectable but read-only in the
-  product: there is no remote discovery, model CRUD, later sync, or user-editable
-  wire/capability configuration.
-- For a configured model whose `wireModelId` is an official catalog model, the
-  wire model is the execution capability authority. Application projects the
-  saved output matrix through that capability; stale preferences outside the
-  projection fall back to its default cell and are never sent to the provider.
-  If two wire models share transport but not geometry/output rules, they need
-  separate catalog capability / preset entries; shared transport alone does not
-  justify reusing the same capability identity.
+- Catalog entries are the single source for `(providerId, modelId)` identity,
+  parameters, input rules, routes, and output mapping. New Profiles consume the
+  complete local inventory and persist parameter preferences keyed by provider
+  and model. Models are selectable but read-only in the product.
+- Application validates saved parameter values against the selected catalog entry;
+  stale values fall back to catalog defaults and are never sent to the provider.
 - Provider model execution is resolved during `GenerationBackend.admit()` before
   queue dispatch. Submission, admission, Profile connection tests, and Profile
   tests require an explicit configured `modelId`; they never infer a first
   model, a profile default, or a provider fallback. Production provider request
-  builders consume the resolved `request.model` and `requestStrategyId` only.
+  builders consume the resolved catalog model and parameter values.
 - Product and runtime identity use the real Provider id directly: `runninghub`,
   `grsai`, `google-gemini`, and `openai`. Models such as GPT Image 2 belong to
   their Provider catalog. Provider adapters own their upstream request semantics;
@@ -78,12 +71,7 @@ surface apps -> application/session -> core-engine + providers + execution backe
   infrastructure. Adding another relay or official API requires a new explicit
   Provider slice and product surface, not a generic protocol alias.
 - Model avatar icons follow catalog brand identity as the single source.
-  `packages/providers` declares `ModelBrand` on `ImageModelCapability`;
-  `packages/application` exposes the sync `resolveModelBrand` command over
-  `resolveImageModelRule`; `apps/app` owns the `brand → icon slug` map and SVG
-  assets. The UI never imports `@imagen-ps/providers` and never re-derives
-  model identity via substring matching; non-catalog providers (mock) and
-  unknown models fall back to the default icon. Static
+  `packages/providers` derives the brand identifier from the selected catalog entry; `packages/application` exposes the sync `resolveModelBrand` command. Unknown models fall back to the default icon. Static
   visual harnesses pass `iconName` directly without runtime resolution.
 - Product history is task-oriented. Application-owned `TaskRecord` schema v2 is
   the durable user-intent contract; it uses generic `backend`, `connection`, and

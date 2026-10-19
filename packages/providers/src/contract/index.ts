@@ -41,64 +41,16 @@ export {
 } from './config.js';
 export type {
   EffectiveImageOutputSelection,
+  ImageAspectRatio,
+  ImageOperation,
+  ImageOutputFormat,
   ImageOutputGeometrySelection,
+  ImageOutputImageSize,
+  ImageOutputOption,
   ImageOutputSelection,
   ImageOutputSizeOptionId,
   PixelDimensions,
 } from './image-output-contract.js';
-export type {
-  EditInputCapability,
-  FlexiblePixelsGeometryCapability,
-  GeometryCapability,
-  ImageAspectRatio,
-  ImageCatalogProviderId,
-  ImageModelCapability,
-  MaskCapability,
-  MaskExecutionPlan,
-  ImageOperation,
-  ImageOutputCellId,
-  ImageOutputCapability,
-  ImageOutputFormat,
-  ImageOutputImageSize,
-  ImageOutputMatrix,
-  ImageOutputMatrixCell,
-  ImageOutputOption,
-  ImageOutputUiArchetype,
-  ImageOutputUiModel,
-  ImageSizePreset,
-  ModelOutputConfig,
-  ModelBrand,
-  ModelMatcher,
-  ModelMatcherPattern,
-  OfficialModelPreset,
-  RatioResolutionGeometryCapability,
-  RequestStrategy,
-  RequestStrategyId,
-  ResolvedImageModelOutput,
-  ResolvedImageModelRule,
-  UserModelOutputExposure,
-} from './image-model-capability.js';
-export {
-  ImageModelContractError,
-  assertProviderModelExecution,
-  getOfficialModelPreset,
-  getRequestStrategy,
-  getSupportedImageOutputSizePresets,
-  hasExplicitImageModelRule,
-  isSupportedImageModelOutput,
-  listLocalCatalogModels,
-  listProviderDefaultModelTemplates,
-  listOfficialModelPresets,
-  listRequestStrategies,
-  providerUsesImageModelCatalog,
-  resolveImageModelOutput,
-  resolveMaskExecutionPlan,
-  resolveImageModelRule,
-  resolveProviderResolvedOutput,
-  summarizeImageModelCapabilities,
-  tryResolveImageModelRule,
-  validateImageModelCatalog,
-} from './image-model-capability.js';
 export type {
   AssetRef,
   CanonicalMaskImage,
@@ -135,6 +87,7 @@ export type {
 } from './result.js';
 export type {
   ModelOperationCapability,
+  ModelBrand,
   ProviderModelCapabilities,
   ProviderModelCapabilityReason,
   ProviderModelInfo,
@@ -164,3 +117,6 @@ export type {
   ProviderSettingsConnectivityCapability,
   ProviderWireCapability,
 } from './provider.js';
+
+export type { MaskCapability, MaskExecutionPlan } from './provider-execution.js';
+export { assertProviderModelExecution, resolveMaskExecutionPlan } from './provider-execution.js';

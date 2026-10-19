@@ -39,12 +39,11 @@ const coerceOptionalArray = (val: unknown): unknown => (Array.isArray(val) ? val
 
 const providerModelExecutionSchema = z.object({
   modelId: z.string().min(1),
-  providerId: z.union([
-    z.literal('openai'),
+  providerId: z.union([    z.literal('openai'),
     z.literal('google-gemini'),
     z.literal('grsai'),
+    z.literal('runninghub'),
   ]),
-  requestStrategyId: z.string().min(1),
 });
 
 const imageAspectRatioSchema = z.union([
@@ -130,7 +129,7 @@ const maskExecutionPlanSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('unsupported'), reason: z.string().min(1) }),
 ]);
 
-export const mockRequestSchema = z.object({
+export const canonicalImageRequestSchema = z.object({
   operation: z.union([z.literal('text_to_image'), z.literal('image_edit')]),
   prompt: z.string().min(1),
   providerId: z.union([z.literal('grsai'), z.literal('runninghub')]).optional(),
@@ -200,5 +199,5 @@ export const mockRequestSchema = z.object({
   }
 });
 
-/** 从 schema 推导的 MockProviderRequest 类型。 */
-export type MockProviderRequest = z.infer<typeof mockRequestSchema>;
+/** 从 schema 推导的 CanonicalImageRequest 类型。 */
+export type CanonicalImageRequest = z.infer<typeof canonicalImageRequestSchema>;

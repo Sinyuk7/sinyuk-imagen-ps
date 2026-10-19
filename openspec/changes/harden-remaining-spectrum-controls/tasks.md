@@ -1,7 +1,7 @@
 ## 1. 能力盘点与安全边界
 
 - [x] 1.1 盘点 `apps/app/src/shared/ui` 生产 raw `button`/`input`/`textarea`/`select`，区分 Checkbox/Radio、SegmentedTabs、selector、clipboard fallback 和 harness fixture。
-- [x] 1.2 根据目标 Photoshop `26.1.0+`、UXP runtime、锁定 SWC `0.37.0` 和实际 wrapper 源码建立控件 capability matrix。
+- [x] 1.2 根据目标 Photoshop `26.1.0+`、UXP runtime、锁定 SWC `0.37.0` 和实际 wrapper 源码建立控件 catalog capability rules。
 - [x] 1.3 为 shared-control policy 增加 owner 级 raw-control inventory，允许显式登记的 host seam 与 harness fixture，并输出稳定文件/行号。
 - [x] 1.4 为 renderer 增加组件加载、custom-element definition、首帧与 50ms geometry、bundle dynamic import/`import.meta` 检查。
 

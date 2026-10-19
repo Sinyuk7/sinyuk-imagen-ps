@@ -41,3 +41,6 @@ export interface ProviderModelInfo {
   /** 可选的静态展示名，来自 provider descriptor 或官方 catalog。 */
   readonly displayName?: string;
 }
+
+/** 用于 UI 品牌标识的稳定字符串。 */
+export type ModelBrand = string;

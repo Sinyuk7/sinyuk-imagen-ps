@@ -80,9 +80,7 @@ The app consumes sanitized Application projections. It must not import
 
 Modify only the matching source of truth:
 
-- [GRSAI models](../../packages/providers/src/providers/grsai/models.ts)
-- [Gemini models](../../packages/providers/src/providers/gemini/models.ts)
-- [OpenAI models](../../packages/providers/src/providers/openai/models.ts)
+- [Provider catalogs](../../packages/providers/catalog/)
 
 Every product-visible model must define enough local facts to resolve:
 
@@ -131,7 +129,7 @@ Minimum gate:
 pnpm --filter @imagen-ps/providers test
 pnpm --filter @imagen-ps/providers build
 pnpm --filter @imagen-ps/application test
-node packages/providers/scripts/check-image-model-catalog.mjs
+node packages/providers/scripts/check-image-catalog.mjs
 pnpm check:policy
 ```
 
@@ -247,7 +245,7 @@ pnpm --filter @imagen-ps/app test:visual
 pnpm --filter @imagen-ps/app test:chrome-e2e -- --grep providers
 pnpm --filter @imagen-ps/app build:chrome
 pnpm --filter @imagen-ps/app build:uxp
-node packages/providers/scripts/check-image-model-catalog.mjs
+node packages/providers/scripts/check-image-catalog.mjs
 pnpm check:policy
 pnpm validate
 ```

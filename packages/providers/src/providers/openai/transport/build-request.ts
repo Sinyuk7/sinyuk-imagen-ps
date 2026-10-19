@@ -22,12 +22,9 @@ import { decode as decodePng, encode as encodePng } from 'fast-png';
 import type { CanonicalImageJobRequest, OpenAiRequestOutput, ProviderOutputOptions } from '../../../contract/request.js';
 import type { ProviderDiagnostic } from '../../../contract/diagnostics.js';
 import type { ImageEditCodec } from '../../../contract/provider.js';
-import {
-  assertProviderModelExecution,
-  resolveMaskExecutionPlan,
-  resolveProviderResolvedOutput,
-  type ImageCatalogProviderId,
-} from '../../../contract/image-model-capability.js';
+import type { ImageCatalogProviderId } from '../../../catalog.js';
+import { assertProviderModelExecution, resolveMaskExecutionPlan } from '../../../contract/provider-execution.js';
+import { resolveCatalogProviderOutput } from '../../../catalog/output-resolution.js';
 import { jsonReferenceCodec } from './codec-json-reference.js';
 import { multipartBracketCodec } from './codec-multipart-bracket.js';
 import { multipartPlainCodec } from './codec-multipart-plain.js';
@@ -201,9 +198,9 @@ function resolveRequestOutput(
   providerId: ImageCatalogProviderId,
 ): OpenAiRequestOutput {
   const capabilityModelId = request.capabilityModelId ?? resolveModel(request);
-  const resolvedOutput = resolveProviderResolvedOutput({
+  const resolvedOutput = resolveCatalogProviderOutput({
     providerId,
-    capabilityModelId,
+    modelId: capabilityModelId,
     operation: request.operation,
     output,
     inputContext: request.inputContext,

@@ -25,7 +25,7 @@
 
 ### 1. 模板是一次性 Profile 默认数据，不是第二份模型状态
 
-Provider 声明完整 `ProviderDefaultModelTemplate[]`。模板由 `modelId`、`wireModelId`、`baseModelId` 与 `ApiFormat` 构成，并由 `baseModelId` 的 Official Model Preset 唯一确定 request strategy、默认 exposure 与 output matrix。一个 Provider 可为多个不同 wire model 复用同一 `baseModelId`，从而让一组已配置模型直接可用。
+Provider 声明完整 `ProviderDefaultModelTemplate[]`。模板由 `modelId`、`wireModelId`、`baseModelId` 与 `ApiFormat` 构成，并由 `baseModelId` 的 Official Model Preset 唯一确定 request strategy、默认 exposure 与 catalog output mapping。一个 Provider 可为多个不同 wire model 复用同一 `baseModelId`，从而让一组已配置模型直接可用。
 
 Application 在新 Profile 创建时读取该数组一次。成功后只存 `UserModelConfig`；不存 template source、template version、catalog/user origin，也不在任何后续路径重新读取模板。用户编辑、删除与手动新增配置均只操作用户数据。
 

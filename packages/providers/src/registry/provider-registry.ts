@@ -1,6 +1,4 @@
 import {
-  getOfficialModelPreset,
-  getRequestStrategy,
   type ProviderId,
   type Provider,
   type ProviderConfig,
@@ -60,14 +58,6 @@ function assertDefaultModelTemplates(descriptor: ProviderDescriptor): void {
       });
     }
     modelIds.add(template.modelId);
-    const preset = getOfficialModelPreset(template.providerId, template.baseModelId);
-    const strategy = preset ? getRequestStrategy(preset.requestStrategyId) : undefined;
-    if (!preset || !strategy || strategy.providerId !== template.providerId) {
-      throw createRegistryError('invalid_provider', `Provider "${descriptor.id}" default model template does not resolve exactly.`, {
-        providerId: descriptor.id,
-        modelId: template.modelId,
-      });
-    }
   }
 }
 

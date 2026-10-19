@@ -1,7 +1,7 @@
 import type { Asset } from '@imagen-ps/core-engine';
 
 /**
- * 创建合成 Asset[] 用于 mock provider 成功路径。
+ * 创建合成 Asset[] 用于成功路径和测试夹具。
  *
  * 返回的 asset 使用真实可解码的透明 PNG，避免 Photoshop
  * 写回 smoke 因半有效图片 payload 触发 host 崩溃。
@@ -23,7 +23,7 @@ export function createSyntheticAssets(count = 1): Asset[] {
 
   return Array.from({ length: count }, (_, i) => ({
     type: 'image' as const,
-    name: `mock-image-${i + 1}.png`,
+    name: `synthetic-image-${i + 1}.png`,
     mimeType: 'image/png',
     data: placeholderBytes,
   }));

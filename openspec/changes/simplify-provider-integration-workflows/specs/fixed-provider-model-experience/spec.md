@@ -17,7 +17,7 @@
 - **THEN** 系统 SHALL 原子写入 GRSAI descriptor 已定义的 12 个完整模型模板
 
 ### Requirement: 用户 SHALL 只能选择静态模型而不能配置模型
-主生成 surface SHALL 从当前 Profile 的已初始化 `UserModelConfig` 投影模型选项。用户 SHALL 能切换多模型 Provider 的模型，但 SHALL NOT 能新增、编辑、删除、重命名或修改模型的 `wireModelId`、`baseModelId`、`requestStrategyId`、output exposure 或 capability matrix。
+主生成 surface SHALL 从当前 Profile 的已初始化 `UserModelConfig` 投影模型选项。用户 SHALL 能切换多模型 Provider 的模型，但 SHALL NOT 能新增、编辑、删除、重命名或修改模型的 `wireModelId`、`baseModelId`、`provider route selection`、catalog output mapping 或 catalog capability rules。
 
 #### Scenario: 使用 GRSAI Profile
 - **WHEN** 用户在主生成 surface 选择一个 GRSAI Profile
@@ -48,9 +48,9 @@
 
 #### Scenario: 切换模型后恢复输出偏好
 - **WHEN** 用户返回先前配置过输出选择的 Profile 与模型
-- **THEN** 系统 SHALL 恢复仍在该静态 capability matrix 内的 `ModelGenerationPreference`
+- **THEN** 系统 SHALL 恢复仍在该静态 catalog capability rules 内的 `ModelGenerationPreference`
 
 #### Scenario: 偏好不再有效
-- **WHEN** 保存的输出选择不属于当前静态模型 capability matrix
+- **WHEN** 保存的输出选择不属于当前静态模型 catalog capability rules
 - **THEN** 系统 SHALL 回退到该模型的 catalog 默认 output cell，且 SHALL NOT 向 Provider 发送无效输出参数
 

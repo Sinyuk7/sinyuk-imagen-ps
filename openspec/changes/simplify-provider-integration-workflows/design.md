@@ -99,7 +99,7 @@ packages/providers/src/
 ├─ registry/                         # builtin composition 与 apiFormat -> implementation 路由
 ├─ shared/
 │  └─ transport/                     # 至少两个 Provider 复用的 HTTP/retry/failover primitive
-├─ model-catalog/
+├─ catalog/
 │  └─ shared/                        # 跨 Provider 的 capability 类型、matrix builder 与解析工具
 └─ providers/
    ├─ grsai/
@@ -145,7 +145,7 @@ packages/providers/src/
 依赖方向固定为：
 
 ```text
-contract + model-catalog/shared + shared/transport
+contract + provider catalog + shared/transport
                         ↑
         providers/{grsai|gemini|openai-images}
                         ↑
@@ -158,7 +158,7 @@ contract + model-catalog/shared + shared/transport
 core-engine <- application/provider execution adapter
 ```
 
-- Provider slice 可以依赖 `contract`、`model-catalog/shared`、`shared/transport` 与 foundation；三个 slice 之间禁止互相 import。
+- Provider slice 可以依赖 `contract`、`provider catalog`、`shared/transport` 与 foundation；三个 slice 之间禁止互相 import。
 - Registry 通过各 slice 的 `index.ts` 组合 builtin；具体 Provider 不反向依赖 registry。
 - `packages/application` 只依赖 `@imagen-ps/providers` 的公开 contract/registry，不深引 `providers/*/transport`。
 - `apps/app` 不直接 import `@imagen-ps/providers`。现有 Application `listProviders()` / `describeProvider()` command surface 扩展为向 UI 返回 sanitized Provider surface definition 与 Profile template projection；API Key、隐藏 wire config、transport 实现不进入该 projection，不另建第二套 Provider registry。
@@ -237,7 +237,7 @@ Core Job/Task lifecycle 已为全局异步产品状态。Gemini 与 OpenAI Image
 
 1. 先用 contract tests 冻结三个 Provider 现有 implementation ID、wire 请求/解析、异步语义、固定 Profile config 和目标模型 inventory。
 2. 建立 `providers/{grsai,gemini,openai-images}` vertical slice；逐个移动 models/profile-template/schema/descriptor/provider/transport，每完成一个 slice 即更新 barrel/registry/import 并运行对应 focused tests。
-3. 将两个以上 Provider 真实复用的 HTTP/retry/failover primitive 移入 `shared/transport`，把 capability builder 留在 `model-catalog/shared`；删除无消费者的 `chat-image` legacy codec。
+3. 将两个以上 Provider 真实复用的 HTTP/retry/failover primitive 移入 `shared/transport`，把 capability builder 留在 `provider catalog`；删除无消费者的 `chat-image` legacy codec。
 4. 增加 Application sanitized Provider surface projection，建立 `features/provider-profiles` Picker 与三种专用页面，并用 deterministic UI harness 固定新路由。
 5. 让专用页面通过 Application 使用 Provider-owned Profile template 创建现有 config，证明三个 Profile 均能直接 ready；收敛 Composer 默认 selection。
 6. 删除旧通用页面、模型页面、AppShell route state 与 app-facing ports，再删除无剩余 owner 的组件/hooks/commands。

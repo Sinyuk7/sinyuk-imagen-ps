@@ -1,7 +1,7 @@
 import type { ImageEditCodec, ProviderDescriptor } from '../../../contract/provider.js';
 import type { CanonicalImageJobRequest } from '../../../contract/request.js';
 import type { OpenAiProviderConfig } from '../config-schema.js';
-import { assertProviderModelExecution } from '../../../contract/image-model-capability.js';
+import { assertProviderModelExecution } from '../../../contract/provider-execution.js';
 import type { ImageEditRequestCodec } from './build-request.js';
 import { resolveImageEditRequestCodecById } from './build-request.js';
 

@@ -26,37 +26,20 @@ export type {
   GoogleGeminiPaths,
   GoogleGeminiRequestOutput,
   GrsaiRequestOutput,
-  EffectiveImageOutputSelection,
-  EditInputCapability,
-  FlexiblePixelsGeometryCapability,
-  GeometryCapability,
-  ImageAspectRatio,
-  ImageCatalogProviderId,
   OpenAiProviderConfig,
   OpenAiRequestOutput,
-  ImageModelCapability,
   MaskCapability,
   MaskExecutionPlan,
+  ImageAspectRatio,
   ImageOperation,
-  ImageOutputCellId,
-  ImageOutputCapability,
   ImageOutputFormat,
   ImageOutputGeometrySelection,
   ImageOutputImageSize,
-  ImageOutputMatrix,
-  ImageOutputMatrixCell,
   ImageOutputOption,
   ImageOutputSelection,
   ImageOutputSizeOptionId,
-  ImageOutputUiArchetype,
-  ImageOutputUiModel,
-  ImageSizePreset,
-  ModelOutputConfig,
-  ModelBrand,
   ModelOperationCapability,
-  ModelMatcher,
-  ModelMatcherPattern,
-  OfficialModelPreset,
+  ModelBrand,
   OpenAiImagesPaths,
   NormalizedImageInputContext,
   NormalizedImageInputGeometry,
@@ -111,14 +94,8 @@ export type {
   ProviderResponseCodec,
   ProviderSettingsConnectivityCapability,
   ProviderWireCapability,
-  RatioResolutionGeometryCapability,
-  RequestStrategy,
-  RequestStrategyId,
   ImageEditCodec,
-  ResolvedImageModelOutput,
-  ResolvedImageModelRule,
   SupportEvidence,
-  UserModelOutputExposure,
 } from './contract/index.js';
 export {
   providerIdForAdapterId,
@@ -134,34 +111,13 @@ export {
   normalizeProviderConnection,
   providerConnectionAllowsFailover,
   providerConnectionUsesAutomaticSelection,
-  ImageModelContractError,
   assertProviderModelExecution,
-  getOfficialModelPreset,
-  getRequestStrategy,
-  hasExplicitImageModelRule,
-  isSupportedImageModelOutput,
-  listLocalCatalogModels,
-  listProviderDefaultModelTemplates,
-  listOfficialModelPresets,
-  listRequestStrategies,
-  providerUsesImageModelCatalog,
-  resolveImageModelOutput,
   resolveMaskExecutionPlan,
-  resolveImageModelRule,
-  resolveProviderResolvedOutput,
-  getSupportedImageOutputSizePresets,
-  summarizeImageModelCapabilities,
-  tryResolveImageModelRule,
-  validateImageModelCatalog,
 } from './contract/index.js';
 
 // Registry
 export type { BuiltinProviderId, ProviderRegistry, RegistryError } from './registry/index.js';
 export { builtins, createProviderRegistry, registerBuiltins } from './registry/index.js';
-
-// Mock provider
-export type { MockProviderConfig, MockProviderOptions, MockProviderRequest } from './providers/mock/index.js';
-export { mockConfigSchema, mockRequestSchema, createMockProvider, mockDescriptor } from './providers/mock/index.js';
 
 // Image endpoint provider
 export {
@@ -205,7 +161,7 @@ export {
 } from './bridge/index.js';
 
 export type { CatalogChoiceOption, CatalogModel, CatalogParameter, CatalogResolverOptions, CatalogRemoteSource, CatalogResolution, FixedProviderId, ProviderCatalog } from './catalog.js';
-export { getProviderCatalog, listFixedProviders, resolveProviderCatalog } from './catalog.js';
+export { getProviderCatalog, getProviderCatalogModel, getProviderCatalogParameters, getProviderCatalogRoute, listFixedProviders, resolveProviderCatalog } from './catalog.js';
 export type { FixedGenerationRequest, FixedProviderResult } from './contract/fixed-generation.js';
 export type { FixedPreparedRequest } from './fixed-provider-adapters.js';
 export { prepareFixedProviderRequest, prepareGrsaiRequest, prepareRunningHubRequest } from './fixed-provider-adapters.js';
@@ -213,3 +169,5 @@ export type { CheckedProviderParameters } from './provider-parameter-checkers.js
 export { canonicalRunningHubRatio, checkProviderParameters } from './provider-parameter-checkers.js';
 export type { ProviderOutputMaterializer, ProviderRemoteOutput } from './traceable-lifecycle.js';
 export { assertNoResubmitAfterUnknown, normalizeProviderRemoteOutputs, redactSignedUrl } from './traceable-lifecycle.js';
+export type { CatalogModelCapabilities } from './catalog/capabilities.js';
+export { getCatalogModelCapabilities } from './catalog/capabilities.js';

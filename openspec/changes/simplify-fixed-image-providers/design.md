@@ -41,11 +41,11 @@ Catalog 通过一个来源解析层加载：默认实现先尝试远程 catalog 
 
 Provider 参数检查器属于 provider adapter 边界。UI 只展示当前 `providerId + modelId` 对应的 projection 并提交参数值集合，不判断 provider-specific 组合是否合法；adapter 在请求构造前执行 catalog/provider 规则校验。
 
-Alternative：继续由 TypeScript capability matrix 手写模型。放弃，因为它重复了外部 catalog，并使增加模型必须修改多个包。
+Alternative：继续由 TypeScript catalog capability rules 手写模型。放弃，因为它重复了外部 catalog，并使增加模型必须修改多个包。
 
 ### 3. 最小公共生成请求
 
-Application 接受 host-neutral `GenerationRequest`：`providerId`、`modelId`、`operation`、`prompt`、输入 Asset 列表、canonical Mask 和 catalog 参数值。请求不包含 `wireModelId`、`baseModelId`、`requestStrategyId`、endpoint、`replyType` 或 provider raw options。
+Application 接受 host-neutral `GenerationRequest`：`providerId`、`modelId`、`operation`、`prompt`、输入 Asset 列表、canonical Mask 和 catalog 参数值。请求不包含 `wireModelId`、`baseModelId`、`provider route selection`、endpoint、`replyType` 或 provider raw options。
 
 Photoshop/App 负责将图层、选区和 Mask 转换为公共 Asset/Mask；provider adapter 在 dispatch 时决定 base64、multipart、远程上传或字段名称。
 

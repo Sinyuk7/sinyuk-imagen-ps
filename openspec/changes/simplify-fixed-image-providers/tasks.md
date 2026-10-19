@@ -8,7 +8,7 @@
 
 ## 2. 公共生成请求与 provider adapter
 
-- [x] 2.1 定义 host-neutral `GenerationRequest`、catalog parameter values、canonical input Asset/Mask 和统一 provider result，移除 `wireModelId`、`baseModelId`、`requestStrategyId` 等字段
+- [x] 2.1 定义 host-neutral `GenerationRequest`、catalog parameter values、canonical input Asset/Mask 和统一 provider result，移除 `wireModelId`、`baseModelId`、`provider route selection` 等字段
 - [x] 2.1a 为 GRSAI/RunningHub 分别定义 provider 参数检查器；UI 只提交参数值集合，检查器负责 catalog 组合校验和 wire 字段映射
 - [x] 2.2 实现 GRSAI adapter：catalog 校验、请求构建、`replyType: "async"`、submit/poll、结果下载和错误归一化
 - [x] 2.3 实现 RunningHub adapter：catalog endpoint 选择、图片/Mask 上传、请求构建、submit/poll/download 和错误归一化
@@ -27,7 +27,7 @@
 - [x] 4.1 将 Provider Settings 改为独立的 GRSAI/RunningHub 编辑页；两页共享 API key/base URL 基类表单，保存操作只更新对应 provider 的单条账号记录，并删除 Profile Settings route
 - [x] 4.2 将主页面模型列表和基础参数控件改为 `providerId + modelId` catalog projection，支持 GRSAI 组合尺寸选项与 RunningHub ratio/resolution 联动选项；UI 不执行 provider-specific 组合校验
 - [x] 4.3 将生成参数偏好按 `providerId + modelId` 保存；切换模型时读取目标模型独立偏好，不复用旧模型值；无偏好时使用 catalog 默认值，配置版本变化导致值失效时由 resolver/adapter 归一化
-- [x] 4.4 移除 Profile picker、model management、output matrix UI、矩阵 cell 选择和通用 endpoint/path/auth 编辑 surface；公共请求保留参数值集合，provider adapter 负责检查和 wire 映射，不新增独立“高级参数扩展点”抽象
+- [x] 4.4 移除 Profile picker、model management、catalog output mapping UI、矩阵 cell 选择和通用 endpoint/path/auth 编辑 surface；公共请求保留参数值集合，provider adapter 负责检查和 wire 映射，不新增独立“高级参数扩展点”抽象
 - [ ] 4.5 更新共享 i18n、Chrome harness、UI contract tests 和 visual cases，覆盖未配置 provider、Key 更新、模型切换和动态参数空/错误状态
 
 ## 5. Photoshop、ComfyUI 与资源边界

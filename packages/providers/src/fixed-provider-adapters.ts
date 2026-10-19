@@ -40,14 +40,24 @@ export function prepareGrsaiRequest(request: FixedGenerationRequest): FixedPrepa
 /** 构造 RunningHub 的固定请求；endpoint 与模型保持在 adapter/catalog 内。 */
 export function prepareRunningHubRequest(request: FixedGenerationRequest): FixedPreparedRequest {
   const { model, parameters: checked } = checkProviderParameters(request);
+  if (request.maskImage && (model.input?.mask !== true || request.operation !== 'image_edit')) {
+    throw new Error(`RunningHub model "${request.modelId}" does not support mask input.`);
+  }
   const parameters = { ...checked };
   if (typeof parameters.aspectRatio === 'string') {
     const rule = model.parameters.aspectRatio;
     if (rule) parameters.aspectRatio = canonicalRunningHubRatio(parameters.aspectRatio, rule.options.map((option) => option.value));
   }
-  if (!model.endpoint) throw new Error(`RunningHub model "${request.modelId}" has no endpoint.`);
+  const route = model.routes?.[request.operation];
+  const endpoint = route?.endpoint ?? route?.path ?? model.endpoint;
+  if (!endpoint) throw new Error(`RunningHub model "${request.modelId}" has no route for operation "${request.operation}".`);
+  const inputImages = request.operation === 'image_edit' ? { imageUrls: imageValues(request.images) } : {};
+  const mask = request.operation === 'image_edit' && request.maskImage
+    ? { maskUrl: imageValues([request.maskImage.asset])[0] }
+    : {};
+  const wireParameters = Object.fromEntries(Object.entries(parameters).filter(([name, value]) => !(name === 'aspectRatio' && value === 'auto')));
   return {
-    providerId: 'runninghub', urlPath: model.endpoint,
-    body: { prompt: request.prompt, imageUrls: imageValues(request.images), ...(model.fixed ?? {}), ...parameters, ...(request.maskImage ? { maskUrl: imageValues([request.maskImage.asset])[0] } : {}) },
+    providerId: 'runninghub', urlPath: endpoint,
+    body: { prompt: request.prompt, ...inputImages, ...(model.fixed ?? {}), ...wireParameters, ...mask },
   };
 }

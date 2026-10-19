@@ -1,5 +1,5 @@
 import type { ProviderDescriptor } from '../../contract/provider.js';
-import { GRSAI_DEFAULT_MODEL_TEMPLATES } from './models.js';
+import { defaultModelTemplates } from '../../catalog/provider-templates.js';
 
 /** GRSAI Generate provider 的静态 descriptor。 */
 export const grsaiDescriptor: ProviderDescriptor = {
@@ -8,7 +8,7 @@ export const grsaiDescriptor: ProviderDescriptor = {
   displayName: 'GRSAI Generate',
   operations: ['text_to_image', 'image_edit'],
   invokeMode: 'async',
-  defaultModelTemplates: GRSAI_DEFAULT_MODEL_TEMPLATES,
+  defaultModelTemplates: defaultModelTemplates('grsai'),
   billing: {
     query: 'supported',
     mode: 'fixed',

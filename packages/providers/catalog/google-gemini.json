@@ -1,0 +1,389 @@
+{
+  "schemaVersion": 2,
+  "providerId": "google-gemini",
+  "displayName": "Google Gemini",
+  "baseUrl": "https://generativelanguage.googleapis.com",
+  "defaultModel": "gemini-3.1-flash-image",
+  "models": [
+    {
+      "id": "gemini-3.1-flash-image",
+      "label": "Nano Banana 2",
+      "operations": [
+        "text_to_image",
+        "image_edit"
+      ],
+      "parameters": {
+        "aspectRatio": {
+          "type": "choice",
+          "default": "auto",
+          "options": [
+            {
+              "value": "auto",
+              "label": "auto"
+            },
+            {
+              "value": "1:1",
+              "label": "1:1"
+            },
+            {
+              "value": "1:4",
+              "label": "1:4"
+            },
+            {
+              "value": "1:8",
+              "label": "1:8"
+            },
+            {
+              "value": "2:3",
+              "label": "2:3"
+            },
+            {
+              "value": "3:2",
+              "label": "3:2"
+            },
+            {
+              "value": "3:4",
+              "label": "3:4"
+            },
+            {
+              "value": "4:1",
+              "label": "4:1"
+            },
+            {
+              "value": "4:3",
+              "label": "4:3"
+            },
+            {
+              "value": "4:5",
+              "label": "4:5"
+            },
+            {
+              "value": "5:4",
+              "label": "5:4"
+            },
+            {
+              "value": "8:1",
+              "label": "8:1"
+            },
+            {
+              "value": "9:16",
+              "label": "9:16"
+            },
+            {
+              "value": "16:9",
+              "label": "16:9"
+            },
+            {
+              "value": "21:9",
+              "label": "21:9"
+            }
+          ]
+        },
+        "resolution": {
+          "type": "choice",
+          "default": "512",
+          "options": [
+            {
+              "value": "512",
+              "label": "512"
+            },
+            {
+              "value": "1k",
+              "label": "1k"
+            },
+            {
+              "value": "2k",
+              "label": "2k"
+            },
+            {
+              "value": "4k",
+              "label": "4k"
+            }
+          ]
+        }
+      },
+      "input": {
+        "maxImages": 10,
+        "mask": true
+      },
+      "output": {
+        "formats": [
+          "png"
+        ],
+        "geometry": {
+          "kind": "ratio-resolution",
+          "aspectRatios": [
+            "1:1",
+            "1:4",
+            "1:8",
+            "2:3",
+            "3:2",
+            "3:4",
+            "4:1",
+            "4:3",
+            "4:5",
+            "5:4",
+            "8:1",
+            "9:16",
+            "16:9",
+            "21:9"
+          ],
+          "resolutions": [
+            "512",
+            "1k",
+            "2k",
+            "4k"
+          ]
+        }
+      },
+      "routes": {
+        "text_to_image": {
+          "path": "/v1beta/models/{model}:generateContent"
+        },
+        "image_edit": {
+          "path": "/v1beta/models/{model}:generateContent"
+        }
+      }
+    },
+    {
+      "id": "gemini-3-pro-image",
+      "label": "Nano Banana Pro",
+      "operations": [
+        "text_to_image",
+        "image_edit"
+      ],
+      "parameters": {
+        "aspectRatio": {
+          "type": "choice",
+          "default": "auto",
+          "options": [
+            {
+              "value": "auto",
+              "label": "auto"
+            },
+            {
+              "value": "1:1",
+              "label": "1:1"
+            },
+            {
+              "value": "2:3",
+              "label": "2:3"
+            },
+            {
+              "value": "3:2",
+              "label": "3:2"
+            },
+            {
+              "value": "3:4",
+              "label": "3:4"
+            },
+            {
+              "value": "4:3",
+              "label": "4:3"
+            },
+            {
+              "value": "4:5",
+              "label": "4:5"
+            },
+            {
+              "value": "5:4",
+              "label": "5:4"
+            },
+            {
+              "value": "9:16",
+              "label": "9:16"
+            },
+            {
+              "value": "16:9",
+              "label": "16:9"
+            },
+            {
+              "value": "21:9",
+              "label": "21:9"
+            }
+          ]
+        },
+        "resolution": {
+          "type": "choice",
+          "default": "1k",
+          "options": [
+            {
+              "value": "1k",
+              "label": "1k"
+            },
+            {
+              "value": "2k",
+              "label": "2k"
+            },
+            {
+              "value": "4k",
+              "label": "4k"
+            }
+          ]
+        }
+      },
+      "input": {
+        "maxImages": 10,
+        "mask": true
+      },
+      "output": {
+        "formats": [
+          "png"
+        ],
+        "geometry": {
+          "kind": "ratio-resolution",
+          "aspectRatios": [
+            "1:1",
+            "2:3",
+            "3:2",
+            "3:4",
+            "4:3",
+            "4:5",
+            "5:4",
+            "9:16",
+            "16:9",
+            "21:9"
+          ],
+          "resolutions": [
+            "1k",
+            "2k",
+            "4k"
+          ]
+        }
+      },
+      "routes": {
+        "text_to_image": {
+          "path": "/v1beta/models/{model}:generateContent"
+        },
+        "image_edit": {
+          "path": "/v1beta/models/{model}:generateContent"
+        }
+      }
+    },
+    {
+      "id": "gemini-3.1-flash-lite-image",
+      "label": "Nano Banana 2 Lite",
+      "operations": [
+        "text_to_image",
+        "image_edit"
+      ],
+      "parameters": {
+        "aspectRatio": {
+          "type": "choice",
+          "default": "auto",
+          "options": [
+            {
+              "value": "auto",
+              "label": "auto"
+            },
+            {
+              "value": "1:1",
+              "label": "1:1"
+            },
+            {
+              "value": "1:4",
+              "label": "1:4"
+            },
+            {
+              "value": "1:8",
+              "label": "1:8"
+            },
+            {
+              "value": "2:3",
+              "label": "2:3"
+            },
+            {
+              "value": "3:2",
+              "label": "3:2"
+            },
+            {
+              "value": "3:4",
+              "label": "3:4"
+            },
+            {
+              "value": "4:1",
+              "label": "4:1"
+            },
+            {
+              "value": "4:3",
+              "label": "4:3"
+            },
+            {
+              "value": "4:5",
+              "label": "4:5"
+            },
+            {
+              "value": "5:4",
+              "label": "5:4"
+            },
+            {
+              "value": "8:1",
+              "label": "8:1"
+            },
+            {
+              "value": "9:16",
+              "label": "9:16"
+            },
+            {
+              "value": "16:9",
+              "label": "16:9"
+            },
+            {
+              "value": "21:9",
+              "label": "21:9"
+            }
+          ]
+        },
+        "resolution": {
+          "type": "choice",
+          "default": "1k",
+          "options": [
+            {
+              "value": "1k",
+              "label": "1k"
+            }
+          ]
+        }
+      },
+      "input": {
+        "maxImages": 10,
+        "mask": true
+      },
+      "output": {
+        "formats": [
+          "png"
+        ],
+        "geometry": {
+          "kind": "ratio-resolution",
+          "aspectRatios": [
+            "1:1",
+            "1:4",
+            "1:8",
+            "2:3",
+            "3:2",
+            "3:4",
+            "4:1",
+            "4:3",
+            "4:5",
+            "5:4",
+            "8:1",
+            "9:16",
+            "16:9",
+            "21:9"
+          ],
+          "resolutions": [
+            "1k"
+          ]
+        }
+      },
+      "routes": {
+        "text_to_image": {
+          "path": "/v1beta/models/{model}:generateContent"
+        },
+        "image_edit": {
+          "path": "/v1beta/models/{model}:generateContent"
+        }
+      }
+    }
+  ]
+}

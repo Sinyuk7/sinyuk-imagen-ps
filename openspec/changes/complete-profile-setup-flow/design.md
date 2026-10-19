@@ -1,6 +1,6 @@
 ## Context
 
-Profile 与 `UserModelConfig` 已分属独立 repository：前者保存 `apiFormat`、连接、鉴权、billing 与 secret refs，后者保存 model identity、`wireModelId`、`requestStrategyId` 和能力矩阵。`saveUserModelConfig()` 要求 Profile 已存在，所以新建流程无法在首个模型保存前完全不落盘。
+Profile 与 `UserModelConfig` 已分属独立 repository：前者保存 `apiFormat`、连接、鉴权、billing 与 secret refs，后者保存 model identity、`wireModelId`、`provider route selection` 和能力矩阵。`saveUserModelConfig()` 要求 Profile 已存在，所以新建流程无法在首个模型保存前完全不落盘。
 
 当前 `saveProviderProfile()` 会立即将 Profile 暴露给列表和 active selection；`SettingsAddPage` 将其视为保存成功。`AppShell` 和 Provider backend 又在没有显式模型时选择模型列表第一项。最后一个模型可被删除，`enabled` 仍混合了持久化、UI 和 admission 语义。
 

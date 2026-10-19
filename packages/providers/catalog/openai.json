@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 2,
+  "providerId": "openai",
+  "displayName": "OpenAI Images",
+  "baseUrl": "https://api.openai.com",
+  "defaultModel": "gpt-image-2",
+  "models": [
+    {
+      "id": "gpt-image-2",
+      "label": "GPT Image 2",
+      "operations": [
+        "text_to_image",
+        "image_edit"
+      ],
+      "parameters": {
+        "resolution": {
+          "type": "choice",
+          "default": "1k",
+          "options": [
+            {
+              "value": "1k",
+              "label": "1k"
+            },
+            {
+              "value": "2k",
+              "label": "2k"
+            },
+            {
+              "value": "4k",
+              "label": "4k"
+            }
+          ]
+        }
+      },
+      "input": {
+        "maxImages": 10,
+        "mask": true
+      },
+      "output": {
+        "formats": [
+          "png",
+          "jpeg",
+          "webp"
+        ],
+        "geometry": {
+          "kind": "flexible-pixels",
+          "resolutions": [
+            "1k",
+            "2k",
+            "4k"
+          ],
+          "inputDerivedExactSize": true
+        }
+      },
+      "routes": {
+        "text_to_image": {
+          "path": "/v1/images/generations"
+        },
+        "image_edit": {
+          "path": "/v1/images/edits"
+        }
+      }
+    }
+  ]
+}

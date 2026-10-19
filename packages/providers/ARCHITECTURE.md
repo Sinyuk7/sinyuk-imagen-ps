@@ -16,13 +16,9 @@ src/providers/
   openai/
 ```
 
-Each slice owns `models.ts`, `profile-template.ts`, `config-schema.ts`,
-`descriptor.ts`, `provider.ts`, and its local `transport/`. `models.ts` is the
-single source for model IDs, wire IDs, capabilities, and the default model;
-`profile-template.ts` is the single source for fixed endpoint, path, auth, and
-billing defaults. Descriptors derive their default templates from those files.
+Each slice owns its `config-schema.ts`, `descriptor.ts`, `provider.ts`, and local `transport/`. Model IDs, parameters, input rules, routes, and output mappings live in `packages/providers/catalog/*.json`; descriptors and request builders read that catalog.
 
-Slices may depend on contracts, `model-catalog/shared`, and `shared/transport`,
+Slices may depend on contracts, the provider catalog, and `shared/transport`,
 but never on another Provider slice. Registry composition imports only each
 slice's `index.ts`. Application imports the package public API; app UI imports
 only Application projections.

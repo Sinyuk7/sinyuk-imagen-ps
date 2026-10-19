@@ -9,7 +9,7 @@ import type {
 } from '../../contract/provider.js';
 import type { ProviderInvokeResult } from '../../contract/result.js';
 import type { Logger } from '@imagen-ps/foundation';
-import { mockRequestSchema, type MockProviderRequest } from '../mock/request-schema.js';
+import { canonicalImageRequestSchema, type CanonicalImageRequest } from '../../contract/request-schema.js';
 import { googleGeminiConfigSchema, type GoogleGeminiProviderConfig } from './config-schema.js';
 import { googleGeminiDescriptor } from './descriptor.js';
 import { probeEndpointReachability } from '../../shared/transport/endpoint-probe.js';
@@ -22,7 +22,7 @@ import {
 import { parseGoogleGeminiResponse } from './transport/parse-response.js';
 import { assembleApiUrl } from '../../contract/provider-routing.js';
 import { executeBillingProtocolChain } from '../../transport/billing/protocol-registry.js';
-import { resolveProviderResolvedOutput } from '../../contract/image-model-capability.js';
+import { resolveCatalogProviderOutput } from '../../catalog/output-resolution.js';
 
 interface ProviderValidationError extends Error {
   details?: Record<string, unknown>;
@@ -154,7 +154,7 @@ function countTokensRequestBody(): Readonly<{
   };
 }
 
-export function createGoogleGeminiProvider(): Provider<GoogleGeminiProviderConfig, MockProviderRequest> {
+export function createGoogleGeminiProvider(): Provider<GoogleGeminiProviderConfig, CanonicalImageRequest> {
   return {
     id: googleGeminiDescriptor.id,
     family: googleGeminiDescriptor.family,
@@ -178,8 +178,8 @@ export function createGoogleGeminiProvider(): Provider<GoogleGeminiProviderConfi
       return result.data;
     },
 
-    validateRequest(input: unknown): MockProviderRequest {
-      const result = mockRequestSchema.safeParse(input);
+    validateRequest(input: unknown): CanonicalImageRequest {
+      const result = canonicalImageRequestSchema.safeParse(input);
       if (!result.success) {
         const issues = result.error.issues.map((issue) => ({
           path: issue.path.join('.'),
@@ -194,9 +194,9 @@ export function createGoogleGeminiProvider(): Provider<GoogleGeminiProviderConfi
         throw createValidationError('Gemini Generate Content provider request requires capabilityModelId.');
       }
       try {
-        resolveProviderResolvedOutput({
+        resolveCatalogProviderOutput({
           providerId: 'google-gemini',
-          capabilityModelId: result.data.capabilityModelId,
+          modelId: result.data.capabilityModelId,
           operation: result.data.operation,
           output: result.data.output,
           ...(result.data.inputContext !== undefined ? { inputContext: result.data.inputContext } : {}),
@@ -209,7 +209,7 @@ export function createGoogleGeminiProvider(): Provider<GoogleGeminiProviderConfi
       return result.data;
     },
 
-    async invoke(args: ProviderInvokeArgs<GoogleGeminiProviderConfig, MockProviderRequest>): Promise<ProviderInvokeResult> {
+    async invoke(args: ProviderInvokeArgs<GoogleGeminiProviderConfig, CanonicalImageRequest>): Promise<ProviderInvokeResult> {
       const { config, request, signal, logger } = args;
       const providerLogger = logger?.child({
         package: 'providers',

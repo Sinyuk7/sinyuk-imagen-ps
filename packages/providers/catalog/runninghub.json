@@ -3,7 +3,6 @@
     {
       "id": "rh:nano-banana-2-economy",
       "channel": "economy",
-      "endpoint": "/openapi/v2/rhart-image-n-g31-flash/image-to-image",
       "label": "Nano Banana 2 - Economy",
       "operations": [
         "text_to_image",
@@ -99,12 +98,19 @@
       "input": {
         "maxImages": 10,
         "mask": false
+      },
+      "routes": {
+        "text_to_image": {
+          "endpoint": "/openapi/v2/rhart-image-n-g31-flash/text-to-image"
+        },
+        "image_edit": {
+          "endpoint": "/openapi/v2/rhart-image-n-g31-flash/image-to-image"
+        }
       }
     },
     {
       "id": "rh:nano-banana-2-stable",
       "channel": "stable",
-      "endpoint": "/openapi/v2/rhart-image-n-g31-flash-official/image-to-image",
       "label": "Nano Banana 2 - Stable",
       "operations": [
         "text_to_image",
@@ -200,12 +206,19 @@
       "input": {
         "maxImages": 10,
         "mask": false
+      },
+      "routes": {
+        "text_to_image": {
+          "endpoint": "/openapi/v2/rhart-image-n-g31-flash-official/text-to-image"
+        },
+        "image_edit": {
+          "endpoint": "/openapi/v2/rhart-image-n-g31-flash-official/image-to-image"
+        }
       }
     },
     {
       "id": "rh:nano-banana-pro-economy",
       "channel": "economy",
-      "endpoint": "/openapi/v2/rhart-image-n-pro/edit",
       "label": "Nano Banana Pro - Economy",
       "operations": [
         "text_to_image",
@@ -285,12 +298,19 @@
       "input": {
         "maxImages": 10,
         "mask": false
+      },
+      "routes": {
+        "text_to_image": {
+          "endpoint": "/openapi/v2/rhart-image-n-pro/text-to-image"
+        },
+        "image_edit": {
+          "endpoint": "/openapi/v2/rhart-image-n-pro/edit"
+        }
       }
     },
     {
       "id": "rh:nano-banana-pro-stable",
       "channel": "stable",
-      "endpoint": "/openapi/v2/rhart-image-n-pro-official/edit",
       "label": "Nano Banana Pro - Stable",
       "operations": [
         "text_to_image",
@@ -370,12 +390,19 @@
       "input": {
         "maxImages": 10,
         "mask": false
+      },
+      "routes": {
+        "text_to_image": {
+          "endpoint": "/openapi/v2/rhart-image-n-pro-official/text-to-image"
+        },
+        "image_edit": {
+          "endpoint": "/openapi/v2/rhart-image-n-pro-official/edit"
+        }
       }
     },
     {
       "id": "rh:gpt-image-2.5-flare-economy",
       "channel": "economy",
-      "endpoint": "/openapi/v2/rhart-image-g-2.5/flare/image-to-image",
       "label": "GPT Image 2.5 Flare - Economy",
       "operations": [
         "text_to_image",
@@ -471,12 +498,19 @@
       "input": {
         "maxImages": 10,
         "mask": true
+      },
+      "routes": {
+        "text_to_image": {
+          "endpoint": "/openapi/v2/rhart-image-g-2.5/flare/text-to-image"
+        },
+        "image_edit": {
+          "endpoint": "/openapi/v2/rhart-image-g-2.5/flare/image-to-image"
+        }
       }
     },
     {
       "id": "rh:gpt-image-2.5-flare-stable",
       "channel": "stable",
-      "endpoint": "/openapi/v2/rhart-image-g-2.5-official-token/flare/edit",
       "fixed": {
         "background": "opaque",
         "outputFormat": "png"
@@ -605,12 +639,19 @@
       "input": {
         "maxImages": 10,
         "mask": true
+      },
+      "routes": {
+        "text_to_image": {
+          "endpoint": "/openapi/v2/rhart-image-g-2.5-official-token/flare/text-to-image"
+        },
+        "image_edit": {
+          "endpoint": "/openapi/v2/rhart-image-g-2.5-official-token/flare/edit"
+        }
       }
     },
     {
       "id": "rh:gpt-image-2.5-sunburst-economy",
       "channel": "economy",
-      "endpoint": "/openapi/v2/rhart-image-g-2.5/sunburst/image-to-image",
       "label": "GPT Image 2.5 Sunburst - Economy",
       "operations": [
         "text_to_image",
@@ -706,12 +747,19 @@
       "input": {
         "maxImages": 10,
         "mask": true
+      },
+      "routes": {
+        "text_to_image": {
+          "endpoint": "/openapi/v2/rhart-image-g-2.5/sunburst/text-to-image"
+        },
+        "image_edit": {
+          "endpoint": "/openapi/v2/rhart-image-g-2.5/sunburst/image-to-image"
+        }
       }
     },
     {
       "id": "rh:gpt-image-2.5-sunburst-stable",
       "channel": "stable",
-      "endpoint": "/openapi/v2/rhart-image-g-2.5-official-token/sunburst/edit",
       "fixed": {
         "background": "opaque",
         "outputFormat": "png"
@@ -840,6 +888,14 @@
       "input": {
         "maxImages": 10,
         "mask": true
+      },
+      "routes": {
+        "text_to_image": {
+          "endpoint": "/openapi/v2/rhart-image-g-2.5-official-token/sunburst/text-to-image"
+        },
+        "image_edit": {
+          "endpoint": "/openapi/v2/rhart-image-g-2.5-official-token/sunburst/edit"
+        }
       }
     }
   ],

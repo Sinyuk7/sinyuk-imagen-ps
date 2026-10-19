@@ -1,5 +1,5 @@
 import type { ProviderDescriptor } from '../../contract/provider.js';
-import { GEMINI_DEFAULT_MODEL_TEMPLATES } from './models.js';
+import { defaultModelTemplates } from '../../catalog/provider-templates.js';
 
 /** Gemini Generate Content provider 的静态 descriptor。 */
 export const googleGeminiDescriptor: ProviderDescriptor = {
@@ -8,7 +8,7 @@ export const googleGeminiDescriptor: ProviderDescriptor = {
   displayName: 'Gemini Generate Content',
   operations: ['text_to_image', 'image_edit'],
   invokeMode: 'sync',
-  defaultModelTemplates: GEMINI_DEFAULT_MODEL_TEMPLATES,
+  defaultModelTemplates: defaultModelTemplates('google-gemini'),
   transport: {
     wire: {
       responseCodecs: ['json'],

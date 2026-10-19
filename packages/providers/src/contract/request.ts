@@ -2,13 +2,12 @@ import type { Asset } from '@imagen-ps/core-engine';
 import type { ProviderId } from './provider-routing.js';
 import type { ProviderOperation } from './capability.js';
 import type { ImageOutputSelection } from './image-output-contract.js';
-import type { MaskExecutionPlan } from './image-model-capability.js';
+import type { MaskExecutionPlan } from './provider-execution.js';
 
 /** 旧 provider transport 的内部执行锚点；固定 provider 请求不再填充。 */
 export interface ProviderModelExecution {
   readonly modelId: string;
   readonly providerId: ProviderId;
-  readonly requestStrategyId: string;
 }
 
 /**

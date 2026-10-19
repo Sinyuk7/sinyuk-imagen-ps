@@ -1,10 +1,9 @@
 import type { Asset } from '@imagen-ps/core-engine';
 import type { ProviderDiagnostic } from '../../../contract/diagnostics.js';
 import type { CanonicalImageJobRequest, GoogleGeminiRequestOutput, ProviderOutputOptions } from '../../../contract/request.js';
-import {
-  assertProviderModelExecution,
-  resolveProviderResolvedOutput,
-} from '../../../contract/image-model-capability.js';
+import { assertProviderModelExecution } from '../../../contract/provider-execution.js';
+import { resolveCatalogProviderOutput } from '../../../catalog/output-resolution.js';
+import { getProviderCatalogRoute } from '../../../catalog.js';
 
 /** Gemini Generate Content provider-local 输出 revision。 */
 export type GoogleGeminiWireRevision = 'image-config';
@@ -275,9 +274,9 @@ function resolveRequestOutput(request: CanonicalImageJobRequest, output: Provide
     return undefined;
   }
   const capabilityModelId = request.capabilityModelId ?? resolveModel(request);
-  const resolvedOutput = resolveProviderResolvedOutput({
+  const resolvedOutput = resolveCatalogProviderOutput({
     providerId: 'google-gemini',
-    capabilityModelId,
+    modelId: capabilityModelId,
     operation: request.operation,
     output,
     inputContext: request.inputContext,
@@ -363,9 +362,10 @@ export function buildGoogleGeminiRequest(args: {
     }),
   };
 
+  const catalogPath = getProviderCatalogRoute('google-gemini', model, args.request.operation);
   return {
     model,
-    path: `/models/${encodeURIComponent(model)}:generateContent`,
+    path: (catalogPath ?? '/v1beta/models/{model}:generateContent').replace('{model}', encodeURIComponent(model)),
     body,
     diagnostics,
     wireRevision,

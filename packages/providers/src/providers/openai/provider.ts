@@ -12,7 +12,7 @@ import type { ProviderInvokeResult } from '../../contract/result.js';
 import type { Logger } from '@imagen-ps/foundation';
 import { openAiDescriptor } from './descriptor.js';
 import { openAiConfigSchema, type OpenAiProviderConfig } from './config-schema.js';
-import { mockRequestSchema, type MockProviderRequest } from '../mock/request-schema.js';
+import { canonicalImageRequestSchema, type CanonicalImageRequest } from '../../contract/request-schema.js';
 import { probeEndpointReachability } from '../../shared/transport/endpoint-probe.js';
 import { httpRequest } from '../../shared/transport/http.js';
 import {
@@ -30,6 +30,7 @@ import {
   buildRequestBody,
 } from './transport/build-request.js';
 import { parseResponse } from './transport/parse-response.js';
+import { getProviderCatalogRoute } from '../../catalog.js';
 import { executeBillingProtocolChain } from '../../transport/billing/protocol-registry.js';
 import {
   evictIfMatches,
@@ -45,7 +46,7 @@ interface ProviderValidationError extends Error {
   details?: Record<string, unknown>;
 }
 
-type MockImageAsset = NonNullable<MockProviderRequest['images']>[number];
+type MockImageAsset = NonNullable<CanonicalImageRequest['images']>[number];
 
 function createValidationError(message: string, details?: Record<string, unknown>): ProviderValidationError {
   const err = new Error(message) as ProviderValidationError;
@@ -75,7 +76,7 @@ function summarizeAssetReferenceKind(asset: MockImageAsset | undefined): string 
 
 function logEditRequestSummary(
   logger: Logger | undefined,
-  request: MockProviderRequest,
+  request: CanonicalImageRequest,
   resolvedCodec: {
     readonly codec: { readonly id: string };
     readonly source: string;
@@ -155,7 +156,7 @@ async function mapWithConcurrency<TInput, TOutput>(
   return results;
 }
 
-function compatibleImageEditCodecs(request: MockProviderRequest): readonly ImageEditCodec[] {
+function compatibleImageEditCodecs(request: CanonicalImageRequest): readonly ImageEditCodec[] {
   const declaredOrder = openAiDescriptor.transport?.wire?.defaultEditCodecOrder ?? [];
   return declaredOrder.filter((codec) => isImageEditCodecCompatible(request, codec));
 }
@@ -177,7 +178,7 @@ function logEditCodecFallbackDecision(
 /**
  * 创建 image endpoint provider 实例。
  */
-export function createOpenAiProvider(): Provider<OpenAiProviderConfig, MockProviderRequest> {
+export function createOpenAiProvider(): Provider<OpenAiProviderConfig, CanonicalImageRequest> {
   return {
     id: openAiDescriptor.id,
     family: openAiDescriptor.family,
@@ -201,9 +202,9 @@ export function createOpenAiProvider(): Provider<OpenAiProviderConfig, MockProvi
       return result.data;
     },
 
-    validateRequest(input: unknown): MockProviderRequest {
+    validateRequest(input: unknown): CanonicalImageRequest {
       // 复用 mock 的 request schema，因为 canonical request 形状相同
-      const result = mockRequestSchema.safeParse(input);
+      const result = canonicalImageRequestSchema.safeParse(input);
       if (!result.success) {
         const issues = result.error.issues.map((issue) => ({
           path: issue.path.join('.'),
@@ -218,11 +219,15 @@ export function createOpenAiProvider(): Provider<OpenAiProviderConfig, MockProvi
     },
 
     async invoke(
-      args: ProviderInvokeArgs<OpenAiProviderConfig, MockProviderRequest>,
+      args: ProviderInvokeArgs<OpenAiProviderConfig, CanonicalImageRequest>,
     ): Promise<ProviderInvokeResult> {
       const { config, request, signal } = args;
 
-      const endpoint =
+      const catalogModelId = request.model?.modelId ?? request.capabilityModelId;
+      const catalogEndpoint = catalogModelId
+        ? getProviderCatalogRoute('openai', catalogModelId, request.operation)
+        : undefined;
+      const endpoint = catalogEndpoint ??
         request.operation === 'text_to_image'
           ? config.paths.generation
           : request.operation === 'image_edit'
