@@ -16,6 +16,7 @@ export type IconName =
   | 'chevron-down'
   | 'chevron-left'
   | 'chevron-right'
+  | 'chevron-up'
   | 'close'
   | 'copy'
   | 'download'
@@ -41,6 +42,7 @@ export type IconName =
   | 'refresh'
   | 'regenerate'
   | 'selection'
+  | 'save'
   | 'send'
   | 'settings'
   | 'spinner'
@@ -83,6 +85,7 @@ const ICON_BODY_BY_NAME: Record<IconName, SvgBody> = {
     </>
   ),
   check: () => <polyline points="5 12.5 9.4 17 19 7" />,
+  save: () => <><path d="M5 3.5h12l3.5 3.5v13.5H3.5V3.5z" /><path d="M7 3.5v6h10v-6M7 20.5v-7h10v7" /></>,
   close: () => (
     <>
       <line x1="6.5" y1="6.5" x2="17.5" y2="17.5" />
@@ -94,6 +97,7 @@ const ICON_BODY_BY_NAME: Record<IconName, SvgBody> = {
   'chevron-down': () => <polyline points="6 8.5 12 14.5 18 8.5" strokeWidth="2.2" />,
   'chevron-left': () => <polyline points="15 5 8 12 15 19" />,
   'chevron-right': () => <polyline points="9 5 16 12 9 19" />,
+  'chevron-up': () => <polyline points="6 15.5 12 9.5 18 15.5" strokeWidth="2.2" />,
 
   /* ── Status family ─────────────────────────────────────────────── */
   empty: () => (

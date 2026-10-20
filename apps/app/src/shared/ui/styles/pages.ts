@@ -64,6 +64,10 @@ export const PAGES_CSS = `
   font-size:11px;
   font-weight:500;
 }
+.provider-brand-icon{ width:24px; height:24px; display:block; object-fit:contain; }
+.provider-brand-icon-grsai{ filter:invert(1); }
+.provider-brand-icon-runninghub{ width:22px; height:22px; border-radius:6px; }
+@media (prefers-color-scheme: light){ .provider-brand-icon-grsai{ filter:none; } }
 .profile-model-avatar{ background:var(--app-color-background-layer-2); color:var(--app-color-accent-default); }
 .profile-model-avatar-suggestion{ color:var(--app-color-informative); }
 .prov-content{ flex:1; min-width:0; display:flex; flex-direction:column; justify-content:center; }

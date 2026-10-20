@@ -1,6 +1,7 @@
 import {
   createImmutableSnapshot,
   createValidationError,
+  type Job,
   type StoredAssetRef,
 } from '@imagen-ps/core-engine';
 import {
@@ -395,13 +396,27 @@ function outputsForTask(taskId: string, refs: readonly StoredAssetRef[]): readon
   }));
 }
 
+function taskUsageFromJob(job: Job): TaskRecord['taskUsage'] {
+  const output = job.output;
+  if (!isRecord(output) || !isRecord(output.image) || !isRecord(output.image.taskUsage) || !Array.isArray(output.image.taskUsage.metrics)) return undefined;
+  const metrics = output.image.taskUsage.metrics.flatMap((item) => {
+    if (!isRecord(item) || typeof item.id !== 'string' || typeof item.value !== 'string' || typeof item.unit !== 'string') return [];
+    if (!['runninghub-coins', 'runninghub-money', 'runninghub-third-party-money', 'grsai-balance-change'].includes(item.id)) return [];
+    if (!['coins', 'money', 'credits'].includes(item.unit) || !Number.isFinite(Number(item.value))) return [];
+    return [{ id: item.id as 'runninghub-coins' | 'runninghub-money' | 'runninghub-third-party-money' | 'grsai-balance-change', value: item.value, unit: item.unit as 'coins' | 'money' | 'credits' }];
+  });
+  return metrics.length ? { metrics } : undefined;
+}
+
 function defaultTerminalProjection(input: ProviderTerminalTaskProjectionInput): TaskRecord {
   const { job, runningTask } = input;
+  const taskUsage = job.status === 'completed' ? taskUsageFromJob(job) : undefined;
   const base = {
     ...runningTask,
     latestJobId: job.id,
     updatedAt: job.updatedAt,
     finishedAt: job.updatedAt,
+    ...(taskUsage ? { taskUsage } : {}),
   };
   return job.status === 'completed'
     ? {

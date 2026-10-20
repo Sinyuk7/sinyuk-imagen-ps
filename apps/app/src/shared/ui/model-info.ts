@@ -4,6 +4,7 @@ export interface UiModelInfo {
   readonly id: string;
   readonly displayName?: string;
   readonly wireModelId?: string;
+  readonly operations?: readonly ('text_to_image' | 'image_edit')[];
   readonly discovered?: boolean;
   readonly configured?: boolean;
   readonly configSource?: 'catalog';
@@ -11,7 +12,13 @@ export interface UiModelInfo {
 
 /** 固定 Provider 的本地 catalog 模型投影。 */
 export function fixedProviderModels(providerId: FixedProviderId): readonly UiModelInfo[] {
-  return getProviderCatalog(providerId).models.map((model) => ({ id: model.id, displayName: model.label, configured: true, configSource: 'catalog' }));
+  return getProviderCatalog(providerId).models.map((model) => ({
+    id: model.id,
+    displayName: model.label,
+    operations: model.operations,
+    configured: true,
+    configSource: 'catalog',
+  }));
 }
 export function modelInfoFromDescriptor(model: ProviderModelInfo): UiModelInfo {
   return { id: model.id, displayName: model.displayName, wireModelId: model.id, configSource: 'catalog', configured: true };

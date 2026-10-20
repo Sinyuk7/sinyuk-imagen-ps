@@ -499,12 +499,15 @@ export function getRuntime(): ExtendedRuntime {
             if (!account?.secretRef) throw createValidationError('Fixed provider API Key is not configured.', { providerId });
             const apiKey = await getSecretStorageAdapter().getSecret(account.secretRef);
             if (!apiKey?.trim()) throw createValidationError('Fixed provider API Key is missing.', { providerId });
+            const billingToken = providerId === 'grsai' && account.billingTokenSecretRef
+              ? await getSecretStorageAdapter().getSecret(account.billingTokenSecretRef)
+              : undefined;
             const catalog = getProviderCatalog(providerId);
             const endpoint = account.baseUrl ?? catalog.baseUrl;
             const connection = { selectionMode: 'manual' as const, selectedEndpointId: 'primary', endpoints: [{ id: 'primary', url: endpoint, enabled: true }] };
             const provider = providerRegistry.get(implementationId);
             if (!provider) throw createValidationError('Fixed provider implementation is not registered.', { implementationId });
-            const providerConfig = provider.validateConfig({ providerId: implementationId, displayName: account.displayName, family: provider.describe().family, connection, apiKey, ...(implementationId === 'grsai' ? { paths: { submit: '/v1/api/generate', result: '/v1/api/result' } } : {}) });
+            const providerConfig = provider.validateConfig({ providerId: implementationId, displayName: account.displayName, family: provider.describe().family, connection, apiKey, ...(implementationId === 'grsai' ? { paths: { submit: '/v1/api/generate', result: '/v1/api/result' }, ...(billingToken?.trim() ? { billing: { source: 'billing-token', path: '/client/openapi/getCredits', tokenSecretRef: billingToken.trim() } } : {}) } : {}) });
             return providerConfig;
           }
           throw createValidationError('Only fixed GRSAI and RunningHub providers are supported.', { implementationId });

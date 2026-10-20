@@ -78,6 +78,15 @@ export interface ProviderInvokeMetadata {
   readonly size?: string;
 }
 
+/** Provider 提供的本次任务消耗；UI 负责按 metric/unit 本地化展示。 */
+export interface ProviderTaskUsage {
+  readonly metrics: readonly {
+    readonly id: 'runninghub-coins' | 'runninghub-money' | 'runninghub-third-party-money' | 'grsai-balance-change';
+    readonly value: string;
+    readonly unit: 'coins' | 'money' | 'credits';
+  }[];
+}
+
 /** provider invoke 的稳定返回值。 */
 export interface ProviderInvokeResult {
   /** 归一化后的输出资源。 */
@@ -105,6 +114,9 @@ export interface ProviderInvokeResult {
 
   /** 上游对响应参数的回声（`background` / `output_format` / `quality` / `size`）。 */
   readonly metadata?: ProviderInvokeMetadata;
+
+  /** Provider 归一化后的本次任务消耗；无可用数据时省略。 */
+  readonly taskUsage?: ProviderTaskUsage;
 
   /** 本次逻辑请求的稳定 endpoint 执行证据。 */
   readonly execution?: ProviderExecutionInfo;

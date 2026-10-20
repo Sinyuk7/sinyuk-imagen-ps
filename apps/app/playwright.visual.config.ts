@@ -15,6 +15,6 @@ export default defineConfig({
   webServer: {
     command: 'pnpm build:chrome && vite preview --outDir dist/web --host 127.0.0.1 --port 4173',
     port: 4173,
-    reuseExistingServer: false,
+    reuseExistingServer: !process.env.CI,
   },
 });

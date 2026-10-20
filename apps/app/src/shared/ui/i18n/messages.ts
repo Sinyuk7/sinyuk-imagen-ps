@@ -66,6 +66,7 @@ export interface AppMessages {
     readonly regenerate: string;
     readonly copyPrompt: string;
     readonly copyResponse: string;
+    readonly primaryAttachmentLabel: string;
     readonly requestId: string;
     readonly copyRequestId: string;
     readonly expandPrompt: string;
@@ -86,16 +87,26 @@ export interface AppMessages {
     readonly promptPlaceholderReady: string;
     readonly promptPlaceholderNoProfile: string;
     readonly addImage: string;
+    readonly composerSettings: string;
+    readonly composerRun: string;
+    readonly composerRunShortcutMac: string;
+    readonly composerRunShortcutWindows: string;
+    readonly composerSummaryModel: string;
+    readonly composerSummaryTemplate: string;
+    readonly composerSummaryRatio: string;
+    readonly composerSummarySize: string;
+    readonly composerCaptureLabel: string;
+    readonly composerCaptureDescription: string;
+    readonly composerCapturing: string;
+    readonly composerOpenWorkflowSettings: string;
+    readonly removeAttachment: (name: string) => string;
     readonly capture: string;
-    readonly captureActionHint: string;
     readonly captureCount: (count: number) => string;
     readonly captureLayer: string;
     readonly captureSelection: string;
     readonly mask: string;
     readonly maskToggleLabel: (enabled: boolean) => string;
     readonly maskLoading: string;
-    readonly maskReady: string;
-    readonly maskNone: string;
     readonly maskError: string;
     readonly retryMask: string;
     readonly send: string;
@@ -236,6 +247,15 @@ export interface AppMessages {
     readonly duplicateDisplayName: (name: string) => string;
     readonly showApiKey: string;
     readonly hideApiKey: string;
+    readonly billingToken: string;
+    readonly billingTokenPlaceholder: string;
+    readonly billingTokenHint: string;
+    readonly providerAccountTitle: string;
+    readonly apiKeyLabel: string;
+    readonly apiKeyPlaceholder: string;
+    readonly baseUrlLabel: string;
+    readonly baseUrlPlaceholder: string;
+    readonly saveProviderAccount: string;
     readonly testConnection: string;
     readonly testingConnection: string;
     readonly saved: string;
@@ -257,7 +277,7 @@ export interface AppMessages {
     readonly userPromptTemplateHint: string;
     readonly templateRequiresInput: string;
     readonly templateStandalone: string;
-    readonly lastPromptTemplate: string;
+    readonly promptTemplateNone: string;
     readonly promptTemplatesLoading: string;
     readonly templateName: string;
     readonly outputGroup: string;
@@ -291,6 +311,11 @@ export interface AppMessages {
     readonly waitForRunningTask: string;
     readonly historyNotInCurrentSession: string;
     readonly errorDetailsCopied: string;
+    readonly taskUsage: (label: string, value: string, unit: string) => string;
+    readonly balanceChange: string;
+    readonly runningHubCoins: string;
+    readonly runningHubRuntimeCost: string;
+    readonly runningHubApiCost: string;
   };
   readonly conversation: {
     readonly jobFailed: string;
@@ -362,6 +387,7 @@ const EN_MESSAGES: AppMessages = {
     regenerate: 'Regenerate',
     copyPrompt: 'Copy prompt',
     copyResponse: 'Copy response',
+    primaryAttachmentLabel: 'Main',
     requestId: 'Request ID',
     copyRequestId: 'Copy request ID',
     expandPrompt: 'Expand prompt',
@@ -382,16 +408,26 @@ const EN_MESSAGES: AppMessages = {
     promptPlaceholderReady: 'Describe the image you want to generate or edit',
     promptPlaceholderNoProfile: 'Add a provider profile first',
     addImage: 'Add image',
+    composerSettings: 'Generation settings',
+    composerRun: 'Run',
+    composerRunShortcutMac: '⌘ + Enter',
+    composerRunShortcutWindows: 'Ctrl + Enter',
+    composerSummaryModel: 'Model',
+    composerSummaryTemplate: 'Template',
+    composerSummaryRatio: 'Ratio',
+    composerSummarySize: 'Size',
+    composerCaptureLabel: 'Capture',
+    composerCaptureDescription: 'Capture the current Photoshop layer or selection',
+    composerCapturing: 'Capturing…',
+    composerOpenWorkflowSettings: 'Workflow settings',
+    removeAttachment: (name) => `Remove ${name}`,
     capture: 'Capture',
-    captureActionHint: 'Capture the active Photoshop layer or selection',
     captureCount: (count) => `${count} capture${count === 1 ? '' : 's'}`,
     captureLayer: 'Photoshop layer capture',
     captureSelection: 'Photoshop selection capture',
     mask: 'Mask',
     maskToggleLabel: (enabled) => `Mask: ${enabled ? 'on' : 'off'}`,
     maskLoading: 'Preparing mask',
-    maskReady: 'Mask ready',
-    maskNone: 'No mask on primary image',
     maskError: 'Mask failed',
     retryMask: 'Retry mask',
     send: 'Send',
@@ -536,13 +572,22 @@ const EN_MESSAGES: AppMessages = {
     noProvider: 'No profiles (´･ω･`)',
     config: 'Configuration',
     alias: 'Alias',
-    apiKeyReplacePlaceholder: 'Enter a new API Key to replace it',
     clearField: 'Clear',
     removeSecret: 'Remove',
     secretRemovalPending: 'Will be removed after saving.',
     duplicateDisplayName: (name) => `A Provider named "${name}" already exists.`,
     showApiKey: 'Show API Key',
     hideApiKey: 'Hide API Key',
+    billingToken: 'Token',
+    billingTokenPlaceholder: 'Optional Token',
+    billingTokenHint: 'The token is used to call the platform OpenAPI.',
+    providerAccountTitle: 'Provider settings',
+    apiKeyLabel: 'API Key',
+    apiKeyPlaceholder: 'Enter API Key',
+    apiKeyReplacePlaceholder: 'Enter a new API Key to replace it',
+    baseUrlLabel: 'Base URL',
+    baseUrlPlaceholder: 'Optional provider endpoint',
+    saveProviderAccount: 'Save provider settings',
     testConnection: 'Test connection',
     testingConnection: 'Testing…',
     saved: 'Saved',
@@ -558,7 +603,7 @@ const EN_MESSAGES: AppMessages = {
     promptTemplates: 'Prompt Templates', addPromptTemplate: 'Add template', editPromptTemplate: 'Edit template',
     systemPrompt: 'System prompt', systemPromptHint: 'Optional. {prompt} is not supported here.',
     userPromptTemplate: 'User prompt template', userPromptTemplateHint: 'Required. Use {prompt} once to include Composer text; omit it for a standalone prompt.',
-    templateRequiresInput: 'Requires input', templateStandalone: 'Standalone', lastPromptTemplate: 'Keep at least one prompt template.',
+    templateRequiresInput: 'Requires input', templateStandalone: 'Standalone', promptTemplateNone: 'None',
     promptTemplatesLoading: 'Loading templates...',
     templateName: 'Name',
     outputGroup: 'Parameters',
@@ -592,6 +637,11 @@ const EN_MESSAGES: AppMessages = {
     waitForRunningTask: 'Wait for the running task to finish',
     historyNotInCurrentSession: 'This task is not in the current session',
     errorDetailsCopied: 'Error details copied',
+    taskUsage: (label, value, unit) => `${label}: ${value} ${unit}`,
+    balanceChange: 'Observed balance change',
+    runningHubCoins: 'RunningHub coins consumed',
+    runningHubRuntimeCost: 'RunningHub runtime cost',
+    runningHubApiCost: 'RunningHub API cost',
   },
   conversation: {
     jobFailed: 'Task failed.',
@@ -663,6 +713,7 @@ const ZH_CN_MESSAGES: AppMessages = {
     regenerate: '重新生成',
     copyPrompt: '复制提示词',
     copyResponse: '复制结果',
+    primaryAttachmentLabel: '主图',
     requestId: 'Request ID',
     copyRequestId: '复制请求 ID',
     expandPrompt: '展开提示词',
@@ -683,16 +734,26 @@ const ZH_CN_MESSAGES: AppMessages = {
     promptPlaceholderReady: '描述想生成或编辑的图像',
     promptPlaceholderNoProfile: '请先添加 Provider 配置',
     addImage: '添加图片',
+    composerSettings: '生成设置',
+    composerRun: '运行',
+    composerRunShortcutMac: '⌘ + Enter',
+    composerRunShortcutWindows: 'Ctrl + Enter',
+    composerSummaryModel: '模型',
+    composerSummaryTemplate: '模板',
+    composerSummaryRatio: '比例',
+    composerSummarySize: '尺寸',
+    composerCaptureLabel: '捕获',
+    composerCaptureDescription: '捕获当前 Photoshop 图层或选区',
+    composerCapturing: '正在捕获…',
+    composerOpenWorkflowSettings: '工作流设置',
+    removeAttachment: (name) => `删除附件 ${name}`,
     capture: '捕获',
-    captureActionHint: '捕获图层或选区',
     captureCount: (count) => `${count} 个捕获`,
     captureLayer: '图层捕获',
     captureSelection: '选区捕获',
     mask: '蒙版',
     maskToggleLabel: (enabled) => `蒙版：${enabled ? '开启' : '关闭'}`,
     maskLoading: '正在准备蒙版',
-    maskReady: '蒙版已就绪',
-    maskNone: '主图没有蒙版',
     maskError: '蒙版失败',
     retryMask: '重试蒙版',
     send: '发送',
@@ -844,6 +905,15 @@ const ZH_CN_MESSAGES: AppMessages = {
     duplicateDisplayName: (name) => `已存在名为“${name}”的 Provider。`,
     showApiKey: '显示 API Key',
     hideApiKey: '隐藏 API Key',
+    billingToken: 'Token',
+    billingTokenPlaceholder: '可选 Token',
+    billingTokenHint: '令牌用于调用平台开放接口',
+    providerAccountTitle: 'Provider 设置',
+    apiKeyLabel: 'API Key',
+    apiKeyPlaceholder: '请输入 API Key',
+    baseUrlLabel: '接口地址',
+    baseUrlPlaceholder: '可选，留空使用默认地址',
+    saveProviderAccount: '保存 Provider 设置',
     testConnection: '测试连接',
     testingConnection: '测试中…',
     saved: '已保存',
@@ -859,7 +929,7 @@ const ZH_CN_MESSAGES: AppMessages = {
     promptTemplates: '提示词模板', addPromptTemplate: '添加模板', editPromptTemplate: '编辑模板',
     systemPrompt: '系统提示词', systemPromptHint: '可留空；此处不支持 {prompt}。',
     userPromptTemplate: '用户提示词模板', userPromptTemplateHint: '必填。使用一次 {prompt} 插入输入框内容；不使用则可直接发送。',
-    templateRequiresInput: '需要输入', templateStandalone: '独立提示词', lastPromptTemplate: '至少保留一个提示词模板。',
+    templateRequiresInput: '需要输入', templateStandalone: '独立提示词', promptTemplateNone: 'None',
     promptTemplatesLoading: '正在加载模板...',
     templateName: '名称',
     outputGroup: '参数配置',
@@ -893,6 +963,11 @@ const ZH_CN_MESSAGES: AppMessages = {
     waitForRunningTask: '请等待任务完成',
     historyNotInCurrentSession: '任务属其他会话',
     errorDetailsCopied: '错误详情已复制',
+    taskUsage: (label, value, unit) => `${label}：${value} ${unit}`,
+    balanceChange: '观察到的余额变化',
+    runningHubCoins: 'RunningHub 积分消耗',
+    runningHubRuntimeCost: 'RunningHub 运行费用',
+    runningHubApiCost: 'RunningHub API 费用',
   },
   conversation: {
     jobFailed: '任务失败。',

@@ -11,7 +11,7 @@
 - 主要 UI 所有者：`apps/app/src/shared/ui/pages/main-page.tsx`。
 - 主要样式所有者：`apps/app/src/shared/ui/styles/composer.ts` 及确有需要时的 `responsive.ts`；通过 `panel-css.ts` 汇总。
 - 复用现有 `IconButton`、`Button`、`ComposerSelect`、`ComposerParameterField`、提示组件、动效、国际化和无障碍模式。设置摘要统一使用现有 `IconButton` 的 tooltip/label 交互，不另造一套 popover 行为。
-- `IconButton` 目前将 tooltip 文案传入 Spectrum `ActionButton` 的 `label`、`title` 和 `data-tooltip-placement`。设置摘要应作为可更新的文案接入这一现有交互；它不是独立占位区域，也不是点击后才出现的参数面板。
+- `IconButton` 原先把 `tooltip` 同时传给 Spectrum `ActionButton` 的 `label` 与原生 `title`；`data-tooltip-placement` 没有共享 UI 消费方，原生标题也不能保证焦点时显示多行内容。故设置摘要选用一套实际注册的 Spectrum `sp-tooltip`，通过同一触发控件的 hover/focus 样式显示，展开时卸载；稳定 accessible name 与动态描述由 `aria-label`、`aria-describedby`/`aria-description` 分开承载。不另造 Popover，不把原生 `title` 与 Spectrum 浮层混用于设置按钮。该 Spectrum 组件位于项目锁定的 0.37.0 版本，并有 Adobe UXP 样例和支持映射；真实 Photoshop 宿主验收遵守本计划后文的边界。
 - 保持 provider/workspace 状态、参数 schema、生成 payload、捕获与蒙版 host adapter 的所有权和实现不变。
 - 测试归属 app UI/Chrome 确定性 harness。若没有覆盖真实 Composer 结构的窄 harness，再新增最小测试入口；避免把本计划扩展为会话卡片、Provider 设置页或 Photoshop host 的全面重构。
 
@@ -26,8 +26,9 @@
 - **添加附件**：沿用现有入口及附件菜单，继续提供 Photoshop 图层选择和本机文件添加。必须保留明确的无障碍名称，并沿用现有 tooltip 交互。
 - **蒙版**：沿用现有开关、禁用条件、状态和处理逻辑。图标可以在本次 UI 改版中暂用占位图形，但必须保留表达蒙版功能的无障碍名称及现有 tooltip；不得因占位图标而变成无名按钮。
 - **捕获按钮的可见文案**：使用清楚、简短、直接描述行为的中文，例如“捕获图层/选区”；不要以英文 `Capture` 作为文案或实现示例。代码中的实际捕获规则是：当前文档有选区时捕获选区，否则捕获当前图层（返回结果的 `sourceKind` 分别为 `selection` 或 `layer`）。因此不能把行为描述成始终只捕获图层。Tooltip 和无障碍描述明确说明“捕获当前 Photoshop 图层或选区”，并保留忙碌保护、原错误反馈和附件创建行为。若实现时 handler 规则发生变化，应以真实 handler 行为重新确定可见文案和描述。
-- **设置按钮**：图标按钮紧邻 Run，是模型、模板和全部生成参数的唯一显示入口。按钮无障碍名称保持稳定、清晰（如“生成设置”）；当前配置摘要只能作为补充描述及视觉 Tooltip 内容，不能替代按钮名称。先使用现有 `IconButton` 已支持的独立 `aria-label` 与 tooltip 属性分别承载名称和摘要。若现有属性映射/渲染不能保证这两种语义互不覆盖，再评估对 `IconButton` 的最小兼容扩展；不得因此引入第二套 Tooltip 或自定义 Popover。通过 `aria-expanded` / `aria-controls` 表达展开状态。
+- **设置按钮**：图标按钮紧邻 Run，是模型、模板和全部生成参数的唯一显示入口。按钮无障碍名称保持稳定、清晰（如“生成设置”）；当前配置摘要只能作为补充描述及视觉 Tooltip 内容，不能替代按钮名称。`IconButton` 通过最小兼容扩展支持 Spectrum Tooltip 内容与稳定 accessible name 分离；展开时卸载 Tooltip，通过 `aria-expanded` / `aria-controls` 表达展开状态。不得另加自定义 Popover。
 - **运行按钮**：使用文字“运行”及可见的提交快捷键提示，不再使用含义不清的纯发送图标。点击按钮和快捷键共用 `handleSend`，保留 readiness 校验、IME 输入保护和现有提交路径。
+- **快捷键可读性**：macOS 按钮显示 `⌘ + Enter`，Windows 显示 `Ctrl + Enter`，不能依赖很小且容易误读的 `⌘↵` 符号组合。
 - **快捷键提示**：插件同时面向 macOS 和 Windows，不能固定显示单一平台的符号，也不能同时显示两种快捷键。运行时按操作系统呈现对应组合键（macOS `⌘↵`，Windows `Ctrl↵`），并在按键 handler 中实现相同组合键；确认 Windows/macOS 的检测方式兼容 Chrome harness 与 UXP。普通 Enter 用于在多行提示词中换行，不再提交；IME 确认输入不得误触发组合键提交。按钮点击与平台组合键提交不得分叉到不同业务路径。
 - **附件缩略条**：零附件时不渲染条带、空列表或占位容器。有一个及以上附件时在操作栏上方显示附件条目和移除操作。每个条目样式简洁统一、宽度相同，包含图片缩略图、受长度限制的附件标题、可选的必要补充信息，以及删除按钮；长标题单行截断/省略，不挤压缩略图和删除按钮。删除与附件状态无关的多余 hover 装饰、复杂动效或冗余状态呈现，保留有助于识别或操作的必要反馈。添加/移除附件不得改变 Add、Mask、捕获、设置和运行控件的结构。
 
@@ -36,6 +37,7 @@
 - 首次进入时设置区收起。收起时不常驻显示模型、Prompt template、比例、尺寸、Provider catalog 参数或当前配置摘要行。
 - 点击设置图标展开**全部**可用参数；再次点击收起整个参数区。移除 “Show advanced inputs” / “Hide advanced inputs” 入口及其单独状态。原先归为 advanced 的 Provider 参数，与模型、Prompt template、比例和尺寸由同一个展开状态控制。
 - 原有选项、值、默认值解析、禁用状态、参数更新 handler 均保持不变。收起/展开不重置选择、不触发生成、不改写 workspace 状态。
+- Prompt template 支持不启用：参数选择器提供 `None`，默认未选模板时首页显示 `None`；无模板时直接使用用户输入，不套用模板提示词。模板列表允许全部删除；删除当前模板后选择回到 `None`，不能自动强制选中其他模板。
 - 收起状态下，悬停或键盘焦点到设置图标时，tooltip 显示**当前实际生效的**模型、Prompt template、比例和尺寸。模板须显示当前选中模板的可读名称或标签，不能只显示内部 ID；过长名称截断并以省略号结尾，摘要总长控制在适合小面板的少量文字内。显示 label/value，而非只显示无标签的数值；缺少的字段省略，不用默认值冒充当前生效值。来源应是当前选中的 model、`currentTemplate` 及 `ratioSizeProjection` 等与实际请求一致的投影。
 - 按钮的稳定无障碍名称保持为“生成设置”（或对应本地化文案）；动态摘要作为补充描述/Tooltip，不覆盖或拼接进按钮名称。验证 accessibility tree/ARIA 属性，而不只依赖视觉 Tooltip 检查。
 - 参数改变后摘要随 React 当前状态立即更新，不等待生成、刷新或重新打开页面。
@@ -50,12 +52,14 @@
 | 情况 | 默认面板的呈现位置/行为 |
 | --- | --- |
 | 当前配置摘要 | 只在设置图标收起时的 hover/focus tooltip 出现；无常驻摘要行 |
-| readiness / 不能运行 | 保留 `canSend` 和 `handleSend` 守卫；Run 按钮 disabled 时通过 tooltip 或无障碍描述说明原因，若用户仍触发提交，沿用现有 toast 反馈；移除持续占位的 footer readiness 行。实现前验证禁用按钮的 Tooltip 是否可由鼠标触发、其禁用原因是否能被辅助技术读取。若禁用态无法触发 Tooltip，优先采用既有可访问描述能力；不要未经验证新增常驻状态行 |
+| readiness / 不能运行 | 保留 `canSend` 和 `handleSend` 守卫；Run 按钮 disabled 时通过无障碍描述说明原因，若用户仍触发提交，沿用现有 toast 反馈；移除持续占位的 footer readiness 行。由于禁用控件通常不能通过键盘聚焦，Run 在不可运行时保留键盘焦点可达性并暴露 `aria-disabled` 与原因描述；点击仍由控件及 `handleSend` 守卫阻止。以 Chrome 无障碍语义和键盘焦点测试验证，不新增常驻状态行 |
 | 正在生成 | 沿用会话/任务区域对运行任务的呈现；Composer 不添加重复的“发送中”等常驻标签。按钮/handler 必须保留防重复提交行为；现有实现无该保护时，在 UI handler 边界补齐并测试，不改变 workspace 执行状态模型 |
 | 捕获进行中 | 捕获按钮自身显示忙碌/不可重复触发状态，保留 `captureInFlight` 守卫；不增加独立状态横幅 |
 | 捕获失败、蒙版失败 | 保留现有 toast/错误恢复；蒙版错误时保留当前重试入口。不得为视觉简化而吞掉错误 |
 | 图像输入与所选模型冲突 | 在 Composer 主输入区内保留当前可见冲突提示及“选择兼容模型/移除图像”恢复操作；不可只藏在设置区或 tooltip |
 | 其他 workspace notices | 逐项确认其是否要求用户采取行动。可行动 notice 留在主输入区可见位置；纯信息、重复且无操作项的 notice 才能从默认视图移除，并须在测试中覆盖其决策 |
+
+固定 Provider catalog 已声明每个模型支持的 operation；UI 模型投影必须保留这份信息，readiness 与图片冲突提示据此判断。当前内置 catalog 的所有模型都同时声明 `text_to_image` 和 `image_edit`，所以真实 catalog 暂无可选的“不支持图片输入”模型。能力判断的 supported/unsupported/unknown 边界由确定性单元测试覆盖；冲突恢复控件的“选择兼容模型”和“移除图片”分别由组件测试覆盖。若未来 catalog 出现不支持图片编辑的模型，再用该条目增加端到端冲突提示场景，不得伪造产品模型或改写生成规则来制造当前不存在的产品状态。
 
 除上述呈现变化，不改 readiness 判定、捕获/蒙版状态机、错误分类、toast 类型或业务执行保护。如果检查发现某个状态目前没有可靠呈现或重复提交保护，应在本次 UI 边界明确修复并增加确定性测试，不得悄悄删除原保护。
 
@@ -95,13 +99,15 @@ pnpm validate
 - [ ] 左侧依次提供添加附件、蒙版、明确命名的捕获文字按钮；捕获规则及反馈仍与真实 handler 一致，tooltip/无障碍描述清楚说明捕获当前 Photoshop 图层或选区。
 - [ ] 添加、蒙版和设置图标按钮均有明确无障碍名称并沿用现有 tooltip 交互；蒙版占位图标不影响其名称。
 - [ ] 右侧设置图标与文字“运行”按钮并列。Run 的快捷键提示按 macOS/Windows 对应显示，鼠标点击及快捷键走相同 `handleSend` 且保持 readiness、IME 和重复触发保护。
+- [ ] macOS Run 明确显示 `⌘ + Enter`，Windows 显示 `Ctrl + Enter`；平台提示不被操作栏挤压或裁切。
 - [ ] 普通 Enter 只在提示词中换行；macOS `⌘↵`、Windows `Ctrl↵` 提交，按钮只显示当前平台的快捷键提示。
 - [ ] 默认状态隐藏模型、Prompt template、比例、尺寸、Provider catalog 参数及常驻配置摘要。
 - [ ] 一个设置图标控制全部参数；点击展开、再次点击收起；页面不再存在 “Show advanced inputs” 或其他独立参数入口。
 - [ ] 设置按钮的无障碍名称始终明确且稳定；动态配置摘要仅作为补充描述/Tooltip，accessibility tree 中不会取代按钮名称。
 - [ ] 设置收起时 hover/focus 摘要显示当前模型、当前模板可读名称、比例和尺寸；模板长名称省略截断；参数改变后下一次查看立即显示新值；缺失值不伪装成实际值。
+- [ ] Prompt template 可设为 `None`，首页参数选择器清楚显示 `None`；无模板时提示词原样进入请求，模板列表可全部删除。
 - [ ] Tooltip 覆盖 hover、focus、指针离开、焦点移出及设置展开关闭行为；设置展开期间不出现摘要浮层且不遮挡参数；Tooltip 不留布局空间。Chrome harness 与受支持的 UXP 契约验证一致。
-- [ ] Run 禁用时的原因可由适用输入方式及辅助技术获得；若禁用态不能触发 Tooltip，则使用可访问描述而不增加默认常驻提示行。
+- [ ] Run 禁用时仍可键盘聚焦，原因可由辅助技术读取；控件以 `aria-disabled` 表达禁用并在点击路径阻止提交，不增加默认常驻提示行。
 - [ ] 附件条目等宽且包含缩略图、限长标题、可选必要信息和删除按钮；长标题截断不挤压其他内容；多余 hover/动效被清理，附件识别与删除仍清晰可用。
 - [ ] 常驻 readiness/生成状态装饰被移除，但 Run 的禁用说明、toast、捕获 busy/error、蒙版重试、图像冲突恢复、可行动 notice、任务区运行状态和执行保护均符合上方位置规则。
 - [ ] 已清理旧参数展开状态、旧“高级输入”入口及文案、旧常驻摘要、失效 Composer CSS/本地化/图标资源和废弃测试标识；全仓引用检查证明已删资源没有其他消费者，共享业务实现未被误删。

@@ -27,13 +27,9 @@ import { configurationInstanceLabel, type UiModelInfo } from '../model-info';
 import type { GenerationWorkspaceController } from '../generation-workspace';
 import type { PromptSettings } from '../../ports/prompt-settings';
 import { assemblePromptTemplate, promptTemplateNeedsInput } from '../../ports/prompt-settings';
-import { Button, ComposerParameterField, ComposerSelect, HelpText, Icon, IconButton, ImageFallbackContent, imageFallbackTitle, List, ListStateItem, MotionActivityDot, MotionActivityIcon, MotionButtonSurface, MotionContent, MotionDimSurface, MotionHighlight, MotionImage, MotionPresenceView, PageFrame, PageHeader, PageScroll, PageState, ProviderIdentity, ProviderMediaHeader, UxpTextArea, type UxpTextAreaElement, useToast } from '../ui-system';
-import { composerConfigurationSummaryParts, composerRatioChoices, composerSizeChoices, projectComposerRatioSize, resolveComposerRatioSizeSource } from '../composer-parameter-presentation';
-
-function isImeCompositionKey(event: React.KeyboardEvent): boolean {
-  const nativeEvent = event.nativeEvent as KeyboardEvent & { readonly isComposing?: boolean };
-  return nativeEvent.isComposing === true || nativeEvent.keyCode === 229;
-}
+import { Button, ComposerImageInputConflict, ComposerParameterField, ComposerSelect, Icon, IconButton, ImageFallbackContent, imageFallbackTitle, List, ListStateItem, MotionActivityDot, MotionActivityIcon, MotionButtonSurface, MotionContent, MotionDimSurface, MotionHighlight, MotionImage, MotionPresenceView, PageFrame, PageHeader, PageScroll, PageState, ProviderIdentity, ProviderMediaHeader, UxpTextArea, type UxpTextAreaElement, useToast } from '../ui-system';
+import { composerRatioChoices, composerSizeChoices, projectComposerRatioSize, resolveComposerRatioSizeSource } from '../composer-parameter-presentation';
+import { composerRunShortcutLabel, composerSettingsSummary, shouldSubmitComposerShortcut } from '../composer-control-presentation';
 
 function optionLabel<T extends string>(options: ReadonlyArray<{ readonly id: T; readonly label: string }>, id: T): string {
   return options.find((option) => option.id === id)?.label ?? id.toUpperCase();
@@ -59,7 +55,7 @@ interface MainPageProps {
   readonly reloadLayers: () => Promise<void>;
   readonly conversation: ConversationController;
   readonly promptSettings: PromptSettings;
-  readonly onSelectPromptTemplate: (templateId: string) => void;
+  readonly onSelectPromptTemplate: (templateId: string | null) => void;
   readonly highlightedRoundId?: string | null;
   readonly onEditProfile?: (providerId: string) => void;
   readonly restoreFailedRoundId?: string | null;
@@ -379,11 +375,12 @@ export function MainPage({
   const [providerMenuOpen, setProfileMenuOpen] = useState(false);
   const [promptTemplateMenuOpen, setPromptTemplateMenuOpen] = useState(false);
   const [openMenu, setOpenMenu] = useState<'model' | 'prompt-template' | 'ratio' | 'size' | `catalog:${string}` | null>(null);
-  const [advancedParametersOpen, setAdvancedParametersOpen] = useState(false);
+  const [generationSettingsOpen, setGenerationSettingsOpen] = useState(false);
   const [attachOpen, setAttachOpen] = useState(false);
   const [layerOpen, setLayerOpen] = useState(false);
   const [captureInFlight, setCaptureInFlight] = useState(false);
   const { show } = useToast();
+  const previousTaskStatusRef = useRef<Map<string, string>>(new Map());
   const [copied, setCopied] = useState<Record<string, boolean>>({});
   const [selectedPreviewIndexes, setSelectedPreviewIndexes] = useState<Record<string, number>>({});
   const [placeStatus, setPlaceStatus] = useState<Record<string, PlaceStatus>>({});
@@ -394,7 +391,22 @@ export function MainPage({
   const [highlightKey, setHighlightKey] = useState<string | null>(null);
   const [scrolledAway, setScrolledAway] = useState(false);
   const { viewModel, composerDraft } = workspace;
-  const currentTemplate = promptSettings.templates.find((template) => template.id === promptSettings.selectedTemplateId) ?? promptSettings.templates[0]!;
+  useEffect(() => {
+    for (const round of conversation.rounds) {
+      const previousStatus = previousTaskStatusRef.current.get(round.id);
+      previousTaskStatusRef.current.set(round.id, round.status);
+      if (previousStatus === undefined || previousStatus === 'ok' || round.status !== 'ok' || !round.taskUsage?.metrics.length) continue;
+      const labels: Record<string, string> = {
+        'runninghub-coins': t.toast.runningHubCoins,
+        'runninghub-money': t.toast.runningHubRuntimeCost,
+        'runninghub-third-party-money': t.toast.runningHubApiCost,
+        'grsai-balance-change': t.toast.balanceChange,
+      };
+      const message = round.taskUsage.metrics.map((metric) => t.toast.taskUsage(labels[metric.id] ?? metric.id, metric.value, metric.unit)).join(' · ');
+      show(message, 'info', { key: 'task-usage' });
+    }
+  }, [conversation.rounds, show, t.toast]);
+  const currentTemplate = promptSettings.templates.find((template) => template.id === promptSettings.selectedTemplateId) ?? null;
   const provider = viewModel.provider;
   const providers = ([{ profileId: 'grsai', displayName: 'GRSAI' }, { profileId: 'runninghub', displayName: 'RunningHub' }] as const);
   const providersLoading = false;
@@ -432,15 +444,9 @@ export function MainPage({
   const flatLayers = useMemo(() => flattenLayers(visibleLayers), [visibleLayers]);
   const uniqueModels = useMemo(() => dedupeById(models), [models]);
   const { input, attachments } = composerDraft;
-  const maskStatusText = workspace.maskState.kind === 'loading'
-    ? t.main.maskLoading
-    : workspace.maskState.kind === 'ready'
-      ? t.main.maskReady
-      : workspace.maskState.kind === 'none'
-        ? t.main.maskNone
-        : workspace.maskState.kind === 'error'
-          ? `${t.main.maskError}: ${workspace.maskState.message}`
-          : undefined;
+  const maskStatusText = workspace.maskState.kind === 'error'
+    ? `${t.main.maskError}: ${workspace.maskState.message}`
+    : undefined;
 
   useEffect(() => {
     workspace.setAttachmentPreparing(captureInFlight);
@@ -528,12 +534,17 @@ export function MainPage({
     })),
     [uniqueModels],
   );
-  const configurationSummary = composerConfigurationSummaryParts({
-    modelLabel: selectedModelInfo ? configurationInstanceLabel(selectedModelInfo) : selectedModelLabel,
+  const settingsSummary = composerSettingsSummary({
+    labels: {
+      model: t.main.composerSummaryModel,
+      template: t.main.composerSummaryTemplate,
+      ratio: t.main.composerSummaryRatio,
+      size: t.main.composerSummarySize,
+    },
+    model: selectedModelInfo ? configurationInstanceLabel(selectedModelInfo) : selectedModelLabel,
+    template: currentTemplate?.name ?? t.settings.promptTemplateNone,
     ...(ratioSizeProjection.ratio ? { ratio: ratioSizeProjection.ratio.value } : {}),
     ...(ratioSizeProjection.size ? { size: ratioSizeProjection.size.value } : {}),
-    parameters: catalogParameters,
-    values: catalogParameterValues,
   });
   const visibleLabelForModelId = (modelId: string | undefined): string | undefined => {
     if (!modelId) {
@@ -563,7 +574,13 @@ export function MainPage({
   const canSend = viewModel.readiness.canSend;
   const composerReadinessState = viewModel.readiness.state;
   const composerReadinessText = viewModel.readiness.message;
-  const showFooterReadiness = composerReadinessState !== 'enter-prompt';
+  const userAgent = typeof navigator === 'undefined' ? '' : navigator.userAgent;
+  const platform = typeof navigator === 'undefined' ? '' : navigator.platform;
+  const runShortcutLabel = composerRunShortcutLabel(userAgent, platform, {
+    mac: t.main.composerRunShortcutMac,
+    windows: t.main.composerRunShortcutWindows,
+  });
+  const runShortcutKey = /mac|iphone|ipad|ipod/iu.test(`${platform} ${userAgent}`) ? 'metaKey' : 'ctrlKey';
   const imageInputDisabled = viewModel.imageInputDisabled;
   const imageInputDisabledReason = viewModel.imageInputDisabledReason ?? t.main.imageInputDisabledForModel;
   const canCapture = !captureInFlight && !imageInputDisabled;
@@ -1443,7 +1460,8 @@ export function MainPage({
                           return;
                       }
                     };
-                    const showFillComposerSecondary = failure.primaryAction !== 'fill-composer-from-failed-round';
+                    const showCopyDetailsSecondary = failure.primaryAction === 'open-provider-settings';
+                    const showFillComposerSecondary = !showCopyDetailsSecondary && failure.primaryAction !== 'fill-composer-from-failed-round';
                     return (
                       <div className="err-card">
                         <div className="err-top">
@@ -1495,6 +1513,15 @@ export function MainPage({
                               onClick={() => fillComposerFromFailedRound(round)}
                             >
                               {t.main.errorActionFillComposer}
+                            </Button>
+                          ) : null}
+                          {showCopyDetailsSecondary ? (
+                            <Button
+                              data-testid={`error-copy-details-button-${round.id}`}
+                              className="err-retry err-retry-secondary"
+                              onClick={() => handleCopyErrorDetails(round, failure)}
+                            >
+                              {t.main.errorActionCopyDetails}
                             </Button>
                           ) : null}
                         </div>
@@ -1786,7 +1813,7 @@ export function MainPage({
 
       <footer className="composer" onClick={(event) => event.stopPropagation()}>
           <MotionDimSurface className="cmp-shell cmp-shell-motion" dim={false}>
-          <div className="cmp-attach-band">
+          {(attachments.length > 0 || attachOpen || layerOpen) ? <div className="cmp-attach-band">
             <MotionPresenceView visible={layerOpen} kind="popover">
               {({ ref, state }) => (
               <div ref={ref} className="layer-list-wrap" data-motion-state={state} onClick={(event) => event.stopPropagation()}>
@@ -1872,81 +1899,51 @@ export function MainPage({
               )}
             </MotionPresenceView>
 
-              <div className="attach-row">
-                <IconButton
-                  data-testid="composer-add-image-button"
-                  className="att-add cmp-add"
-                  hostClassName="att-add-host"
-                  quiet
-                  selected={attachOpen || layerOpen}
-                  icon={<Icon name="add" />}
-                  tooltip={imageInputDisabled ? imageInputDisabledReason : t.main.addImage}
-                  placement="top"
-                  disabled={imageInputDisabled}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setAttachOpen((open) => !open);
-                    setLayerOpen(false);
-                    setOpenMenu(null);
-                    setProfileMenuOpen(false);
-                  }}
-                />
-                {attachments.map((attachment) => (
-                  <MotionPresenceView
-                    key={attachment.id}
-                    visible
-                    kind="attachment"
-                  >
-                    {({ ref, state }) => (
-                      <div ref={ref} className="att-thumb" data-motion-state={state}>
-                        <MotionHighlight activeKey={highlightKey === `attachment:${attachment.id}` ? highlightKey : null} />
-                        {attachment.previewUrl
-                          ? <img src={attachment.previewUrl} className="att-thumb-img" alt={attachment.name} />
-                          : (
-                            <ImageFallbackContent
-                              density="thumbnail"
-                              state={attachment.previewFallback?.state ?? 'preview-unavailable'}
-                              title={imageFallbackTitle(t.imageFallback, attachment.previewFallback?.state ?? 'preview-unavailable')}
-                            />
-                          )
-                        }
-                        <IconButton
-                          data-testid={`attachment-remove-button-${attachment.id}`}
-                          className="att-rm"
-                          hostClassName="att-rm-host"
-                          quiet
-                          icon={<Icon name="close" size={10} />}
-                          tooltip={`Remove ${attachment.name}`}
-                          placement="top"
-                          onClick={() => removeAttachment(attachment.id)}
-                        />
-                      </div>
-                    )}
-                  </MotionPresenceView>
+              {attachments.length > 0 ? <div className="attach-row" data-testid="composer-attachments">
+                {attachments.map((attachment, index) => (
+                  <div key={attachment.id} className={`att-thumb${index === 0 ? ' is-primary' : ''}`} data-testid={`composer-attachment-item-${attachment.id}`}>
+                    {attachment.previewUrl
+                      ? <img src={attachment.previewUrl} className="att-thumb-img" data-testid={`composer-attachment-preview-${attachment.id}`} alt="" />
+                      : <ImageFallbackContent
+                        density="thumbnail"
+                        state={attachment.previewFallback?.state ?? 'preview-unavailable'}
+                        title={imageFallbackTitle(t.imageFallback, attachment.previewFallback?.state ?? 'preview-unavailable')}
+                      />}
+                    <span className="att-thumb-copy">
+                      <span className="att-thumb-name" data-testid={`composer-attachment-name-${attachment.id}`}>{attachment.name}</span>
+                      {index === 0 ? <span className="att-thumb-primary-label">{t.main.primaryAttachmentLabel}</span> : null}
+                    </span>
+                    <IconButton
+                      data-testid={`attachment-remove-button-${attachment.id}`}
+                      className="att-rm"
+                      hostClassName="att-rm-host"
+                      quiet
+                      icon={<Icon name="close" size={12} />}
+                      tooltip={t.main.removeAttachment(attachment.name)}
+                      aria-label={t.main.removeAttachment(attachment.name)}
+                      placement="top"
+                      onClick={() => removeAttachment(attachment.id)}
+                    />
+                  </div>
                 ))}
-              </div>
-          </div>
+              </div> : null}
+          </div> : null}
           <div className="cmp-core">
             {attachments.length > 0 && imageInputDisabled && (
               <MotionPresenceView visible kind="inline-notice">
                 {({ ref, state }) => (
-                  <div ref={ref} className="cmp-conflict" data-testid="composer-image-input-conflict" data-motion-state={state}>
-                    {t.main.imageInputConflict}
-                    <div className="cmp-conflict-actions">
-                      <Button
-                        className="cmp-conflict-action"
-                        onClick={() => {
-                          setOpenMenu('model');
-                          setAttachOpen(false);
-                          setLayerOpen(false);
-                        }}
-                      >
-                        {t.main.chooseCompatibleModel}
-                      </Button>
-                      <Button className="cmp-conflict-action" onClick={removeAllAttachments}>
-                        {t.main.removeImages}
-                      </Button>
-                    </div>
+                  <div ref={ref} data-motion-state={state}>
+                    <ComposerImageInputConflict
+                      message={t.main.imageInputConflict}
+                      chooseCompatibleModelLabel={t.main.chooseCompatibleModel}
+                      removeImagesLabel={t.main.removeImages}
+                      onChooseCompatibleModel={() => {
+                        setOpenMenu('model');
+                        setAttachOpen(false);
+                        setLayerOpen(false);
+                      }}
+                      onRemoveImages={removeAllAttachments}
+                    />
                   </div>
                 )}
               </MotionPresenceView>
@@ -1962,7 +1959,7 @@ export function MainPage({
                   onValue={composerDraft.setInput}
                   nativeEditorSuspended={composerTextAreaNeedsUxpPopupOverlapWorkaround}
                   onKeyDown={(event) => {
-                    if (event.key === 'Enter' && !event.shiftKey && !isImeCompositionKey(event)) {
+                    if (shouldSubmitComposerShortcut(event.nativeEvent, runShortcutKey)) {
                       event.preventDefault();
                       void handleSend();
                     }
@@ -1970,7 +1967,28 @@ export function MainPage({
                 />
               </div>
             <div className="cmp-action-row" data-testid="composer-action-row">
-              <div className="cmp-action-left">
+              <div className="cmp-action-left" data-testid="composer-action-left">
+                <MotionButtonSurface>
+                  <IconButton
+                    data-testid="composer-add-image-button"
+                    className="cmp-add"
+                    hostClassName="att-add-host"
+                    quiet
+                    selected={attachOpen || layerOpen}
+                    icon={<Icon name="add" />}
+                    tooltip={imageInputDisabled ? imageInputDisabledReason : t.main.addImage}
+                    aria-label={t.main.addImage}
+                    placement="top"
+                    disabled={imageInputDisabled}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setAttachOpen((open) => !open);
+                      setLayerOpen(false);
+                      setOpenMenu(null);
+                      setProfileMenuOpen(false);
+                    }}
+                  />
+                </MotionButtonSurface>
                 <MotionButtonSurface>
                   <IconButton
                     data-testid="composer-mask-toggle"
@@ -1988,23 +2006,14 @@ export function MainPage({
                     onClick={() => workspace.setMaskEnabled(!workspace.maskPreference.enabled)}
                   />
                 </MotionButtonSurface>
-                {workspace.maskState.kind === 'error' ? (
-                  <Button className="cmp-mask-retry" onClick={workspace.retryMask}>{t.main.retryMask}</Button>
-                ) : null}
-              </div>
-              <div className="cmp-action-right">
                 <MotionButtonSurface>
-                  <IconButton
+                  <Button
                     data-testid="composer-capture-button"
                     className="cmp-capture"
-                    hostClassName="cmp-capture-host"
-                    icon={captureInFlight
-                      ? <MotionActivityIcon className="cmp-capture-icon"><Icon name="spinner" size={13} /></MotionActivityIcon>
-                      : <Icon name="capture-selection" size={13} className="cmp-capture-icon" />}
-                    tooltip={imageInputDisabled ? imageInputDisabledReason : t.main.captureActionHint}
-                    aria-label={imageInputDisabled ? imageInputDisabledReason : t.main.captureActionHint}
-                    placement="top"
-                    iconSize={13}
+                    aria-label={t.main.composerCaptureDescription}
+                    aria-description={imageInputDisabled ? imageInputDisabledReason : undefined}
+                    title={imageInputDisabled ? imageInputDisabledReason : t.main.composerCaptureDescription}
+                    aria-busy={captureInFlight}
                     disabled={!canCapture}
                     onClick={(event) => {
                       event.stopPropagation();
@@ -2013,45 +2022,64 @@ export function MainPage({
                       setLayerOpen(false);
                       void captureFromPhotoshop();
                     }}
+      >{captureInFlight ? t.main.composerCapturing : t.main.composerCaptureLabel}</Button>
+                </MotionButtonSurface>
+              </div>
+              <div className="cmp-action-right" data-testid="composer-action-right">
+                <MotionButtonSurface>
+                  <IconButton
+                    data-testid="composer-settings-toggle"
+                    className="cmp-settings-toggle"
+                    quiet
+                    selected={generationSettingsOpen}
+                    icon={<Icon name="tune" size={14} />}
+                    tooltipText={generationSettingsOpen ? null : settingsSummary}
+                    tooltipTestId="composer-settings-toggle-tooltip"
+                    aria-label={t.main.composerSettings}
+                    aria-description={!generationSettingsOpen ? settingsSummary : undefined}
+                    aria-expanded={generationSettingsOpen ? 'true' : 'false'}
+                    aria-controls="composer-generation-settings"
+                    placement="top-end"
+                    iconSize={14}
+                    onClick={() => {
+                      setGenerationSettingsOpen((open) => !open);
+                      setOpenMenu(null);
+                      setPromptTemplateMenuOpen(false);
+                    }}
                   />
                 </MotionButtonSurface>
                 <div className="send-wrap">
                   <MotionButtonSurface>
-                    <IconButton
+                    <Button
                       data-testid="composer-send-button"
                       variant="accent"
-                      className="cmp-send"
-                      hostClassName="cmp-send-host"
-                      overlayClassName="cmp-send-overlay"
-                      icon={<Icon name="send" />}
-                      tooltip={composerReadinessText}
-                      aria-label={composerReadinessText}
-                      placement="top"
-                      iconSize={13}
+                      className="cmp-run"
+                      aria-label={`${t.main.composerRun} ${runShortcutLabel}`}
+                      aria-description={!canSend ? composerReadinessText : undefined}
+                      title={!canSend ? composerReadinessText : undefined}
                       disabled={!canSend}
+                      disabledFocusable={!canSend}
                       onClick={() => void handleSend()}
-                    />
+                    ><span>{t.main.composerRun}</span><span className="cmp-run-shortcut" aria-hidden="true">{runShortcutLabel}</span></Button>
                   </MotionButtonSurface>
                 </div>
               </div>
             </div>
             </div>
-            {maskStatusText ? <div className="cmp-readiness" data-testid="composer-mask-status" data-state={workspace.maskState.kind}>{maskStatusText}</div> : null}
+            {(maskStatusText || workspace.maskState.kind === 'error') ? <div className="cmp-feedback-row" data-testid="composer-mask-status" data-state={workspace.maskState.kind}>
+              {maskStatusText}
+              {workspace.maskState.kind === 'error' ? <Button data-testid="composer-mask-retry" className="cmp-mask-retry" onClick={workspace.retryMask}>{t.main.retryMask}</Button> : null}
+            </div> : null}
             {viewModel.notices.length > 0 ? (
-              <div className="cmp-readiness" data-testid="generation-workspace-notices">
-                {viewModel.notices.map((notice) => <div key={notice}>{notice}</div>)}
+              <div className="cmp-feedback-row" data-testid="generation-workspace-notices">
+                {viewModel.notices.map((notice) => <div key={notice} className="cmp-feedback-notice">
+                  <span>{notice}</span>
+                  {comfyUiMode ? <Button className="cmp-feedback-action" onClick={openWorkspaceSettings}>{t.main.composerOpenWorkflowSettings}</Button> : null}
+                </div>)}
               </div>
             ) : null}
           </div>
-          <div className="cmp-footer">
-            <div className="cmp-meta-row" data-testid="composer-configuration-summary" title={[configurationSummary.model, ...configurationSummary.details.map(({ value }) => value)].join(' · ')} aria-label={`Current configuration: ${[configurationSummary.model, ...configurationSummary.details.map(({ value }) => value)].join(' · ')}`}>
-              <span className="cmp-summary-model">{configurationSummary.model}</span>
-              {configurationSummary.details.length ? <span className="cmp-summary-details">{configurationSummary.details.map((detail) => <span key={detail.key} className={`cmp-summary-detail cmp-summary-detail-${detail.key}`} data-kind={detail.key}>{detail.value}</span>)}</span> : null}
-              {showFooterReadiness ? <MotionContent watch={composerReadinessState}>
-                <HelpText className="cmp-readiness" data-testid="composer-readiness-status" data-state={composerReadinessState}>{composerReadinessText}</HelpText>
-              </MotionContent> : null}
-            </div>
-            <div className="cmp-toolbar" data-testid="composer-toolbar">
+          {generationSettingsOpen ? <div className="cmp-toolbar" id="composer-generation-settings" data-testid="composer-toolbar">
               <div className="cmp-parameter-row cmp-model-row">
               <ComposerParameterField label="Model" className="cmp-model-slot">
               <ComposerSelect
@@ -2079,12 +2107,12 @@ export function MainPage({
                   triggerId="composer-prompt-template-trigger"
                   triggerKind="text"
                   label={t.settings.promptTemplates}
-                  value={currentTemplate.name}
-                  selectedId={currentTemplate.id}
+                  value={currentTemplate?.name ?? t.settings.promptTemplateNone}
+                  selectedId={currentTemplate?.id ?? '__none__'}
                   open={promptTemplateMenuOpen}
                   onOpenChange={(open) => handleOpenComposerMenu('prompt-template', open)}
-                  options={promptSettings.templates.map((template) => ({ id: template.id, label: template.name }))}
-                  onSelect={onSelectPromptTemplate}
+                  options={[{ id: '__none__', label: t.settings.promptTemplateNone }, ...promptSettings.templates.map((template) => ({ id: template.id, label: template.name }))]}
+                  onSelect={(templateId) => onSelectPromptTemplate(templateId === '__none__' ? null : templateId)}
                 /></ComposerParameterField>
                 {ratioSizeProjection.ratio ? <ComposerParameterField label="Ratio" className="cmp-ratio-slot"><ComposerSelect
                   testId="composer-ratio-selector"
@@ -2117,22 +2145,15 @@ export function MainPage({
                   }}
                 /></ComposerParameterField> : null}
               </div>
-              {Object.keys(catalogParameters).some((name) => !['aspectRatio', 'resolution', 'imageSize'].includes(name)) ? <div className="cmp-advanced-toggle-row"><Button
-                  data-testid="composer-advanced-toggle"
-                  className="cmp-advanced-toggle"
-                  aria-expanded={advancedParametersOpen}
-                  aria-controls="composer-advanced-parameters"
-                  onClick={() => setAdvancedParametersOpen((current) => !current)}
-                ><span className="cmp-advanced-toggle-content">{advancedParametersOpen ? 'Hide advanced inputs' : 'Show advanced inputs'}<Icon name="tune" size={16} /></span></Button></div> : null}
-              {advancedParametersOpen ? <div id="composer-advanced-parameters" className="cmp-parameter-row cmp-advanced-row" data-testid="composer-advanced-parameters">
+              {Object.keys(catalogParameters).some((name) => !['aspectRatio', 'resolution', 'imageSize'].includes(name)) ? <div className="cmp-parameter-row cmp-catalog-parameters" data-testid="composer-catalog-parameters">
               {Object.entries(catalogParameters).filter(([name]) => !['aspectRatio', 'resolution', 'imageSize'].includes(name)).map(([name, parameter]) => {
                 const options = parameter.options.map((option) => ({ id: option.value, label: /provider default/iu.test(option.label) ? 'default' : option.label }));
                 const value = catalogParameterValues[name] ?? parameter.default;
                 const label = name === 'input_fidelity' ? 'Input fidelity' : name.replace(/_/gu, ' ').replace(/\b\w/gu, (letter) => letter.toUpperCase());
-                return <ComposerParameterField key={name} label={label} className="cmp-advanced-field" testId={`composer-catalog-field-${name}`}><ComposerSelect
+                return <ComposerParameterField key={name} label={label} className="cmp-catalog-field" testId={`composer-catalog-field-${name}`}><ComposerSelect
                   testId={`composer-catalog-parameter-${name}`}
                   triggerKind="text"
-                  containerClassName="cmp-select cmp-select-advanced"
+                  containerClassName="cmp-select cmp-select-catalog"
                   menuClassName="cmp-select-menu cmp-select-menu-compact"
                   label={label}
                   value={optionLabel(options, value)}
@@ -2146,8 +2167,7 @@ export function MainPage({
               })}
               </div> : null}
             </> : null}
-          </div>
-          </div>
+          </div> : null}
           </MotionDimSurface>
 
         <MotionPresenceView visible={scrolledAway} kind="floating">

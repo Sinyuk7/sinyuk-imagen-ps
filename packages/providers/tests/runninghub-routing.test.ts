@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { prepareRunningHubRequest } from '../src/fixed-provider-adapters.js';
+import { normalizeRunningHubTaskUsage } from '../src/providers/runninghub/provider.js';
 
 const base = {
   providerId: 'runninghub' as const,
@@ -9,6 +10,17 @@ const base = {
 };
 
 describe('RunningHub operation routing', () => {
+  it('normalizes only finite provider usage metrics from successful task data', () => {
+    expect(normalizeRunningHubTaskUsage({ usage: { consumeCoins: '12', consumeMoney: '0.04', thirdPartyConsumeMoney: '0.01', taskCostTime: '9s', apiKey: 'secret' } })).toEqual({
+      metrics: [
+        { id: 'runninghub-coins', value: '12', unit: 'coins' },
+        { id: 'runninghub-money', value: '0.04', unit: 'money' },
+        { id: 'runninghub-third-party-money', value: '0.01', unit: 'money' },
+      ],
+    });
+    expect(normalizeRunningHubTaskUsage({ usage: { consumeCoins: 'NaN' } })).toBeUndefined();
+  });
+
   it('uses text-to-image route without imageUrls for prompt-only requests', () => {
     const prepared = prepareRunningHubRequest({ ...base, operation: 'text_to_image' });
     expect(prepared.urlPath).toBe('/openapi/v2/rhart-image-n-g31-flash/text-to-image');

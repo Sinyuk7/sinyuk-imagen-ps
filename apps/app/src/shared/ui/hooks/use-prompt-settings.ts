@@ -42,9 +42,8 @@ export function usePromptSettings(services: AppServices): PromptSettingsState {
     await persist({ ...settings, templates, selectedTemplateId: template.id });
   }, [persist, settings]);
   const deleteTemplate = useCallback(async (templateId: string) => {
-    if (settings.templates.length <= 1) return;
     const templates = settings.templates.filter((item) => item.id !== templateId);
-    await persist({ ...settings, templates, selectedTemplateId: settings.selectedTemplateId === templateId ? templates[0]!.id : settings.selectedTemplateId });
+    await persist({ ...settings, templates, selectedTemplateId: settings.selectedTemplateId === templateId ? null : settings.selectedTemplateId });
   }, [persist, settings]);
   return { settings, loading, error, saveState, save: persist, upsertTemplate, deleteTemplate };
 }

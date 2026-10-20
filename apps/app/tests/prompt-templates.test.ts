@@ -3,6 +3,7 @@ import {
   assemblePromptTemplate,
   createDefaultPromptSettings,
   isPromptTemplateValid,
+  normalizePromptSettings,
   promptTemplateNeedsInput,
 } from '../src/shared/ports/prompt-settings';
 
@@ -28,6 +29,18 @@ describe('prompt templates', () => {
   it('starts with one ordinary editable template', () => {
     const settings = createDefaultPromptSettings();
     expect(settings.templates).toHaveLength(1);
-    expect(settings.selectedTemplateId).toBe(settings.templates[0]!.id);
+    expect(settings.selectedTemplateId).toBeNull();
+  });
+
+  it('allows no selected template and allows deleting every template', () => {
+    expect(assemblePromptTemplate(null, 'Keep my wording')).toEqual({
+      systemPrompt: '',
+      userPrompt: 'Keep my wording',
+    });
+    expect(promptTemplateNeedsInput(null)).toBe(false);
+    expect(normalizePromptSettings({ templates: [], selectedTemplateId: null })).toEqual({
+      templates: [],
+      selectedTemplateId: null,
+    });
   });
 });

@@ -4,8 +4,8 @@ import { createUxpFlightRecorder, type UxpFlightRecorder } from './uxp-log-sink'
 import type { UxpModules } from './uxp-api';
 
 interface UxpSecureStorage {
-  getItem(key: string): Promise<string | ArrayBuffer | Uint8Array | undefined>;
-  setItem(key: string, value: string): Promise<void>;
+  getItem(key: string): Promise<string | ArrayBuffer | Uint8Array | null | undefined>;
+  setItem(key: string, value: string | ArrayBuffer | Uint8Array): Promise<void>;
   removeItem(key: string): Promise<void>;
 }
 
@@ -96,6 +96,19 @@ function decodeArrayBufferUtf8(buffer: ArrayBuffer | Uint8Array): { readonly val
   return { value: String.fromCharCode(...out), decoder: 'fallback' };
 }
 
+function encodeUtf8(value: string): Uint8Array {
+  if (typeof TextEncoder !== 'undefined') {
+    return new TextEncoder().encode(value);
+  }
+  const encoded = unescape(encodeURIComponent(value));
+  return Uint8Array.from(encoded, (character) => character.charCodeAt(0));
+}
+
+function decodeStoredSecret(value: string | ArrayBuffer | Uint8Array | null | undefined): string | undefined {
+  if (value === undefined || value === null) return undefined;
+  return typeof value === 'string' ? value : decodeArrayBufferUtf8(value).value;
+}
+
 function valueShapeAttrs(value: string | ArrayBuffer | Uint8Array): Record<string, unknown> {
   const decoded = typeof value === 'string'
     ? { value, decoder: 'none' as const }
@@ -130,10 +143,12 @@ export function createUxpSecretStorageAdapter(modules: UxpModules): SecretStorag
       const value = await secureStorage.getItem(key);
       await flightRecorder.checkpoint('uxp.secret_storage.get.after_get_item', {
         ...secretAttrs(key),
-        found: value !== undefined,
-        ...(value === undefined ? {} : valueShapeAttrs(value)),
+        found: value !== undefined && value !== null,
+        ...(value === undefined || value === null ? {} : valueShapeAttrs(value)),
       });
-      if (value === undefined) {
+      // Photoshop UXP 返回未找到的 secure-storage 项时可能使用 null；
+      // 将它与 undefined 统一，避免诊断属性读取 null.byteLength。
+      if (value === undefined || value === null) {
         return undefined;
       }
       if (typeof value === 'string') {
@@ -146,11 +161,33 @@ export function createUxpSecretStorageAdapter(modules: UxpModules): SecretStorag
         ...secretAttrs(key),
         ...valueShapeAttrs(value),
       });
-      await secureStorage.setItem(key, value);
-      await flightRecorder.checkpoint('uxp.secret_storage.set.after_set_item', {
-        ...secretAttrs(key),
-        ...valueShapeAttrs(value),
-      });
+      try {
+        // 部分 Photoshop UXP 版本声明支持 string，但实际只稳定接受 Uint8Array；
+        // 写入后立即读回，失败时再用 UTF-8 二进制格式重试。
+        const candidates: readonly (string | Uint8Array)[] = [value, encodeUtf8(value)];
+        let persisted = false;
+        for (const candidate of candidates) {
+          try {
+            await secureStorage.setItem(key, candidate);
+            if (decodeStoredSecret(await secureStorage.getItem(key)) === value) {
+              persisted = true;
+              break;
+            }
+          } catch {
+            // 尝试下一种 UXP 接受的值类型。
+          }
+        }
+        if (!persisted) {
+          throw new Error('Photoshop UXP secure storage did not persist the secret.');
+        }
+        await flightRecorder.checkpoint('uxp.secret_storage.set.after_set_item', {
+          ...secretAttrs(key),
+          ...valueShapeAttrs(value),
+        });
+      } catch (error) {
+        await flightRecorder.fail('uxp.secret_storage.set.fail', error, secretAttrs(key));
+        throw new Error(`Secure storage write failed: ${error instanceof Error ? error.message : String(error)}`);
+      }
     },
     async deleteSecret(key: string): Promise<void> {
       await flightRecorder.checkpoint('uxp.secret_storage.delete.before_remove_item', secretAttrs(key));

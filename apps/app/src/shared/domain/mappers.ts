@@ -212,6 +212,22 @@ export function outputText(output: unknown): string | undefined {
   return text.length > 0 ? text : undefined;
 }
 
+export function outputTaskUsage(output: unknown): { readonly metrics: readonly { readonly id: string; readonly value: string; readonly unit: string }[] } | undefined {
+  if (typeof output !== 'object' || output === null) return undefined;
+  const image = (output as { readonly image?: unknown }).image;
+  if (typeof image !== 'object' || image === null) return undefined;
+  const usage = (image as { readonly taskUsage?: unknown }).taskUsage;
+  if (typeof usage !== 'object' || usage === null || !Array.isArray((usage as { metrics?: unknown }).metrics)) return undefined;
+  const metrics = (usage as { metrics: unknown[] }).metrics.flatMap((item) => {
+    if (typeof item !== 'object' || item === null) return [];
+    const metric = item as { id?: unknown; value?: unknown; unit?: unknown };
+    return typeof metric.id === 'string' && typeof metric.value === 'string' && typeof metric.unit === 'string'
+      ? [{ id: metric.id, value: metric.value, unit: metric.unit }]
+      : [];
+  });
+  return metrics.length ? { metrics } : undefined;
+}
+
 function trimTrailingZeros(value: string): string {
   return value.includes('.') ? value.replace(/\.?0+$/, '') : value;
 }

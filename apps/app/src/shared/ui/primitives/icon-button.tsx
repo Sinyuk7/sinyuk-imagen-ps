@@ -24,8 +24,12 @@ interface IconButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 
   readonly icon?: ReactNode;
   /** 按钮内显示的文字；为空时只显示图标。 */
   readonly text?: string;
-  /** tooltip / aria-label / title 文案。 */
+  /** 兼容旧调用：作为按钮名称和原生 title 使用。 */
   readonly tooltip?: string;
+  /** 独立的原生 title 提示内容；不影响稳定的无障碍名称。 */
+  readonly tooltipText?: string | null;
+  /** Spectrum Tooltip 的测试选择器。 */
+  readonly tooltipTestId?: string;
   /** tooltip 位置（仅 action 变体有效）。 */
   readonly placement?: 'top' | 'top-start' | 'top-end' | 'right' | 'right-start' | 'right-end' | 'bottom' | 'bottom-start' | 'bottom-end' | 'left' | 'left-start' | 'left-end';
   /** 图标占位尺寸（px），默认 14。 */
@@ -60,6 +64,8 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
     icon,
     text,
     tooltip,
+    tooltipText,
+    tooltipTestId,
     placement,
     iconSize = 14,
     iconPlacement = 'start',
@@ -113,7 +119,9 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
           emphasized={emphasized}
           selected={selected}
           toggles={toggles}
-          label={tooltip}
+          label={props['aria-label'] ?? tooltip}
+          tooltipText={tooltipText}
+          tooltipTestId={tooltipTestId}
           placement={placement}
           {...props}
         >
@@ -125,7 +133,7 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
           variant={variant}
           className={buttonClassName}
           aria-label={props['aria-label'] ?? tooltip}
-          title={tooltip}
+          title={tooltipText ?? tooltip}
           {...props}
         >
           {children}

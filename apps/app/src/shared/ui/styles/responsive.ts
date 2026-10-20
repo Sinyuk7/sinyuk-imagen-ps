@@ -3,7 +3,7 @@ export const RESPONSIVE_CSS = `
 .panel[data-panel-width-mode="compact"] .cmp-shell{ padding:8px; }
 .panel[data-panel-width-mode="compact"] .composer{ padding:7px 8px 9px; }
 .panel[data-panel-width-mode="compact"] .cmp-action-row{ margin-top:6px; }
-.panel[data-panel-width-mode="compact"] .cmp-toolbar{ padding-top:3px; }
+.panel[data-panel-width-mode="compact"] .cmp-toolbar{ padding:3px 8px 0; }
 .panel[data-panel-width-mode="compact"] .cmp-parameter-row > .cmp-parameter-field{ margin-right:4px; }
 .panel[data-panel-width-mode="compact"] .cmp-model-row{ width:100%; }
 .panel[data-panel-width-mode="compact"] .cmp-secondary-row{
@@ -12,15 +12,10 @@ export const RESPONSIVE_CSS = `
 }
 .panel[data-panel-width-mode="compact"] .cmp-prompt-slot{ flex:1 1 100%; margin-right:0; margin-bottom:4px; }
 .panel[data-panel-width-mode="compact"] .cmp-ratio-slot,.panel[data-panel-width-mode="compact"] .cmp-size-slot{ flex:1 1 0; }
-.panel[data-panel-width-mode="compact"] .cmp-advanced-toggle{ min-height:26px; font-size:9px; }
-.panel[data-panel-width-mode="compact"] .cmp-add{ width:28px; height:28px; }
-.panel[data-panel-width-mode="compact"] .cmp-send{ width:30px; height:30px; }
 .panel[data-panel-width-mode="compact"] .cmp-select-model{ flex:1 1 auto; min-width:0; }
-.panel[data-panel-width-mode="compact"] .cmp-capture{ width:28px; height:28px; }
+.panel[data-panel-width-mode="compact"] .cmp-capture{ min-width:60px; min-height:26px; padding:0 8px; font-size:9px; }
 /* 紧凑模式保持统一字体和尺寸系统 */
 .panel[data-panel-width-mode="compact"] .cmp-parameter-label{ margin-right:3px; font-size:8px; }
-.panel[data-panel-width-mode="compact"] .cmp-summary-model{ font-size:9px; }
-.panel[data-panel-width-mode="compact"] .cmp-summary-detail{ font-size:8px; }
 .panel[data-panel-width-mode="compact"] .generation-settings-grid{ flex-direction:column; flex-wrap:nowrap; }
 .panel[data-panel-width-mode="compact"] .generation-settings-grid .field{ margin-right:0; margin-bottom:8px; flex:1 1 auto; }
 .panel[data-panel-width-mode="compact"] .generation-settings-grid .field:last-child{ margin-bottom:0; }
@@ -77,7 +72,6 @@ export const RESPONSIVE_CSS = `
 .panel[data-panel-width-mode="wide"] .cmp-parameter-row > .cmp-parameter-field{ margin-right:8px; }
 .panel[data-panel-width-mode="wide"] .cmp-model-row{ width:100%; }
 /* 宽模式保持 grid 布局比例 */
-.panel[data-panel-width-mode="wide"] .cmp-summary-model{ font-size:11px; }
 
 .panel[data-panel-height-mode="short"] .composer{ max-height:min(75%, 330px); padding-top:6px; padding-bottom:8px; }
 .panel[data-panel-height-mode="short"] .cmp-ta{ min-height:0; }

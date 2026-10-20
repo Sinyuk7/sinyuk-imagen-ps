@@ -1,7 +1,7 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { Checkbox, Radio } from '../src/shared/ui/primitives/native-controls';
+import { ActionButton, Button, Checkbox, Radio } from '../src/shared/ui/primitives/native-controls';
 
 let root: Root | undefined;
 let container: HTMLDivElement | undefined;
@@ -45,5 +45,42 @@ describe('Spectrum choice controls', () => {
     expect(control?.getAttribute('aria-disabled') ?? control?.hasAttribute('disabled')).toBeTruthy();
     expect(control?.getAttribute('data-invalid') ?? control?.hasAttribute('invalid')).toBeTruthy();
     expect(view.querySelector('.ui-radio')).not.toBeNull();
+  });
+});
+
+describe('Spectrum action button descriptions', () => {
+  it('keeps the accessible name stable while updating the native tooltip text', async () => {
+    if (!customElements.get('sp-action-button')) customElements.define('sp-action-button', class extends HTMLElement {});
+    const summary = ['模型: A', '模板: B'].join('\n');
+    const view = await render(<ActionButton label="生成设置" tooltipText={summary} aria-description={summary}>设置</ActionButton>);
+    const control = view.querySelector('sp-action-button');
+    expect(control?.getAttribute('aria-label')).toBe('生成设置');
+    expect(control?.getAttribute('title')).toBe('');
+    expect(control?.getAttribute('aria-description')).toBe(summary);
+    const tooltip = control?.querySelector('sp-tooltip');
+    expect(Array.from(tooltip?.querySelectorAll('.ui-tooltip-line') ?? []).map((line) => line.textContent)).toEqual(['模型: A', '模板: B']);
+    expect(control?.getAttribute('aria-describedby')).toBe(tooltip?.id);
+    const updatedSummary = ['模型: C', '模板: Other'].join('\n');
+    await act(async () => root?.render(<ActionButton label="生成设置" tooltipText={updatedSummary} aria-description={updatedSummary}>设置</ActionButton>));
+    expect(Array.from(view.querySelector('sp-action-button')?.querySelectorAll('.ui-tooltip-line') ?? []).map((line) => line.textContent)).toEqual(['模型: C', '模板: Other']);
+    await act(async () => root?.render(<ActionButton label="生成设置" tooltipText={null} aria-description="模型: C">设置</ActionButton>));
+    expect(view.querySelector('sp-action-button')?.getAttribute('aria-label')).toBe('生成设置');
+    expect(view.querySelector('sp-action-button')?.getAttribute('title')).toBe('');
+    expect(view.querySelector('sp-action-button sp-tooltip')).toBeNull();
+  });
+});
+
+describe('disabled button descriptions', () => {
+  it('keeps a described disabled action keyboard reachable without allowing native activation', async () => {
+    if (!customElements.get('sp-button')) customElements.define('sp-button', class extends HTMLElement {});
+    const onClick = vi.fn();
+    const view = await render(<Button disabled disabledFocusable aria-description="选择模型后可运行" onClick={onClick}>运行</Button>);
+    const control = view.querySelector('sp-button');
+    expect(control?.hasAttribute('aria-disabled')).toBe(true);
+    expect(control?.getAttribute('tabindex')).toBe('0');
+    expect(control?.hasAttribute('disabled')).toBe(false);
+    expect(control?.getAttribute('aria-description')).toBe('选择模型后可运行');
+    await act(async () => control?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })));
+    expect(onClick).not.toHaveBeenCalled();
   });
 });

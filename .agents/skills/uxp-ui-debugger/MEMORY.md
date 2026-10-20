@@ -21,6 +21,7 @@ Durable notes for confirmed UI/page debugging in the Imagen Photoshop UXP app. R
 ## UXP Runtime Facts
 
 - The primary debug target is Photoshop UXP through UDT relay, not Chrome. The default probe surface is `node scripts/uxp-debug/uxp-debug.mjs`; use `--plugin-id com.imagen-ps.panel` when multiple targets exist.
+- In Photoshop 27.9.1 / UXP 9.3.0, a regular DOM `<sp-tooltip>` overlapping a native `<sp-textarea>` was visually painted underneath the textarea even when the tooltip's parent stacking context used `z-index:9999`; setting the textarea to `position:relative; z-index:0` also did not change the result. Hiding the textarea exposed all tooltip lines, and moving the tooltip fully outside the textarea's rectangle exposed them while keeping the textarea visible. Tooltip rects and child line rects were otherwise correct. Do not treat ordinary stacking changes as a fix for this native-control overlap; validate the rendering layer before editing source.
 - UDT Watch reload should preserve the debug workflow after one manual Debug. A useful CLI reconnects after reload and continues `inspect`, `ancestors`, `style`, and `reset`.
 - Run UXP debug CLI commands serially against the relay; concurrent commands can confuse session/context state.
 - In UXP, inline style APIs can report misleading values. Style reset should snapshot and restore original inline `cssText` or equivalent original value/priority data through `window.__UXP_DEBUG_PATCHES__`.
@@ -28,6 +29,7 @@ Durable notes for confirmed UI/page debugging in the Imagen Photoshop UXP app. R
 - In Photoshop UXP 9.3, `window.innerWidth` / `window.innerHeight` may be unavailable in panel code. Placement logic should use the panel/root rect as a viewport fallback before doing clamp math.
 - UXP can compute CSS function widths such as `width:min(...)` as shrink-to-content in harness layouts. Prefer plain `width` plus `max-width` for UXP-facing hit-test regions and edge-placement fixtures.
 - Photoshop capture failures can be document-local. If `Capture` fails in one document but succeeds in a new document, compare the document/layer attrs on `hostbridge.capture_active_image.fail` and use its `failedStage` field before blaming the shared UI or provider path.
+- In Photoshop 27.9.1 / UXP 9.3.0 with SWC 0.37.0, a 95×29px `sp-button` showed a real computed `border-radius:16px`; runtime override to `999px` looked worse to the user, `6px` rendered as a normal rounded rectangle, and `14px` looked capsule-like. For this control, use a height-matched fixed radius instead of a huge pill radius, and verify in the real host.
 
 ## Reusable Probes
 

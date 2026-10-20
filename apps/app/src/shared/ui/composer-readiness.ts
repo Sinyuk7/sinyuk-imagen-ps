@@ -49,10 +49,12 @@ function modelIsSelectable(model: UiModelInfo | undefined): boolean {
 }
 
 export function modelSupportsOperation(
-  _model: UiModelInfo | undefined,
-  _operation: ComposerOperation,
+  model: UiModelInfo | undefined,
+  operation: ComposerOperation,
 ): 'supported' | 'unsupported' | 'unknown' {
-  return 'unknown';
+  if (!model?.operations) return 'unknown';
+  const catalogOperation = operation === 'image-edit' ? 'image_edit' : 'text_to_image';
+  return model.operations.includes(catalogOperation) ? 'supported' : 'unsupported';
 }
 
 export function modelSupportsImageInput(model: UiModelInfo | undefined): 'supported' | 'unsupported' | 'unknown' {

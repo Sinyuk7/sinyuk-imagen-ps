@@ -73,3 +73,9 @@ UI 字段名为 `Token`，内部 secret 名称使用 `billingToken` 与现有 Se
 ## Open Questions
 
 无阻塞问题。请求 body 按本变更契约固定为 `{ token }` 与 `{ apiKey }`，响应固定读取 `data.credits`；若服务端后续变更，应新增协议版本而不是修改现有语义。
+
+## Provider task-usage feedback
+
+Provider task usage is a bounded structured metric collection, not Provider-owned UI copy. Provider adapters normalize only known finite fields; app localization formats them. Terminal Task records retain the metrics, while the toast appears only on a live transition to completed and uses one replacement key so concurrent completions do not queue stale messages.
+
+RunningHub reads usage from its successful task-query response (`consumeCoins`, `consumeMoney`, `thirdPartyConsumeMoney`). GRSAI has no per-task cost endpoint: its adapter may derive an observed balance delta from successful before/after snapshots, but only with a reliable same-account baseline and no overlapping generation ambiguity. Refresh errors remain silent and isolated from terminal task state.

@@ -6,7 +6,7 @@ export interface PromptTemplate {
 }
 
 export interface PromptSettings {
-  readonly selectedTemplateId: string;
+  readonly selectedTemplateId: string | null;
   readonly templates: readonly PromptTemplate[];
 }
 
@@ -22,18 +22,19 @@ export const DEFAULT_PROMPT_TEMPLATES: readonly PromptTemplate[] = [{
   userPrompt: 'Improve this image prompt while preserving the user intent:\n\n{prompt}',
 }];
 
-export function assemblePromptTemplate(template: PromptTemplate, input: string): {
+export function assemblePromptTemplate(template: PromptTemplate | null | undefined, input: string): {
   readonly systemPrompt: string;
   readonly userPrompt: string;
 } {
+  if (!template) return { systemPrompt: '', userPrompt: input };
   return {
     systemPrompt: template.systemPrompt,
     userPrompt: template.userPrompt.replace('{prompt}', input),
   };
 }
 
-export function promptTemplateNeedsInput(template: PromptTemplate): boolean {
-  return template.userPrompt.includes('{prompt}');
+export function promptTemplateNeedsInput(template: PromptTemplate | null | undefined): boolean {
+  return template?.userPrompt.includes('{prompt}') ?? false;
 }
 
 export function isPromptTemplateValid(template: PromptTemplate): boolean {
@@ -55,16 +56,16 @@ export function normalizePromptSettings(input: unknown): PromptSettings {
       userPrompt: typeof row.userPrompt === 'string' ? row.userPrompt : '',
     }];
   }) : [];
-  const safeTemplates = templates.length ? templates : DEFAULT_PROMPT_TEMPLATES.map((item) => ({ ...item }));
-  const requestedId = typeof value.selectedTemplateId === 'string' ? value.selectedTemplateId : '';
+  const safeTemplates = templates;
+  const requestedId = typeof value.selectedTemplateId === 'string' ? value.selectedTemplateId : null;
   return {
-    selectedTemplateId: safeTemplates.some((item) => item.id === requestedId) ? requestedId : safeTemplates[0]!.id,
+    selectedTemplateId: requestedId !== null && safeTemplates.some((item) => item.id === requestedId) ? requestedId : null,
     templates: safeTemplates,
   };
 }
 
 export function createDefaultPromptSettings(): PromptSettings {
-  return normalizePromptSettings({ templates: DEFAULT_PROMPT_TEMPLATES, selectedTemplateId: DEFAULT_PROMPT_TEMPLATES[0]!.id });
+  return normalizePromptSettings({ templates: DEFAULT_PROMPT_TEMPLATES, selectedTemplateId: null });
 }
 
 export function createMemoryPromptSettingsStore(initial?: PromptSettings | null): PromptSettingsStore {

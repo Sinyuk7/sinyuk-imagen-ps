@@ -83,6 +83,7 @@ export type {
   ProviderAdapterId,
   ProviderInvokeArgs,
   ProviderInvokeMetadata,
+  ProviderTaskUsage,
   ProviderInvokeResult,
   ProviderInvokeUsage,
   ProviderModelInfo,

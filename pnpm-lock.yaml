@@ -44,6 +44,9 @@ importers:
       '@spectrum-web-components/theme':
         specifier: 0.37.0
         version: 0.37.0
+      '@spectrum-web-components/tooltip':
+        specifier: 0.37.0
+        version: 0.37.0
       '@swc-uxp-wrappers/action-button':
         specifier: 2.0.0
         version: 2.0.0
@@ -355,6 +358,18 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@floating-ui/core@1.8.0':
+    resolution: {integrity: sha512-0CIZ5itps/8x7BG8dEIhs53BvCUH2PCoogtakwRTut+Arm58sJooJ0AuZhLw2HJYIR5cMLNPBSS728sPho2khQ==}
+
+  '@floating-ui/dom@1.8.0':
+    resolution: {integrity: sha512-yXSrzeHZBTZadLOlfyhCkJHNeLJnHRnRInwdZ40L7ZiaAtrBwoYlsDrX3v5zB1Utk7CLfzcOVnVVWoXEky7Ceg==}
+
+  '@floating-ui/utils@0.1.6':
+    resolution: {integrity: sha512-OfX7E2oUDYxtBvsuS4e/jSn4Q9Qb6DzgeYtsAdkPZ47znpoNsMgZw0+tVijiv3uGNR6dgNlty6r9rzIzHjtd/A==}
+
+  '@floating-ui/utils@0.2.12':
+    resolution: {integrity: sha512-HpCo8tmWzLVad5s2d19EhAz5zqrrQ6s69qd6moPMQvkOuSwDT1YgRfWSVuc4ennqrgv3OHppiOGMQ7oC13yIww==}
+
   '@jridgewell/sourcemap-codec@1.5.5':
     resolution: {integrity: sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og==}
 
@@ -537,6 +552,12 @@ packages:
   '@spectrum-web-components/iconset@0.37.0':
     resolution: {integrity: sha512-s1TBjWeQtGdGf6n+r+aG2glv77IgR0pNs0HLusGyYt6jzWFkP276fE7Neqq/2XvG9a9zvAwngffnWS3td/Gtmg==}
 
+  '@spectrum-web-components/overlay@0.37.0':
+    resolution: {integrity: sha512-kMEXAWdHJ/RGLbR4GHAEvgb03uaKNJSakVYgqoxQ15Z8PTq669FZQZMvYGr5VftRaXpejm5n1GK+KxuK6Cy+uw==}
+
+  '@spectrum-web-components/reactive-controllers@0.37.0':
+    resolution: {integrity: sha512-1wnWLt88iyTPrElxZqPpyWWzScSkXY3zxi+QxIV0cFGmhRlPsH+XXqs/kGkfzRyNtE4s2AWuRZ2wtbcao6MzJQ==}
+
   '@spectrum-web-components/shared@0.37.0':
     resolution: {integrity: sha512-i2yJ1tpQxUffP0xcx9QfusxKlRS3eOBZXjCnxhiicHIIlQtK+mPENbUTe2mRmVLT3WPwIt6mNzoO8w/p5h0Pxw==}
 
@@ -548,6 +569,9 @@ packages:
 
   '@spectrum-web-components/theme@0.37.0':
     resolution: {integrity: sha512-xfKnzwWmjD6zN1T7Jo+3yLRdjh7qx8CX2FCL/PrUu8sE2Jo4cO3/vKYLAt27bbeHF5+zxKx2hOZdPOgEpZG9Hg==}
+
+  '@spectrum-web-components/tooltip@0.37.0':
+    resolution: {integrity: sha512-xW48gNYZciP3mhevKEzK6hVxIm/nLgj+ci4EMlzP5AwU5cQGNne5O2Y3OIbUOZHO3/ROhJxG4aLx3m3XROYzwQ==}
 
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
@@ -1191,6 +1215,19 @@ snapshots:
   '@esbuild/win32-x64@0.25.12':
     optional: true
 
+  '@floating-ui/core@1.8.0':
+    dependencies:
+      '@floating-ui/utils': 0.2.12
+
+  '@floating-ui/dom@1.8.0':
+    dependencies:
+      '@floating-ui/core': 1.8.0
+      '@floating-ui/utils': 0.2.12
+
+  '@floating-ui/utils@0.1.6': {}
+
+  '@floating-ui/utils@0.2.12': {}
+
   '@jridgewell/sourcemap-codec@1.5.5': {}
 
   '@lit-labs/observers@2.1.0':
@@ -1332,6 +1369,20 @@ snapshots:
     dependencies:
       '@spectrum-web-components/base': 0.37.0
 
+  '@spectrum-web-components/overlay@0.37.0':
+    dependencies:
+      '@floating-ui/dom': 1.8.0
+      '@floating-ui/utils': 0.1.6
+      '@spectrum-web-components/action-button': 0.37.0
+      '@spectrum-web-components/base': 0.37.0
+      '@spectrum-web-components/reactive-controllers': 0.37.0
+      '@spectrum-web-components/shared': 0.37.0
+      '@spectrum-web-components/theme': 0.37.0
+
+  '@spectrum-web-components/reactive-controllers@0.37.0':
+    dependencies:
+      lit: 2.5.0
+
   '@spectrum-web-components/shared@0.37.0':
     dependencies:
       '@lit-labs/observers': 2.1.0
@@ -1355,6 +1406,12 @@ snapshots:
     dependencies:
       '@spectrum-web-components/base': 0.37.0
       '@spectrum-web-components/styles': 0.37.0
+
+  '@spectrum-web-components/tooltip@0.37.0':
+    dependencies:
+      '@spectrum-web-components/base': 0.37.0
+      '@spectrum-web-components/overlay': 0.37.0
+      '@spectrum-web-components/shared': 0.37.0
 
   '@standard-schema/spec@1.1.0': {}
 

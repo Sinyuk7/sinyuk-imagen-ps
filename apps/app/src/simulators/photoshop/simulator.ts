@@ -12,6 +12,7 @@ export type PhotoshopSimulatorScenarioId =
   | 'seeded-document'
   | 'comfyui-image'
   | 'mask-capable-layer'
+  | 'mask-read-failure'
   | 'host-busy'
   | 'file-picker-cancelled'
   | 'place-asset-failure';
@@ -167,7 +168,7 @@ export function createPhotoshopSimulator(
           name: asset.asset.name ?? `Layer ${index + 1}`,
           kind: 'pixel',
           visible: true,
-          hasUserMask: scenarioId === 'mask-capable-layer' && index === 0,
+          hasUserMask: (scenarioId === 'mask-capable-layer' || scenarioId === 'mask-read-failure') && index === 0,
           bounds: { left: 0, top: 0, right: 240 + index * 12, bottom: index % 2 === 0 ? 160 : 220 },
         }));
 
@@ -181,7 +182,24 @@ export function createPhotoshopSimulator(
       if (scenarioId === 'host-busy') throw new Error('Simulator host is busy.');
       const asset = assets[layerId - 1];
       if (!asset) throw new Error(`Simulator layer not found: ${layerId}`);
-      return toStoredAsset(assetStore, asset);
+      const image = await toStoredAsset(assetStore, asset);
+      const layer = layers[layerId - 1];
+      if ((scenarioId === 'mask-capable-layer' || scenarioId === 'mask-read-failure') && layer?.bounds) {
+        return {
+          ...image,
+          photoshopPlacement: {
+            snapshot: {
+              documentId: 42,
+              documentSize: { width: 1024, height: 768 },
+              layerId,
+              layerBoundsNoEffects: layer.bounds,
+              selectionBounds: null,
+            },
+            placementRect: layer.bounds,
+          },
+        };
+      }
+      return image;
     },
     async captureActiveImage(_policy): Promise<PhotoshopCaptureResult> {
       if (scenarioId === 'host-busy') throw new Error('Simulator host is busy.');
@@ -207,6 +225,9 @@ export function createPhotoshopSimulator(
       };
     },
     async readLayerMaskAsAsset(input): Promise<CanonicalMaskAsset | undefined> {
+      if (scenarioId === 'mask-read-failure' && input.layerId === 1) {
+        throw new Error('Simulator mask read failed.');
+      }
       if (scenarioId !== 'mask-capable-layer' || input.layerId !== 1) return undefined;
       const data = new Uint8Array(input.targetSize.width * input.targetSize.height);
       data.fill(255);

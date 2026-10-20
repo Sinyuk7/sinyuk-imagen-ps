@@ -12,6 +12,8 @@ export { TextSelect } from './components/text-select';
 export { ComposerSelect } from './components/composer-select';
 /** Composer 参数字段布局原语。 */
 export { ComposerParameterField } from './components/composer-parameter-field';
+/** Composer 图片输入能力冲突及恢复操作。 */
+export { ComposerImageInputConflict } from './components/composer-image-input-conflict';
 /** 页面可用的图标选择器。 */
 export { IconSelect } from './components/icon-select';
 /** 页面可用的状态提示。 */
@@ -37,3 +39,4 @@ export type { UxpTextAreaElement } from './components/uxp-form-controls';
 export { PopupLayerProvider, PopupLayerRoot } from './components/popup-layer';
 /** 页面可用的 page shell 与 layout patterns。 */
 export { PageFrame, PageHeader, PageScroll, SegmentedTabs, SettingsListSection, SettingsFormSection, FieldGroup, PageState, FooterActions } from './patterns';
+export { SecretField } from './components/secret-field';

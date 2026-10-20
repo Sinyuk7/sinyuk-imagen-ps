@@ -13,7 +13,7 @@
     { label: 'header settings', selector: '[data-testid="main-providers-button"] [data-icon-name="settings"]' },
     { label: 'composer add', selector: '.cmp-add [data-icon-name="add"]' },
     { label: 'composer model chevron', selector: '.cmp-chip [data-icon-name="chevron-down"]' },
-    { label: 'composer send', selector: '.cmp-send [data-icon-name="send"]' },
+    { label: 'composer settings', selector: '[data-testid="composer-settings-toggle"] [data-icon-name="settings"]' },
     { label: 'provider card place-ps', selector: '.prov-actions .act-ico:first-child [data-icon-name="place-ps"]' },
     { label: 'provider card regenerate', selector: '.prov-actions .act-ico:nth-child(2) [data-icon-name="regenerate"]' },
     { label: 'provider card copy', selector: '.prov-actions .act-ico:nth-child(3) [data-icon-name="copy"]' },

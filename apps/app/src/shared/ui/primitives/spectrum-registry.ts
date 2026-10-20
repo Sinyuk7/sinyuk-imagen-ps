@@ -1,6 +1,7 @@
 import { ActionButton } from '@spectrum-web-components/action-button';
 import { Button } from '@spectrum-web-components/button';
 import { Textfield } from '@spectrum-web-components/textfield';
+import '@spectrum-web-components/tooltip/sp-tooltip.js';
 import '@spectrum-web-components/theme/sp-theme.js';
 import '@spectrum-web-components/theme/theme-dark.js';
 import '@spectrum-web-components/theme/theme-light.js';

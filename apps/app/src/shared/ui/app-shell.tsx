@@ -403,7 +403,7 @@ function AppShellContent({ host }: AppShellProps) {
   }, [conversation.rounds, reloadHistory]);
 
   return (
-    <div className="panel" data-app-theme={themeOverride} ref={panelRef}>
+    <div className="panel" data-app-theme={themeOverride} data-testid="app-panel" ref={panelRef}>
       {view === 'main' && (
         <MotionPageFrame watch={view}>
           <MainPage
@@ -417,6 +417,11 @@ function AppShellContent({ host }: AppShellProps) {
           promptSettings={promptSettings.settings}
           onSelectPromptTemplate={(templateId) => void promptSettings.save({ ...promptSettings.settings, selectedTemplateId: templateId })}
           highlightedRoundId={highlightedRoundId}
+          onEditProfile={(providerId) => {
+            if (providerId === 'grsai' || providerId === 'runninghub') {
+              openSettingsRoute({ kind: 'provider-account', providerId });
+            }
+          }}
           restoreFailedRoundId={restoreFailedRoundId}
           onFailedRoundRestored={(roundId) => {
             if (restoreFailedRoundId === roundId) {

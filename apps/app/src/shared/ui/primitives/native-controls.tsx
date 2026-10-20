@@ -33,6 +33,8 @@ type TooltipPlacement =
 
 interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'type'> {
   readonly variant?: NativeButtonVariant;
+  /** disabled 时仍进入键盘焦点顺序，以便辅助技术读取原因说明。 */
+  readonly disabledFocusable?: boolean;
   readonly children: ReactNode;
 }
 
@@ -64,6 +66,8 @@ interface ActionButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>
   readonly selected?: boolean;
   readonly toggles?: boolean;
   readonly label?: string;
+  readonly tooltipText?: string | null;
+  readonly tooltipTestId?: string;
   readonly placement?: TooltipPlacement;
   readonly children?: ReactNode;
 }
@@ -108,7 +112,7 @@ function spectrumButtonVariant(variant: NativeButtonVariant): NativeButtonVarian
 }
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { variant = 'secondary', children, disabled, className, onClick, tabIndex, ...props },
+  { variant = 'secondary', children, disabled, disabledFocusable = false, className, onClick, tabIndex, ...props },
   ref,
 ) {
   registerSpectrumControls();
@@ -120,8 +124,8 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       variant={spectrumButtonVariant(variant)}
       data-disabled={dataState(disabled)}
       aria-disabled={disabled || undefined}
-      disabled={disabled}
-      tabIndex={disabled ? -1 : tabIndex}
+      disabled={disabled && !disabledFocusable || undefined}
+      tabIndex={disabled && !disabledFocusable ? -1 : tabIndex}
       onClick={(event) => {
         if (disabled) {
           event.preventDefault();
@@ -312,6 +316,8 @@ export const ActionButton = forwardRef<HTMLButtonElement, ActionButtonProps>(fun
     toggles,
     disabled,
     label,
+    tooltipText,
+    tooltipTestId,
     placement,
     className,
     children,
@@ -322,6 +328,8 @@ export const ActionButton = forwardRef<HTMLButtonElement, ActionButtonProps>(fun
   ref,
 ) {
   registerSpectrumControls();
+  const tooltipId = useId();
+  const describedBy = [props['aria-describedby'], tooltipText ? tooltipId : undefined].filter(Boolean).join(' ') || undefined;
   return (
     <sp-action-button
       {...(props as HTMLAttributes<HTMLElement>)}
@@ -333,13 +341,16 @@ export const ActionButton = forwardRef<HTMLButtonElement, ActionButtonProps>(fun
       toggles={toggles || undefined}
       data-tooltip-placement={placement}
       aria-label={props['aria-label'] ?? label}
+      aria-describedby={describedBy}
       aria-pressed={toggles ? (selected ? 'true' : 'false') : undefined}
-      title={label}
+      title={tooltipText !== undefined ? '' : label}
+      data-has-tooltip={tooltipText ? 'true' : undefined}
       disabled={disabled}
       onClick={onClick}
       onKeyUp={onKeyUp}
     >
       {children}
+      {tooltipText ? <sp-tooltip id={tooltipId} data-testid={tooltipTestId} open placement={placement ?? 'top'} variant="info">{tooltipText.split('\n').map((line, index) => <span key={`${index}:${line}`} className="ui-tooltip-line">{line}</span>)}</sp-tooltip> : null}
     </sp-action-button>
   );
 });

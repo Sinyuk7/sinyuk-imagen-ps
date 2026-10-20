@@ -40,7 +40,7 @@ export const SHELL_CSS = `
   min-height:28px; padding:4px 8px; border-radius:var(--app-radius-small); border:1px solid transparent; background:transparent; color:var(--app-color-text-secondary); cursor:pointer; outline:none;
   overflow:hidden;
 }
-.hdr-center .ui-icon-button-label{ flex:1 1 auto; min-width:0; max-width:100%; margin-left:0; margin-right:6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-family:var(--app-font-family-base); font-size:11px; font-weight:500; color:inherit; letter-spacing:0; }
+.hdr-center .ui-icon-button-label{ position:relative; top:6px; flex:1 1 auto; min-width:0; max-width:100%; margin-left:0; margin-right:6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-family:var(--app-font-family-base); font-size:11px; font-weight:500; color:inherit; letter-spacing:0; }
 .hdr-provider-chevron{ left:auto; right:8px; width:12px; justify-content:center; }
 .hdr-provider-trigger:hover{ background:var(--app-color-hover-overlay); color:var(--app-color-text-primary); }
 .hdr-provider-trigger.open{ border-color:transparent; background:var(--app-color-active-overlay); color:var(--app-color-text-primary); }

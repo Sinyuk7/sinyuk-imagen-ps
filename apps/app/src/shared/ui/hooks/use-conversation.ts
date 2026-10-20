@@ -16,6 +16,7 @@ import {
   outputAssets,
   outputMetadata,
   outputText,
+  outputTaskUsage,
   type AssetPreview,
 } from '../../domain/mappers';
 import { createMemoryThumbnailStore, type ThumbnailStore } from '../../image/thumbnail-store';
@@ -83,6 +84,7 @@ export interface ConversationRound {
   readonly outputSize?: string;
   readonly outputFormat?: string;
   readonly responseText?: string;
+  readonly taskUsage?: { readonly metrics: readonly { readonly id: string; readonly value: string; readonly unit: string }[] };
   readonly providerInputSizePreset?: AppProviderInputSizePreset;
   readonly placementIntent: PlacementIntent;
   readonly output?: AppGenerationSettingsOutput;
@@ -275,6 +277,7 @@ function roundFromSessionJob(
     ...current,
     status: 'ok',
     jobId: job.id,
+    ...(outputTaskUsage(job.output) ? { taskUsage: outputTaskUsage(job.output) } : {}),
     previews:
       assets.length === 0
         ? current.previews

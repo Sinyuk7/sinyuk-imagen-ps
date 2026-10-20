@@ -3,6 +3,7 @@ import {
   type JobError,
   type StoredAssetRef,
 } from '@imagen-ps/core-engine';
+import type { ProviderTaskUsage } from '@imagen-ps/providers';
 
 /** 可持久化 Task record 的唯一 current-state schema 版本。 */
 export const TASK_RECORD_SCHEMA_VERSION = 3;
@@ -167,6 +168,8 @@ export interface TaskRecord {
   readonly requestSummary?: Record<string, string | number | boolean | null>;
   readonly remote?: TaskRemoteExecution;
   readonly remoteOutputs?: readonly TaskRemoteOutput[];
+  /** Provider 返回或余额快照推导的结构化本次消耗记录。 */
+  readonly taskUsage?: ProviderTaskUsage;
   readonly submissionUnknown?: boolean;
   readonly discarded?: boolean;
   readonly latestJobId?: string;
@@ -223,6 +226,7 @@ const TASK_RECORD_KEYS = [
   'requestSummary',
   'remote',
   'remoteOutputs',
+  'taskUsage',
   'submissionUnknown',
   'discarded',
   'latestJobId',
@@ -312,6 +316,22 @@ export function assertTaskRecord(record: unknown): asserts record is TaskRecord 
   }
   if (record.finishedAt !== undefined) {
     expectIsoString(record.finishedAt, 'finishedAt');
+  }
+  if (record.taskUsage !== undefined) {
+    if (!isRecord(record.taskUsage) || !Array.isArray(record.taskUsage.metrics) || record.taskUsage.metrics.length > 8) {
+      throw createValidationError('Task usage must contain a bounded metrics array.', { path: 'taskUsage' });
+    }
+    for (const [index, rawMetric] of record.taskUsage.metrics.entries()) {
+      const path = `taskUsage.metrics.${index}`;
+      if (!isRecord(rawMetric)) throw createValidationError('Task usage metric must be an object.', { path });
+      assertAllowedKeys(rawMetric, ['id', 'value', 'unit'], path);
+      expectOneOf(rawMetric.id, ['runninghub-coins', 'runninghub-money', 'runninghub-third-party-money', 'grsai-balance-change'], `${path}.id`);
+      expectNonEmptyString(rawMetric.value, `${path}.value`);
+      expectOneOf(rawMetric.unit, ['coins', 'money', 'credits'], `${path}.unit`);
+      if (typeof rawMetric.value !== 'string' || rawMetric.value.length > 64 || !Number.isFinite(Number(rawMetric.value))) {
+        throw createValidationError('Task usage metric value must be a finite bounded decimal.', { path: `${path}.value` });
+      }
+    }
   }
 
   const status = record.status as TaskStatus;

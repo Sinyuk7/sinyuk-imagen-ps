@@ -24,7 +24,7 @@ export const COMPOSER_CSS = `
 .attach-row::-webkit-scrollbar{ display:none; }
 .att-add-host{
   margin-top:0;
-  margin-right:6px;
+  margin-right:0;
   margin-bottom:0;
   margin-left:0;
 }
@@ -49,15 +49,20 @@ export const COMPOSER_CSS = `
   background:var(--app-color-background-elevated);
 }
 .att-thumb{
-  position:relative; width:40px; height:40px; margin-right:6px; border-radius:8px;
-  overflow:hidden; border:1px solid var(--app-color-border-default); flex-shrink:0;
-}
-.att-thumb > .motion-highlight{
-  bottom:0;
-  border-radius:inherit;
+  position:relative; display:flex; align-items:center; box-sizing:border-box;
+  width:148px; min-width:148px; height:38px; margin-right:6px; padding:4px 26px 4px 4px;
+  border:1px solid var(--app-color-border-default); border-radius:6px; background:var(--app-color-background-layer-1);
+  overflow:hidden; flex:0 0 148px;
 }
 .att-thumb:last-child{ margin-right:0; }
-.att-thumb-img{ width:100%; height:100%; object-fit:cover; display:block; }
+.att-thumb.is-primary{
+  border-color:var(--app-color-accent-default);
+  box-shadow:inset 0 0 0 1px var(--app-color-accent-default);
+}
+.att-thumb-img{ width:28px; height:28px; object-fit:cover; display:block; flex:0 0 28px; margin-right:7px; border-radius:3px; }
+.att-thumb-copy{ min-width:0; display:flex; flex-direction:column; justify-content:center; overflow:hidden; }
+.att-thumb-name{ min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--app-color-text-primary); font-size:10px; line-height:14px; }
+.att-thumb-primary-label{ color:var(--app-color-accent-default); font-size:9px; line-height:11px; }
 .att-rm-host{
   position:absolute; top:2px; right:2px; width:18px; min-width:18px; height:18px; min-height:18px;
   color:var(--app-color-text-primary);
@@ -69,11 +74,7 @@ export const COMPOSER_CSS = `
   color:inherit; cursor:pointer; padding:0;
   display:inline-flex; align-items:center; justify-content:center;
 }
-.att-rm:hover{
-  border-color:var(--app-color-border-strong);
-  background:var(--app-color-hover-overlay);
-  color:var(--app-color-text-primary);
-}
+.att-rm:hover{ border-color:var(--app-color-border-strong); background:var(--app-color-hover-overlay); color:var(--app-color-text-primary); }
 
 /* Header profile menu (absolute) —— 默认对齐 header center 区域；
  * 窄面板时由 responsive root mode 收敛到 panel 内 full-width containment。 */
@@ -238,9 +239,22 @@ export const COMPOSER_CSS = `
   min-width:0;
 }
 .cmp-action-row{ flex:0 0 auto; flex-wrap:nowrap; margin-top:auto; padding-top:4px; }
+.cmp-action-left,.cmp-action-right{ display:flex; align-items:center; min-width:0; }
+.cmp-action-left > * + *, .cmp-action-right > * + *{ margin-left:4px; }
+.cmp-action-left{ flex:1 1 auto; }
+.cmp-action-right{ flex:0 0 auto; margin-left:4px; }
+.cmp-capture{ min-width:64px; min-height:28px; padding:0 10px; border-radius:14px; font-size:10px; white-space:nowrap; }
+.cmp-run{ min-height:28px; display:inline-flex; align-items:center; padding:0 10px; border-radius:14px; font-size:10px; white-space:nowrap; }
+.cmp-run-shortcut{ margin-left:8px; opacity:.78; font-size:9px; }
+.cmp-settings-toggle{ width:28px; min-width:28px; height:28px; min-height:28px; }
+.cmp-settings-toggle[selected]{ color:var(--app-color-accent-default); background:var(--app-color-accent-subtle); }
+.cmp-feedback-row{ display:flex; align-items:center; padding:4px 6px 0; color:var(--app-color-text-secondary); font-size:10px; line-height:14px; }
+.cmp-feedback-row > * + *{ margin-left:8px; }
+.cmp-feedback-notice{ display:flex; align-items:center; flex-wrap:wrap; min-width:0; }
+.cmp-feedback-action{ min-height:22px; margin-left:6px; padding:0 6px; font-size:9px; white-space:nowrap; }
 .cmp-toolbar{
   margin-top:6px;
-  padding:0;
+  padding:0 8px;
   border-top:none;
   flex-direction:column;
   align-items:stretch;
@@ -289,102 +303,18 @@ export const COMPOSER_CSS = `
 .cmp-select-labeled .cmp-chip-host{ min-width:0; width:100%; }
 .cmp-parameter-row .cmp-chip-text{ min-width:0; width:100%; justify-content:space-between; }
 .cmp-parameter-row .cmp-chip-value-text{ min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.cmp-advanced-toggle-row{ width:100%; margin-top:5px; }
-.cmp-advanced-toggle{
-  display:flex;
-  flex-direction:row;
-  align-items:center;
-  justify-content:center;
-  box-sizing:border-box;
-  width:100%;
-  height:30px;
-  min-height:30px;
-  padding:0 8px;
-  border-radius:var(--app-radius-small);
-  color:var(--app-color-text-muted);
-  font-size:10px;
-  line-height:1;
-  white-space:nowrap;
-}
-.cmp-advanced-toggle-content{
-  display:inline-flex;
-  flex-direction:row;
-  align-items:center;
-  justify-content:center;
-  flex:0 0 auto;
-  height:100%;
-  line-height:1;
-  white-space:nowrap;
-}
-.cmp-advanced-toggle-content [data-icon]{
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  flex:0 0 auto;
-  width:14px;
-  height:14px;
-  margin-left:6px;
-  vertical-align:middle;
-}
-.cmp-advanced-row{
+.cmp-catalog-parameters{
   margin-top:5px;
   display:flex;
   flex-wrap:wrap;
 }
-.cmp-advanced-field{
+.cmp-catalog-field{
   flex:1 1 46%;
   min-width:0;
   margin-right:4%;
   margin-bottom:5px;
 }
-.cmp-advanced-field:nth-child(2n){ margin-right:0; }
-.cmp-summary-model{
-  flex:0 1 auto;
-  min-width:0;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
-  color:var(--app-color-text-primary);
-  font-size:10px;
-  font-weight:500;
-  line-height:14px;
-}
-.cmp-summary-details{
-  display:flex;
-  align-items:center;
-  min-width:0;
-  margin-left:8px;
-  overflow:hidden;
-}
-.cmp-summary-detail{
-  display:inline-flex;
-  align-items:center;
-  min-width:0;
-  color:var(--app-color-text-muted);
-  font-size:10px;
-  line-height:14px;
-  white-space:nowrap;
-  margin-right:8px;
-}
-.cmp-summary-detail:last-child{ margin-right:0; }
-.cmp-summary-detail::before{
-  content:'·';
-  margin-right:4px;
-  color:var(--app-color-border-strong);
-  opacity:0.5;
-}
-.cmp-summary-detail-quality{
-  color:var(--app-color-text-secondary);
-  font-weight:500;
-}
-.cmp-meta-row > .cmp-readiness{ flex:0 1 auto; margin-left:8px; white-space:nowrap; }
-.cmp-action-left{
-  display:flex;
-  align-items:center;
-  min-width:0;
-  flex:1 1 auto;
-  overflow:visible;
-}
+.cmp-catalog-field:nth-child(2n){ margin-right:0; }
 .cmp-action-right{
   display:flex;
   align-items:center;
@@ -392,8 +322,6 @@ export const COMPOSER_CSS = `
   min-width:0;
   flex:0 0 auto;
   overflow:visible;
-}
-.cmp-action-left{
 }
 .cmp-mask-toggle-host{ margin-top:0; margin-right:0; margin-bottom:0; margin-left:4px; }
 .cmp-mask-toggle{ color:var(--app-color-text-secondary); }
@@ -403,12 +331,6 @@ export const COMPOSER_CSS = `
   flex:1 1 auto;
   min-width:0;
   max-width:100%;
-}
-.cmp-capture{
-  margin-top:0;
-  margin-right:0;
-  margin-bottom:0;
-  margin-left:0;
 }
 .cmp-select-output-size{ flex:0 1 auto; min-width:64px; margin:0 4px 0 0; }
 .cmp-select-menu{
@@ -555,35 +477,6 @@ export const COMPOSER_CSS = `
   min-width:0;
   align-items:stretch;
 }
-.cmp-readiness{
-  min-height:17px;
-  margin-top:0;
-  margin-right:0;
-  margin-bottom:0;
-  margin-left:0;
-  color:var(--app-color-text-muted);
-  font-size:11px;
-  line-height:15px;
-  overflow-wrap:anywhere;
-}
-.cmp-readiness[data-state="ready"]{ color:var(--app-color-positive); }
-.cmp-meta-row{
-  display:flex;
-  align-items:center;
-  min-width:0;
-  min-height:17px;
-  margin-top:0;
-}
-.cmp-meta-row > .motion-content{ flex:1 1 auto; min-width:0; text-align:right; }
-.cmp-footer{
-  flex:0 0 auto;
-  padding:8px 8px 10px;
-  background:var(--app-color-background-elevated);
-  border-radius:0 0 var(--app-radius-large) var(--app-radius-large);
-}
-.cmp-footer .cmp-readiness{
-  opacity:.68;
-}
 .cmp-conflict{
   margin-top:6px;
   margin-right:0;
@@ -628,7 +521,8 @@ export const COMPOSER_CSS = `
 /* + attach button */
 .cmp-add{
   display:inline-flex; align-items:center; justify-content:center;
-  margin-top:0; margin-right:0; margin-bottom:0; margin-left:0; color:var(--app-color-text-secondary); flex-shrink:0;
+  width:28px; min-width:28px; height:28px; min-height:28px;
+  margin:0; padding:0; color:var(--app-color-text-secondary); flex-shrink:0;
 }
 
 /* Model chip (native dropdown trigger) */
@@ -950,7 +844,6 @@ export const COMPOSER_CSS = `
 .cmp-select-output-size .cmp-chip-host[data-open="true"] .cmp-chip-arrow-proxy-icon{
   color:var(--app-color-accent-default);
 }
-.cmp-capture,
 .cmp-mask-toggle{
   width:30px;
   height:30px;
@@ -965,33 +858,12 @@ export const COMPOSER_CSS = `
   background:transparent;
   flex:0 0 auto;
 }
-.cmp-capture-icon{
-  display:block;
-  flex:0 0 auto;
-}
-.cmp-capture-host{
-  margin-top:0;
-  margin-right:8px;
-  margin-bottom:0;
-  margin-left:0;
-}
+.cmp-mask-toggle-host{ margin:0; }
 .cmp-opt-icon{
   display:block;
   flex:0 0 auto;
 }
 /* 发送操作由 Spectrum command button 绘制；此处只保留布局。 */
 .send-wrap{ display:flex; align-items:stretch; flex-shrink:0; }
-.cmp-send{
-  width:32px; height:32px; margin-top:0; margin-right:0; margin-bottom:0; margin-left:0;
-}
-.cmp-send-host{
-  width:32px;
-  height:32px;
-}
-.cmp-send-overlay{
-  align-items:center;
-  justify-content:center;
-  padding:0;
-}
 .cmp-bottom{ min-width:0; }
 `;

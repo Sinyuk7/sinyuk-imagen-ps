@@ -59,6 +59,8 @@ export interface ProviderAccount {
   readonly providerId: FixedProviderId;
   readonly displayName: string;
   readonly secretRef?: string;
+  /** GRSAI 平台开放接口余额查询使用的可选 Token 引用。 */
+  readonly billingTokenSecretRef?: string;
   /** 可选账号地址；未设置时使用 catalog 地址。 */
   readonly baseUrl?: string;
   readonly updatedAt: string;

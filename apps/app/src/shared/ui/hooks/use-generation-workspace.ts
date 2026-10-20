@@ -129,7 +129,7 @@ export function useGenerationWorkspace(options: GenerationWorkspaceOptions): Gen
   }
   const maskCoordinator = maskCoordinatorRef.current;
   const { input, attachments, operation } = composerDraft;
-  const promptTemplate = options.promptSettings.templates.find((item) => item.id === options.promptSettings.selectedTemplateId) ?? options.promptSettings.templates[0]!;
+  const promptTemplate = options.promptSettings.templates.find((item) => item.id === options.promptSettings.selectedTemplateId) ?? null;
   const assembledPrompt = assemblePromptTemplate(promptTemplate, input);
   const readinessPrompt = promptTemplateNeedsInput(promptTemplate) ? input : assembledPrompt.userPrompt;
   const selectedModel = options.models.find((model) => model.id === options.selectedModelId);

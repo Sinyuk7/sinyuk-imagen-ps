@@ -150,6 +150,23 @@ export const NATIVE_CONTROLS_CSS = `
   align-items:center;
   justify-content:center;
 }
+.ui-action-button[data-has-tooltip="true"]{ position:relative; overflow:visible; }
+.ui-action-button[data-has-tooltip="true"] > sp-tooltip{
+  position:absolute;
+  right:0;
+  bottom:calc(100% + 6px);
+  z-index:500;
+  display:none;
+  box-sizing:border-box;
+  width:max-content;
+  max-width:240px;
+  white-space:pre-line;
+  text-align:left;
+  pointer-events:none;
+}
+.ui-action-button[data-has-tooltip="true"] > sp-tooltip > .ui-tooltip-line{ display:block; white-space:nowrap; }
+.ui-action-button[data-has-tooltip="true"]:hover > sp-tooltip,
+.ui-action-button[data-has-tooltip="true"]:focus-within > sp-tooltip{ display:block; }
 .ui-icon-button-host{
   color:inherit;
 }

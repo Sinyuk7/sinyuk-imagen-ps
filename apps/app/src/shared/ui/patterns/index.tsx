@@ -44,7 +44,7 @@ export function SettingsFormSection({ title, testId, children }: { readonly titl
   return <section className="section ui-settings-form-section" data-testid={testId}>{title ? <h2>{title}</h2> : null}{children}</section>;
 }
 export function FieldGroup({ label, htmlFor, help, children }: { readonly label: string; readonly htmlFor?: string; readonly help?: ReactNode; readonly children: ReactNode }) {
-  return <div className="ui-field-group"><label className="ui-field-group-label" htmlFor={htmlFor}>{label}</label>{children}{help ? <span className="ui-field-group-help">{help}</span> : null}</div>;
+  return <div className="ui-field-group"><label className="ui-field-label" htmlFor={htmlFor}><span>{label}</span></label>{children}{help ? <span className="ui-field-group-help">{help}</span> : null}</div>;
 }
 export function PageState({ tone, message, action, className, variant = 'default' }: { readonly tone: StatusTone; readonly message: string; readonly action?: ReactNode; readonly className?: string; readonly variant?: 'default' | 'empty' }) {
   const classes = ['ui-page-state', variant === 'empty' ? 'ui-page-state-empty' : undefined, className].filter(Boolean).join(' ');

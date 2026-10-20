@@ -31,8 +31,8 @@ function ProviderRoot({
       <div className="settings-detail-layout">
         <SettingsListSection title="Providers">
           <List aria-label={t.settings.configuredProviders}>
-            <SettingsListRow testId="provider-grsai-row" title="GRSAI" leading={<div className="prov-ico">GR</div>} meta={<span className="prov-summary">GPT image relay</span>} onOpen={() => onOpenAccounts('grsai')} />
-            <SettingsListRow testId="provider-runninghub-row" title="RunningHub" leading={<div className="prov-ico">RH</div>} meta={<span className="prov-summary">Workflow image provider</span>} onOpen={() => onOpenAccounts('runninghub')} />
+            <SettingsListRow testId="provider-grsai-row" title="GRSAI" leading={<div className="prov-ico"><img className="provider-brand-icon provider-brand-icon-grsai" src="/assets/providers/grsai-favicon.png" alt="" /></div>} meta={<span className="prov-summary">GPT image relay</span>} onOpen={() => onOpenAccounts('grsai')} />
+            <SettingsListRow testId="provider-runninghub-row" title="RunningHub" leading={<div className="prov-ico"><img className="provider-brand-icon provider-brand-icon-runninghub" src="/assets/providers/runninghub-favicon.png" alt="" /></div>} meta={<span className="prov-summary">Workflow image provider</span>} onOpen={() => onOpenAccounts('runninghub')} />
           </List>
         </SettingsListSection>
       </div>

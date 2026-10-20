@@ -98,3 +98,23 @@ GRSAI Profile 设置页 SHALL 在现有 API Key 输入旁提供 Token SecretFiel
 
 - **WHEN** 用户保存 Token 或 API Key
 - **THEN** repository 只保存 secret refs，Provider config 与设置页回显不得包含 secret 明文
+
+### Requirement: Provider task-usage history and feedback
+
+系统 SHALL 将 Provider 提供的任务消耗归一化为 bounded structured metrics，并持久化到终态 Task。UI SHALL 在任务本次从非终态变为 completed 时本地化这些 metrics，并通过单一可替换 toast 展示最新一条消耗反馈；历史 Task 初次加载不得重新弹 toast。缺少消耗数据时不得显示占位或错误 toast。
+
+GRSAI SHALL 使用同一账号的余额快照差值作为“观察到的余额变化”，不得称为精确任务费用。仅当前后查询成功、刷新串行且无并发生成歧义时才记录该 metric；首次任务或不可靠比较只更新余额快照，不生成差值。
+
+后台余额刷新失败 MUST 静默处理，且 MUST NOT 改变 Job/Task 终态。
+
+#### Scenario: RunningHub 返回任务 usage
+- **WHEN** 成功的 RunningHub task query 包含有效 `usage.consumeCoins` 或费用字段
+- **THEN** Provider 将受支持字段归一化并写入 Task usage，UI 展示本地化的最新消耗 toast
+
+#### Scenario: GRSAI 首次任务建立余额基线
+- **WHEN** GRSAI 任务结束前没有同一账号可比较的成功余额快照
+- **THEN** 系统刷新并保存快照，但不显示任务消耗差值
+
+#### Scenario: 并发或失败的 GRSAI 刷新
+- **WHEN** 同一账号存在并发任务歧义或余额刷新失败
+- **THEN** 不记录差值、不显示错误 toast，任务终态保持不变

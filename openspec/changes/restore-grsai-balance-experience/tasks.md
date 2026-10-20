@@ -36,3 +36,12 @@
 - [x] 5.2 验证 HTTP 401/403/429、非零 `code`、stale 保留、cooldown、取消请求和 Profile 删除/编辑竞态。
 - [x] 5.3 运行 `pnpm release:verify`，确认 Chrome harness 与 Photoshop UXP 共享逻辑通过构建和测试；不自动执行真实 Photoshop/UXP UI 验收。
 - [x] 5.4 复核 OpenSpec requirements 与反向测试均已更新，确认本变更未修改其他 Provider 的 billing 行为。
+
+## 6. Provider task-usage feedback
+
+- [x] 6.1 Add a bounded structured task-usage contract shared by Provider results, Task history, and UI formatting.
+- [x] 6.2 Implement GRSAI before/after balance comparison; suppress attribution when tasks overlap and persist only reliable observed deltas to the terminal Task.
+- [x] 6.3 Normalize RunningHub successful-task `usage.consumeCoins`, `consumeMoney`, and `thirdPartyConsumeMoney` into structured metrics; ignore unsupported and invalid values.
+- [x] 6.4 Persist provider metrics on the terminal Task and show a localized toast only when a task newly completes; reuse one toast key so the latest feedback replaces prior feedback.
+- [x] 6.5 Keep background balance reads silent and verify they do not affect terminal generation results.
+- [x] 6.6 Add deterministic lifecycle coverage for GRSAI baseline, concurrency suppression, transient poll retry, and balance-read failures.

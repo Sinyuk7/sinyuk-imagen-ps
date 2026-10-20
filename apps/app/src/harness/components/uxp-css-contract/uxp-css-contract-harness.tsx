@@ -1520,17 +1520,16 @@ function ComposerConversationBoard({
             </div>
             <div className="cmp-action-right">
               <IconButton
-                className="cmp-capture"
-                hostClassName="cmp-capture-host"
-                icon={<Icon name="capture-selection" size={13} className="cmp-capture-icon" />}
-                tooltip="Capture from Photoshop"
-                aria-label="Capture from Photoshop"
+                className="cmp-add"
+                icon={<Icon name="add" size={13} />}
+                tooltip="Add image"
+                aria-label="Add image"
                 placement="top"
                 iconSize={13}
               />
               <div className="send-wrap">
-                <Button className="img-act prim" variant="accent">
-                  Send
+                <Button className="cmp-run" variant="accent">
+                  Run
                 </Button>
               </div>
             </div>

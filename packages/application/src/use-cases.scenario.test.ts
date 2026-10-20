@@ -68,6 +68,16 @@ afterEach(() => {
 });
 
 describe('Task v3 current-state contract', () => {
+  it('persists bounded structured provider task usage and rejects non-finite values', () => {
+    const record = runningTask({
+      status: 'completed',
+      finishedAt: CREATED_AT,
+      taskUsage: { metrics: [{ id: 'runninghub-coins', value: '12', unit: 'coins' }] },
+    });
+    expect(decodeTaskRecord(record)).toEqual({ ok: true, value: record });
+    expect(decodeTaskRecord({ ...record, taskUsage: { metrics: [{ id: 'runninghub-coins', value: 'Infinity', unit: 'coins' }] } })).toMatchObject({ ok: false, reason: 'malformed' });
+  });
+
   it('decodes bounded backend-neutral records', () => {
     const record = runningTask({ latestJobId: 'job-latest' });
 

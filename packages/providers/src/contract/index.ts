@@ -82,6 +82,7 @@ export type {
   ProviderExecutionAttempt,
   ProviderExecutionInfo,
   ProviderInvokeMetadata,
+  ProviderTaskUsage,
   ProviderInvokeResult,
   ProviderInvokeUsage,
 } from './result.js';

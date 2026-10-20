@@ -1,6 +1,6 @@
 import type { PromptSettings, PromptTemplate } from '../../ports/prompt-settings';
 import type { PromptSettingsState } from '../hooks/use-prompt-settings';
-import { Button, Icon, IconButton, List, ListItemShell, PageFrame, PageHeader, PageScroll, SettingsFormSection, useToast } from '../ui-system';
+import { Icon, IconButton, List, ListItemShell, PageFrame, PageHeader, PageScroll, SettingsFormSection } from '../ui-system';
 import { useI18n } from '../i18n/i18n-context';
 
 interface Props {
@@ -15,13 +15,9 @@ interface Props {
 
 export function PromptSettingsPage({ settings, loading, error, onDeleteTemplate, onOpenTemplate, onNav }: Props) {
   const { messages: t } = useI18n();
-  const { show } = useToast();
-  const remove = async (id: string) => {
-    if (settings.templates.length <= 1) { show(t.settings.lastPromptTemplate, 'info'); return; }
-    await onDeleteTemplate(id);
-  };
+  const remove = async (id: string) => onDeleteTemplate(id);
   return <PageFrame watch="prompt-settings"><div className="page page-enter settings-page">
-    <PageHeader title={t.settings.promptTemplates} back={<IconButton className="hdr-btn" quiet icon={<Icon name="chevron-left" />} tooltip={t.common.back} onClick={() => onNav('settings')} />} />
+    <PageHeader title={t.settings.promptTemplates} back={<IconButton className="hdr-btn" quiet icon={<Icon name="chevron-left" />} tooltip={t.common.back} onClick={() => onNav('settings')} />} right={<IconButton data-testid="prompt-template-add" aria-label={t.settings.addPromptTemplate} disabled={loading || Boolean(error)} className="ui-page-header-action" icon={<Icon name="add" size={16} />} tooltip={t.settings.addPromptTemplate} onClick={() => onOpenTemplate(null)} />} />
     <PageScroll><div className="settings-detail-layout">
       <SettingsFormSection title={t.settings.promptTemplates}>
         <div role="listbox" aria-label={t.settings.promptTemplates}>
@@ -34,7 +30,6 @@ export function PromptSettingsPage({ settings, loading, error, onDeleteTemplate,
             </>} />) : null}
           </List>
         </div>
-        <Button className="btn-save" onClick={() => onOpenTemplate(null)}>{t.settings.addPromptTemplate}</Button>
       </SettingsFormSection>
     </div></PageScroll>
   </div></PageFrame>;

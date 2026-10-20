@@ -87,18 +87,60 @@ function requestBody(request: CanonicalImageJobRequest) {
   };
 }
 
+async function readBalanceValue(config: GrsaiProviderConfig, signal?: AbortSignal): Promise<number | undefined> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5_000);
+  const relayAbort = () => controller.abort();
+  if (signal?.aborted) controller.abort();
+  else signal?.addEventListener('abort', relayAbort, { once: true });
+  try {
+    const endpoint = getPrimaryProviderEndpoint(config.connection);
+    const billing = config.billing;
+    const result = billing?.source === 'billing-token'
+      ? await executeBillingProtocolChain({ endpointUrl: endpoint.url, billing: { source: 'billing-token', path: '/client/openapi/getCredits', tokenSecretRef: billing.tokenSecretRef }, protocolIds: ['credits-token-json-v1'], signal: controller.signal })
+      : await executeBillingProtocolChain({ endpointUrl: endpoint.url, billing: { source: 'profile-api-key', path: '/client/openapi/getAPIKeyCredits' }, protocolIds: ['credits-api-key-json-v1'], apiKey: config.apiKey, signal: controller.signal });
+    const value = Number(result.snapshot.primary.remaining);
+    return Number.isFinite(value) ? value : undefined;
+  } catch {
+    return undefined;
+  } finally {
+    clearTimeout(timeout);
+    signal?.removeEventListener('abort', relayAbort);
+  }
+}
+
 export function createGrsaiProvider(): Provider<GrsaiProviderConfig, CanonicalImageJobRequest> {
   const configsByRemoteRef = new Map<string, GrsaiProviderConfig>();
+  const balanceBeforeByRemoteRef = new Map<string, number | undefined>();
+  const ambiguousRemoteRefs = new Set<string>();
+  const activeRemoteRefs = new Set<string>();
+  let pendingSubmissions = 0;
   const asyncLifecycle: ProviderAsyncLifecycle<GrsaiProviderConfig, CanonicalImageJobRequest> = {
     async submit(args) {
-      const endpoint = getPrimaryProviderEndpoint(args.config.connection);
-      const response = await httpRequest({
-        url: assembleApiUrl(endpoint.url, args.config.paths.submit), method: 'POST', timeoutMs: args.config.timeoutMs,
-        headers: { Authorization: `Bearer ${args.config.apiKey}`, 'Content-Type': 'application/json', ...args.config.extraHeaders }, body: requestBody(args.request),
-      }, NO_RETRY, args.signal, args.logger);
-      const remoteRef = taskId(response.response.data);
-      configsByRemoteRef.set(remoteRef, args.config);
-      return { status: 'pending', remoteRef };
+      const wasConcurrent = activeRemoteRefs.size > 0 || pendingSubmissions > 0;
+      if (wasConcurrent) activeRemoteRefs.forEach((remoteRef) => ambiguousRemoteRefs.add(remoteRef));
+      pendingSubmissions += 1;
+      const balanceBefore = await readBalanceValue(args.config, args.signal);
+      try {
+        const endpoint = getPrimaryProviderEndpoint(args.config.connection);
+        const response = await httpRequest({
+          url: assembleApiUrl(endpoint.url, args.config.paths.submit), method: 'POST', timeoutMs: args.config.timeoutMs,
+          headers: { Authorization: `Bearer ${args.config.apiKey}`, 'Content-Type': 'application/json', ...args.config.extraHeaders }, body: requestBody(args.request),
+        }, NO_RETRY, args.signal, args.logger);
+        const remoteRef = taskId(response.response.data);
+        pendingSubmissions -= 1;
+        if (wasConcurrent || activeRemoteRefs.size > 0 || pendingSubmissions > 0) {
+          ambiguousRemoteRefs.add(remoteRef);
+          activeRemoteRefs.forEach((activeRef) => ambiguousRemoteRefs.add(activeRef));
+        }
+        activeRemoteRefs.add(remoteRef);
+        balanceBeforeByRemoteRef.set(remoteRef, balanceBefore);
+        configsByRemoteRef.set(remoteRef, args.config);
+        return { status: 'pending', remoteRef };
+      } catch (error) {
+        pendingSubmissions -= 1;
+        throw error;
+      }
     },
     async poll(args) {
       const config = configsByRemoteRef.get(args.remoteRef);
@@ -106,19 +148,36 @@ export function createGrsaiProvider(): Provider<GrsaiProviderConfig, CanonicalIm
       const endpoint = getPrimaryProviderEndpoint(config.connection);
       const url = new URL(assembleApiUrl(endpoint.url, config.paths.result));
       url.searchParams.set('id', args.remoteRef);
+      // poll 请求失败时让执行管理器决定是否重试，并保留本地任务上下文。
       const response = await httpRequest({ url: url.toString(), method: 'GET', timeoutMs: config.timeoutMs, headers: { Authorization: `Bearer ${config.apiKey}`, ...config.extraHeaders } }, NO_RETRY, args.signal, args.logger);
       const record = typeof response.response.data === 'object' && response.response.data !== null ? response.response.data as { status?: unknown } : {};
       if (record.status === 'running') return { status: 'pending' };
       if (record.status === 'violation' || record.status === 'failed') {
         configsByRemoteRef.delete(args.remoteRef);
+        activeRemoteRefs.delete(args.remoteRef);
+        balanceBeforeByRemoteRef.delete(args.remoteRef);
+        ambiguousRemoteRefs.delete(args.remoteRef);
         return { status: 'failed', error: new Error(`GRSAI task ${record.status}.`) };
       }
       if (record.status === 'succeeded') {
         const assets = safeResultAssets(response.response.data);
         configsByRemoteRef.delete(args.remoteRef);
-        return assets.length ? { status: 'completed', result: { assets }, remoteStatus: 'succeeded', remoteOutputs: assets.map((asset, index) => ({ index, url: asset.url! })) } : { status: 'failed', error: new Error('GRSAI succeeded response has no safe result URL.') };
+        const balanceAfter = await readBalanceValue(config, args.signal);
+        const balanceBefore = balanceBeforeByRemoteRef.get(args.remoteRef);
+        const canCompare = !ambiguousRemoteRefs.has(args.remoteRef) && balanceBefore !== undefined && balanceAfter !== undefined;
+        activeRemoteRefs.delete(args.remoteRef);
+        balanceBeforeByRemoteRef.delete(args.remoteRef);
+        ambiguousRemoteRefs.delete(args.remoteRef);
+        const decrease = canCompare ? balanceBefore - balanceAfter! : 0;
+        const taskUsage = decrease > 0
+          ? { metrics: [{ id: 'grsai-balance-change' as const, value: `-${Number(decrease.toFixed(8))}`, unit: 'credits' as const }] }
+          : undefined;
+        return assets.length ? { status: 'completed', result: { assets, ...(taskUsage ? { taskUsage } : {}) }, remoteStatus: 'succeeded', remoteOutputs: assets.map((asset, index) => ({ index, url: asset.url! })) } : { status: 'failed', error: new Error('GRSAI succeeded response has no safe result URL.') };
       }
       configsByRemoteRef.delete(args.remoteRef);
+      activeRemoteRefs.delete(args.remoteRef);
+      balanceBeforeByRemoteRef.delete(args.remoteRef);
+      ambiguousRemoteRefs.delete(args.remoteRef);
       return { status: 'failed', error: new Error('GRSAI result response has unknown status.') };
     },
   };
